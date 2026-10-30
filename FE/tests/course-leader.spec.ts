@@ -133,11 +133,41 @@ test("adjustment request reaches the lecturer and returns to M1 until re-reviewe
   await expect(page.locator(".leader-material-content")).toContainText(
     "PATCH /books/1",
   );
+  await page
+    .getByLabel("Yêu cầu điều chỉnh", { exact: true })
+    .fill("Bổ sung mã lỗi 404 cho sách không tồn tại.");
+  await page
+    .getByRole("button", { name: "Gửi yêu cầu cho GV", exact: true })
+    .click();
+  await expect(page.getByLabel("Mức xử lý", { exact: true })).toHaveValue("2");
+  await expect(
+    page.getByText("Đã đóng yêu cầu", { exact: true }),
+  ).toBeVisible();
+  await logout(page);
+  await loginAs(page, "giang-vien");
+  await page.goto("/giang-vien/bai-hoc");
+  const followup = page
+    .locator(".leader-teacher-request")
+    .filter({ hasText: "Bổ sung mã lỗi 404 cho sách không tồn tại." });
+  await followup.getByRole("button", { name: "Chỉnh sửa và phản hồi" }).click();
+  await followup
+    .getByLabel("Nội dung học liệu sau chỉnh sửa")
+    .fill("PATCH /books/1 cập nhật tiêu đề. Trả 404 khi không tìm thấy sách.");
+  await followup
+    .getByLabel("Phản hồi điều chỉnh")
+    .fill("Đã bổ sung ví dụ và mã lỗi 404.");
+  await followup
+    .getByRole("button", { name: "Gửi phản hồi", exact: true })
+    .click();
+  await logout(page);
+  await login(page);
+  await page.goto("/truong-nhom-hp/chuan-hoa/CSE301.01/hoc-lieu/api-slides");
+  await expect(page.getByLabel("Mức xử lý", { exact: true })).toHaveValue("1");
   await page.getByLabel("Mức xử lý", { exact: true }).selectOption("3");
   await page.getByRole("button", { name: "Lưu mức xử lý" }).click();
-  await expect(
-    page.getByText("Đã hoàn tất rà soát", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Đã đóng yêu cầu", { exact: true })).toHaveCount(
+    2,
+  );
   await page.reload();
   await expect(page.getByLabel("Mức xử lý", { exact: true })).toHaveValue("3");
 });

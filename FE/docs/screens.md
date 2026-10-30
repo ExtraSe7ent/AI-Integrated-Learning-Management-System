@@ -1,13 +1,13 @@
 # Màn hình và luồng
 
-Router: `src/App.tsx`. URL gốc `/` và các URL gốc theo vai trò chuyển tới tổng quan. Mỗi hàng dưới là một trang nội dung; popup, tab và trạng thái không có route riêng. `cs301`, `s1`, `a1` là định danh demo.
+Router: `src/App.tsx`. URL gốc `/` mở đăng nhập; URL gốc theo vai trò chuyển tới trang mặc định (Admin là Tài khoản). Mỗi hàng dưới là một trang nội dung; popup, tab và trạng thái không có route riêng. `cs301`, `s1`, `a1` là định danh demo.
 
 ## Tài khoản dùng chung
 
 | Route | Màn hình | Hành vi chính |
 | --- | --- | --- |
 | `/dang-nhap` | Đăng nhập | Nhập mã/mật khẩu fixture; vai trò được gán theo tài khoản, không có bộ chọn role; quên mật khẩu liên hệ Admin. |
-| `/doi-mat-khau` | Đổi mật khẩu lần đầu | Kiểm tra hai mật khẩu khớp và độ dài; không đổi tài khoản thật. |
+| `/doi-mat-khau` | Đổi mật khẩu lần đầu | Kiểm tra hiện tại/mới/xác nhận và lưu hash demo; tài khoản import/reset bị buộc đổi trước workspace. |
 
 ## Sinh viên — `src/Sinhvien`
 
@@ -17,16 +17,16 @@ Router: `src/App.tsx`. URL gốc `/` và các URL gốc theo vai trò chuyển t
 | `/sinh-vien/khoa-hoc` | Khóa học | Tìm/lọc và mở học phần. |
 | `/sinh-vien/khoa-hoc/cs301` | Chi tiết khóa học | Ngữ cảnh lớp, nội dung theo tuần, liên kết tự học/bài tập. |
 | `/sinh-vien/tu-hoc` | Phiên tự học | Danh sách, trạng thái, thời hạn và tiếp tục phiên. |
-| `/sinh-vien/hoc/cs301?phien=s1` | Học bài | Bốn trang mẫu, quiz bắt buộc, ghi tiến độ, chat mẫu, kiến thức mờ, ghi chú. |
+| `/sinh-vien/hoc/cs301?phien=s1` | Học bài | Slide HTML mẫu với tổng trang/tiêu đề theo metadata, quiz bắt buộc, ghi tiến độ, chat mẫu, kiến thức mờ, ghi chú. |
 | `/sinh-vien/bai-tap` | Bài tập tính điểm | Lọc, bắt đầu, mở kết quả theo bài. |
 | `/sinh-vien/lam-bai?bai=a1` | Làm bài | Draft theo bài, timer, ba loại câu hỏi và tự nộp; phải bắt đầu từ danh sách. |
 | `/sinh-vien/ket-qua?bai=a1` | Kết quả | Điểm tạm/đã duyệt, đáp án, nhận xét và yêu cầu phúc khảo. |
-| `/sinh-vien/luyen-tap` | Luyện tập | Bộ mẫu không tính điểm, xem đáp án và làm lại. |
+| `/sinh-vien/luyen-tap` | Luyện tập | Chọn phạm vi, đổi bộ ngân hàng mẫu, kiểm từng câu/giải thích/nguồn và tổng kết; không tính điểm. |
 | `/sinh-vien/tren-lop` | Lớp trực tiếp | Nhập mã, trả lời, đếm ngược và xem kết quả cục bộ. |
-| `/sinh-vien/diem-so` | Kết quả học tập | Điểm tự học/bài tập, các dòng minh họa và xuất XLSX. |
-| `/sinh-vien/tro-ly-ai` | Trợ lý học tập | Chat dùng câu trả lời cố định, lịch sử và nguồn minh họa. |
+| `/sinh-vien/diem-so` | Kết quả học tập | Điểm từ summary các phiên/bài đã công bố, roster minh họa và xuất XLSX. |
+| `/sinh-vien/tro-ly-ai` | Trợ lý học tập | Chat theo luật với nguồn/fallback, disclaimer, lịch sử và rating/report lưu cục bộ. |
 | `/sinh-vien/tai-lieu` | Tài liệu tham khảo | Tìm tài liệu, mở liên kết và tải PDF mẫu. |
-| `/sinh-vien/phan-hoi` | Phản hồi và hỗ trợ | Gửi vấn đề, kiểm tra tệp ảnh, xem lịch sử/trả lời. |
+| `/sinh-vien/phan-hoi` | Phản hồi và hỗ trợ | Chọn bài học, gửi vấn đề, kiểm tra/lưu ảnh raster bằng IndexedDB, xem lịch sử/trả lời. |
 | `/sinh-vien/ho-so` | Hồ sơ | Chỉnh thông tin SV cục bộ và mở luồng đổi mật khẩu. |
 | `/sinh-vien/thong-bao` | Thông báo | Chuyển về Tổng quan và mở popup từ chuông; không có trang riêng. |
 
@@ -38,18 +38,18 @@ Router: `src/App.tsx`. URL gốc `/` và các URL gốc theo vai trò chuyển t
 | `/giang-vien/lop-hoc` | Lớp học | Danh sách/tìm học phần mẫu. |
 | `/giang-vien/lop-hoc/cs301` | Chi tiết lớp | Nội dung lớp và liên kết nghiệp vụ. |
 | `/giang-vien/bai-hoc` | Bài học và học liệu | Tạo/đổi tên/đổi thứ tự; bảo vệ xóa khi có hoạt động SV. Panel Yêu cầu từ Trưởng nhóm HP cho GV sở hữu sửa nội dung điều phối và trả lời. |
-| `/giang-vien/soan-bai` | Soạn bài | Tên bài, công bố, PDF xem trước, trang mẫu, video URL và câu hỏi. |
+| `/giang-vien/soan-bai` | Soạn bài | Tên bài, công bố, PDF xem trước, lưu metadata trang theo bài, video URL và câu hỏi. |
 | `/giang-vien/phien-tu-hoc` | Quản lý phiên | Tạo, cài đặt, công bố/ẩn, gia hạn và mở báo cáo. |
 | `/giang-vien/ngan-hang-cau-hoi` | Ngân hàng câu hỏi | CRUD theo trang, gợi ý mẫu cần duyệt, nhập XLSX/CSV và xuất XLSX. |
 | `/giang-vien/bai-tap` | Bài tập và kiểm tra | Danh sách, công bố/ẩn, mở chấm bài theo id. |
 | `/giang-vien/tao-bai-tap` | Tạo bài tập | Tiêu đề, thời gian, lượt, chặn paste và cấu trúc ba câu mẫu. |
-| `/giang-vien/cham-bai?bai=a1` | Chấm bài | Duyệt điểm tự luận và nhận xét, công bố cho SV trong demo. |
+| `/giang-vien/cham-bai?bai=a1` | Chấm bài | Một đề xuất nháp theo tiêu chí, điểm cuối/nhận xét do GV duyệt; giữ điểm câu đã phúc khảo. |
 | `/giang-vien/tren-lop` | Hỏi trên lớp | Mở phiên, mã/QR, fullscreen, đổi câu, hiện đáp án và thêm trả lời mẫu. |
 | `/giang-vien/tien-do` | Theo dõi học tập | Bảng tiến độ, lọc cần hỗ trợ, nhắc cục bộ, đếm tương tác, xuất báo cáo. |
 | `/giang-vien/diem-so` | Bảng điểm | Chọn lớp, tìm/sắp xếp sinh viên; xuất XLSX theo lớp và bộ lọc hiện tại. |
 | `/giang-vien/phan-hoi` | Phản hồi và giải đáp | Trả lời phản hồi, đánh dấu xử lý, giải đáp kiến thức mờ từng mục. |
-| `/giang-vien/phuc-khao` | Yêu cầu phúc khảo | Giữ nguyên/chấm lại tổng điểm và gửi thông báo cục bộ. |
-| `/giang-vien/tro-ly-ai` | Trợ lý AI | Giao diện giảng dạy riêng, mở đúng học liệu giảng viên; phản hồi AI cố định. |
+| `/giang-vien/phuc-khao` | Yêu cầu phúc khảo | Snapshot theo câu; giữ nguyên/chấm lại điểm câu, tính lại tổng và gửi thông báo cục bộ. |
+| `/giang-vien/tro-ly-ai` | Trợ lý AI | Giao diện giảng dạy riêng, mở đúng học liệu giảng viên; phản hồi theo luật và nguồn mẫu, chưa kết nối model thật. |
 | `/giang-vien/tai-lieu` | Quản lý tài liệu | Thêm URL, tìm, mở hoặc xóa; chưa upload tệp mới. |
 | `/giang-vien/ho-so` | Hồ sơ | Chỉnh tên/email/điện thoại cục bộ; lưu riêng hồ sơ GV và SV. |
 | `/giang-vien/thong-bao` | Thông báo | Chuyển về Tổng quan, mở popup; trạng thái đã đọc riêng theo vai trò. |
@@ -91,6 +91,27 @@ Tài khoản `TN001` / `12345678`, role `truong-nhom-hp`. Không chọn role th�
 
 M2 được tạo qua yêu cầu có nội dung. GV001 nhận yêu cầu của lớp mình ở `/giang-vien/bai-hoc`, sửa cùng bản ghi điều phối và trả lời → M1; TN001 rà soát M3 để đóng. Hoàn thành lớp yêu cầu đủ cả ba loại, mọi học liệu M3 và không có yêu cầu mở; thay đổi học liệu/trạng thái làm mất dấu hoàn thành. Học liệu và tham chiếu của workspace này chưa hợp nhất vào các kho học bài/điểm cũ; xem [giới hạn](limitations.md#trưởng-nhóm-hp-và-điều-phối-học-liệu).
 
+## Admin — `src/Admin`
+
+Tài khoản `AD001` / `12345678`, role `admin`; không có chọn role trong đăng nhập. Registry local điều khiển active/role/mustChange.
+
+| Route | Màn hình | Hành vi chính |
+| --- | --- | --- |
+| `/admin/tai-khoan` | Tài khoản | Tìm/lọc vai trò/trạng thái, mở chi tiết hoặc import. |
+| `/admin/tai-khoan/import` | Import SV/GV | Mẫu XLSX, đọc tệp/preview mọi lỗi, chỉ nhập khi hợp lệ, khóa loại khi busy. |
+| `/admin/tai-khoan/:id` | Chi tiết tài khoản | Gán role hợp lệ cho GV, reset mặc định có dialog, vô hiệu hóa/kích hoạt lại. |
+| `/admin/hoc-phan` | Học phần & lớp | Tìm/lọc và mở danh mục registry. |
+| `/admin/hoc-phan/tao`, `/admin/hoc-phan/:courseId` | Tạo/sửa học phần | Mã/tên/khoa, kiểm trùng và lưu local. |
+| `/admin/lop/tao`, `/admin/lop/:classId` | Tạo/sửa lớp | Tên/kỳ/năm/đợt, chọn GV/Trưởng nhóm HP hợp lệ. |
+| `/admin/lop/:classId/import` | Import SV vào lớp | Kiểm active SV/trùng và kiểm lại registry trước ghi danh. |
+| `/admin/nhac-han` | Nhắc hạn | Quét thời điểm chọn, preview email chưa gửi, ghi notice/nhật ký chống trùng. |
+
+AD-07–AD-10 chưa đồng bộ đầy đủ các danh mục/phân công/ghi danh sang workspace cũ; xem [khoảng trống FE](limitations.md#admin-và-tích-hợp-giữa-vai-trò).
+
+## AI dùng chung — `src/AI`
+
+`Assistant`, `Practice`, `Insights`, `Reminders` và model luật hỗ trợ các route học tập hiện có. `/giang-vien/nhac-han` dùng cùng màn nhắc hạn; nhật ký là trạng thái trong màn, không route riêng. Trợ lý hiện rõ mô phỏng; nguồn mới/link nguồn lịch sử chỉ hiện khi metadata khớp. Chấm nháp/insights dựa dữ liệu demo; không model, email hay scheduler thật.
+
 ## Trạng thái và màn phụ
 
 Màn học có tab Câu hỏi/Chat AI/Ghi chú, form Hỏi trên lớp và popup danh sách kiến thức mờ. Các trang quản lý có dialog tạo/sửa, thông báo thao tác và empty state theo dữ liệu. URL lạ có màn không tìm thấy với liên kết về tổng quan.
@@ -101,4 +122,4 @@ Responsive: sidebar thành drawer dưới 800px; phần lớn nội dung thành 
 
 [File Figma](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8) chứa các màn native chỉnh sửa được. Các frame bàn giao là các trạng thái đại diện, không tương đương số route hoặc mọi nhánh tương tác. Hệ thống màu/chữ/khoảng cách và component được mô tả trong [DESIGN.md](../DESIGN.md), phần mở rộng ở `.impeccable/design.json`.
 
-Kiểm tra route/viewport, các luồng SV/GV, chín ca Trưởng khoa và mười ca Trưởng nhóm HP được mô tả tại [verification.md](verification.md). Các thiếu hụt được ghi theo từng mã SRS tại [requirements.md](requirements.md).
+Kết quả 35 unit/52 E2E và kiểm tra route/viewport được mô tả tại [verification.md](verification.md). Các thiếu hụt được ghi theo từng mã SRS tại [requirements.md](requirements.md).

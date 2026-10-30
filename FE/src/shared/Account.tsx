@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { ArrowRight, BookOpen, ShieldCheck, LockKeyhole } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
 import { PageHeader, Panel, Button, Field, Badge, Dialog } from "./UI";
@@ -44,10 +44,10 @@ export function DangNhap() {
           <h2>Chào mừng trở lại</h2>
           <p>Đăng nhập vào VJU Learning.</p>
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);
-              const account = signIn(
+              const account = await signIn(
                 String(f.get("username")),
                 String(f.get("password")),
               );
@@ -57,7 +57,7 @@ export function DangNhap() {
                 );
                 return;
               }
-              navigate(accountHome(account.role), { replace: true });
+              navigate(account.mustChange ? "/doi-mat-khau" : accountHome(account.role), { replace: true });
             }}
           >
             <Field label="Mã tài khoản">
@@ -117,9 +117,10 @@ export function DangNhap() {
   );
 }
 export function DoiMatKhau() {
-  const { account } = useAccount();
+  const { account, changePassword } = useAccount();
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  if (!account) return <Navigate to="/dang-nhap" replace />;
   return (
     <div className="password-page">
       <img src="/brand/vju-long.jpg" alt="VJU" />
@@ -128,19 +129,24 @@ export function DoiMatKhau() {
         <h1>Đặt mật khẩu mới</h1>
         <p>Đặt mật khẩu riêng để bảo vệ tài khoản của bạn.</p>
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
             if (f.get("password") !== f.get("confirm")) {
               setError("Hai mật khẩu chưa khớp. Vui lòng nhập lại.");
               return;
             }
-            navigate(account ? accountHome(account.role) : "/dang-nhap");
+            try {
+              await changePassword(String(f.get("current") || ""), String(f.get("password")));
+              navigate(accountHome(account.role));
+            } catch (error) {setError(error instanceof Error ? error.message : "Không thể đổi mật khẩu.");}
           }}
         >
+          {!account.mustChange && <Field label="Mật khẩu hiện tại"><input name="current" type="password" required autoComplete="current-password" /></Field>}
           <Field label="Mật khẩu mới" hint="Ít nhất 8 ký tự.">
             <input
               name="password"
+              aria-label="Mật khẩu mới"
               minLength={8}
               required
               type="password"
@@ -150,6 +156,7 @@ export function DoiMatKhau() {
           <Field label="Nhập lại mật khẩu">
             <input
               name="confirm"
+              aria-label="Nhập lại mật khẩu"
               minLength={8}
               required
               type="password"

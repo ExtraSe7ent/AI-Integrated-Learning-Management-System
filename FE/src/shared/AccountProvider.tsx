@@ -1,38 +1,71 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { accountById, authenticateAccount } from "../data/accounts";
-import type { Account } from "../data/accounts";
+import { useDemo } from "../data/DemoProvider";
+import { passwordDigest } from "../Admin/model";
+import type { ManagedUser } from "../Admin/model";
 const KEY = "vju-preview-account";
 const Context = createContext<{
-  account: Account | null;
-  signIn: (id: string, password: string) => Account | null;
+  account: ManagedUser | null;
+  signIn: (id: string, password: string) => Promise<ManagedUser | null>;
   signOut: () => void;
-}>({ account: null, signIn: () => null, signOut: () => {} });
-function savedAccount() {
-  try {
-    return accountById(sessionStorage.getItem(KEY) || "");
-  } catch {
-    return null;
-  }
-}
+  changePassword: (old: string, next: string) => Promise<void>;
+}>({
+  account: null,
+  signIn: async () => null,
+  signOut: () => {},
+  changePassword: async () => {},
+});
 export function AccountProvider({ children }: { children: ReactNode }) {
-  const [account, setAccount] = useState<Account | null>(savedAccount);
+  const { data, setData } = useDemo();
+  const [id, setId] = useState(() => {
+    try {
+      return sessionStorage.getItem(KEY) || "";
+    } catch {
+      return "";
+    }
+  });
+  const account = data.admin.users.find((u) => u.id === id && u.active) || null;
   useEffect(() => {
     try {
       if (account) sessionStorage.setItem(KEY, account.id);
       else sessionStorage.removeItem(KEY);
     } catch {
-      /* Private storage may be unavailable; the selection then lasts until reload. */
+      /* In-memory session if storage is unavailable. */
     }
   }, [account]);
-  const signIn = (id: string, password: string) => {
-    const result = authenticateAccount(id, password);
-    if (result) setAccount(result);
-    return result;
-  };
+  const matches = async (u: ManagedUser, password: string) =>
+    u.passwordHash
+      ? u.passwordHash === (await passwordDigest(password))
+      : password === "12345678";
+  async function signIn(code: string, password: string) {
+    const u = data.admin.users.find(
+      (u) => u.active && u.id.toLowerCase() === code.trim().toLowerCase(),
+    );
+    if (!u || !(await matches(u, password))) return null;
+    setId(u.id);
+    return u;
+  }
+  async function changePassword(old: string, next: string) {
+    if (!account) throw Error("Đăng nhập trước khi đổi mật khẩu.");
+    if (!account.mustChange && !(await matches(account, old)))
+      throw Error("Mật khẩu hiện tại không đúng.");
+    if (next.length < 8) throw Error("Mật khẩu mới cần ít nhất 8 ký tự.");
+    if (await matches(account, next))
+      throw Error("Chọn mật khẩu mới khác mật khẩu hiện tại.");
+    const passwordHash = await passwordDigest(next);
+    setData((d) => ({
+      ...d,
+      admin: {
+        ...d.admin,
+        users: d.admin.users.map((u) =>
+          u.id === account.id ? { ...u, passwordHash, mustChange: false } : u,
+        ),
+      },
+    }));
+  }
   return (
     <Context.Provider
-      value={{ account, signIn, signOut: () => setAccount(null) }}
+      value={{ account, signIn, signOut: () => setId(""), changePassword }}
     >
       {children}
     </Context.Provider>

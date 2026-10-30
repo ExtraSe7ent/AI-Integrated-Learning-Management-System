@@ -1,9 +1,9 @@
+import { learningSummary } from "../data/learningSummary";
 import { useState } from "react";
 import { Download, TrendingUp, CheckCircle2, ArrowUpDown } from "lucide-react";
 import { gradeClasses } from "../data/fixtures";
 import { studyFor, studyCompletion } from "../data/study";
 import { useDemo } from "../data/DemoProvider";
-import { assignmentAverage, selfStudyGrade } from "../data/rules";
 import {
   PageHeader,
   Panel,
@@ -51,17 +51,7 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
     [classCode, setClassCode] = useState(gradeClasses[0].code),
     [ascending, setAscending] = useState(true);
   const selectedClass = gradeClasses.find((c) => c.code === classCode)!;
-  const self = selfStudyGrade([
-    "on-time",
-    "on-time",
-    studyCompletion(studyFor(data, "s1"), data.sessions[0]),
-    "late",
-  ]);
-  const average = assignmentAverage([
-    8.5,
-    9,
-    ...(data.assessments.a1?.result ? [data.assessments.a1?.result.score] : []),
-  ]);
+  const { self, average, sessions, assignments } = learningSummary(data);
   const rows = selectedClass.students
     .filter((s) =>
       (s.name + s.code).toLowerCase().includes(query.toLowerCase()),
@@ -222,40 +212,35 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    ["Kiến trúc ứng dụng web", "Đúng hạn", "Có"],
-                    ["HTTP cơ bản", "Đúng hạn", "Có"],
-                    [
-                      "Thiết kế RESTful API",
-                      studyCompletion(
-                        studyFor(data, "s1"),
-                        data.sessions[0],
-                      ) === "on-time"
-                        ? "Đúng hạn"
-                        : studyFor(data, "s1").completedAt
-                          ? "Hoàn thành muộn"
-                          : "Chưa hoàn thành",
-                      studyCompletion(
-                        studyFor(data, "s1"),
-                        data.sessions[0],
-                      ) === "on-time"
-                        ? "Có"
-                        : "Không",
-                    ],
-                    ["Mô hình client–server", "Hoàn thành muộn", "Không"],
-                  ].map(([t, s, c]) => (
-                    <tr key={t}>
-                      <td>
-                        <strong>{t}</strong>
-                      </td>
-                      <td>
-                        <Badge tone={s === "Đúng hạn" ? "green" : "amber"}>
-                          {s}
-                        </Badge>
-                      </td>
-                      <td>{c}</td>
-                    </tr>
-                  ))}
+                  {sessions
+                    .map((session) => {
+                      const status = studyCompletion(
+                        studyFor(data, session.id),
+                        session,
+                      );
+                      return [
+                        session.title,
+                        status === "on-time"
+                          ? "Đúng hạn"
+                          : status === "late"
+                            ? "Hoàn thành muộn"
+                            : "Chưa hoàn thành",
+                        status === "on-time" ? "Có" : "Không",
+                      ];
+                    })
+                    .map(([t, s, c]) => (
+                      <tr key={t}>
+                        <td>
+                          <strong>{t}</strong>
+                        </td>
+                        <td>
+                          <Badge tone={s === "Đúng hạn" ? "green" : "amber"}>
+                            {s}
+                          </Badge>
+                        </td>
+                        <td>{c}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -275,28 +260,29 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Thiết kế mô hình ứng dụng</td>
-                    <td>8.5</td>
-                    <td>Phân tích rõ ràng.</td>
-                  </tr>
-                  <tr>
-                    <td>HTTP và cấu trúc tài nguyên</td>
-                    <td>9.0</td>
-                    <td>Vận dụng tốt kiến thức.</td>
-                  </tr>
-                  {data.assessments.a1?.result && (
-                    <tr>
-                      <td>Thiết kế API quản lý thư viện</td>
-                      <td>{data.assessments.a1?.result.score}</td>
-                      <td>
-                        {data.assessments.a1.result.approved
-                          ? data.assessments.a1.result.comment ||
-                            "Đã duyệt điểm."
-                          : "Điểm tạm tính; tự luận chờ duyệt."}
-                      </td>
+                  {data.gradeHistory.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.title}</td>
+                      <td>{r.score}</td>
+                      <td>{r.comment}</td>
                     </tr>
-                  )}
+                  ))}
+                  {assignments.map((a) => {
+                    const result = data.assessments[a.id]?.result;
+                    return (
+                      <tr key={a.id}>
+                        <td>{a.title}</td>
+                        <td>{result?.score ?? "Chưa nộp"}</td>
+                        <td>
+                          {result
+                            ? result.approved
+                              ? result.comment || "Đã duyệt điểm."
+                              : "Điểm tạm tính; tự luận chờ duyệt."
+                            : "Chưa có bài làm"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

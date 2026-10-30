@@ -1,3 +1,8 @@
+import {AIReminders} from "./AI/Reminders";
+import {AIPractice} from "./AI/Practice";
+import {AdminLayout} from "./Admin/Layout";
+import {AdminAccounts,AdminImportAccounts,AdminAccountDetail} from "./Admin/Accounts";
+import {AdminCourses,AdminCourseEditor,AdminClassEditor,AdminEnrollment} from "./Admin/Courses";
 import { BrowserRouter, Navigate, Route, Routes, Link } from "react-router-dom";
 import { DemoProvider } from "./data/DemoProvider";
 import { Layout } from "./shared/Layout";
@@ -36,8 +41,10 @@ import { LeaderProfile } from "./Truongnhomhp/Profile";
 function AccountLayout({ role }: { role: Role }) {
   const { account } = useAccount();
   if (!account) return <Navigate to="/dang-nhap" replace />;
+  if (account.mustChange) return <Navigate to="/doi-mat-khau" replace />;
   if (account.role !== role)
     return <Navigate to={accountHome(account.role)} replace />;
+  if (role === "admin") return <AdminLayout />;
   if (role === "truong-nhom-hp") return <LeaderLayout />;
   return role === "truong-khoa" ? <DeanLayout /> : <Layout />;
 }
@@ -50,6 +57,20 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dang-nhap" replace />} />
             <Route path="/dang-nhap" element={<DangNhap />} />
             <Route path="/doi-mat-khau" element={<DoiMatKhau />} />
+            <Route path="/admin" element={<AccountLayout role="admin" />}>
+              <Route index element={<Navigate to="tai-khoan" replace />} />
+              <Route path="tong-quan" element={<Navigate to="/admin/tai-khoan" replace />} />
+              <Route path="nhac-han" element={<AIReminders/>} />
+              <Route path="tai-khoan" element={<AdminAccounts/>} />
+              <Route path="tai-khoan/import" element={<AdminImportAccounts/>} />
+              <Route path="tai-khoan/:id" element={<AdminAccountDetail/>} />
+              <Route path="hoc-phan" element={<AdminCourses/>} />
+              <Route path="hoc-phan/tao" element={<AdminCourseEditor/>} />
+              <Route path="hoc-phan/:courseId" element={<AdminCourseEditor/>} />
+              <Route path="lop/tao" element={<AdminClassEditor/>} />
+              <Route path="lop/:classId" element={<AdminClassEditor/>} />
+              <Route path="lop/:classId/import" element={<AdminEnrollment/>} />
+            </Route>
             <Route
               path="/truong-nhom-hp"
               element={<AccountLayout role="truong-nhom-hp" />}
@@ -101,7 +122,7 @@ export default function App() {
               <Route path="bai-tap" element={<BaiTap />} />
               <Route path="lam-bai" element={<LamBai />} />
               <Route path="ket-qua" element={<KetQua />} />
-              <Route path="luyen-tap" element={<LamBai practice />} />
+              <Route path="luyen-tap" element={<AIPractice />} />
               <Route path="tren-lop" element={<LopTrucTiep />} />
               <Route path="diem-so" element={<DiemSo />} />
               <Route path="tro-ly-ai" element={<TroLyAI />} />

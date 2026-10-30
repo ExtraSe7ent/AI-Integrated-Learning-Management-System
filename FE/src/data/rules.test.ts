@@ -39,6 +39,7 @@ describe("Learning requirements", () => {
       validateImages([{ size: 5 * 1024 * 1024 + 1, type: "image/png" }]),
     ).toBeTruthy();
     expect(validateImages([{ size: 2, type: "application/pdf" }])).toBeTruthy();
+    expect(validateImages([{ size: 2, type: "image/svg+xml" }])).toBeTruthy();
     expect(validateImages([{ size: 5 * 1024 * 1024, type: "image/png" }])).toBe(
       "",
     );
@@ -61,16 +62,18 @@ describe("Learning requirements", () => {
       opens: new Date(100).toISOString(),
       closes: new Date(200).toISOString(),
     };
-    const late = advanceStudy(emptyStudy, 4, session, 201);
+    const beforeFinalPage = { ...emptyStudy, progress: 3 };
+    expect(advanceStudy(emptyStudy, 4, session, 199)).toEqual(emptyStudy);
+    const late = advanceStudy(beforeFinalPage, 4, session, 201);
     expect(studyCompletion(late, session)).toBe("late");
     expect(
-      studyCompletion(advanceStudy(emptyStudy, 4, session, 200), session),
+      studyCompletion(advanceStudy(beforeFinalPage, 4, session, 200), session),
     ).toBe("late");
     expect(
       advanceStudy(emptyStudy, 4, { ...session, late: false }, 201),
     ).toEqual(emptyStudy);
     expect(
-      studyCompletion(advanceStudy(emptyStudy, 4, session, 199), session),
+      studyCompletion(advanceStudy(beforeFinalPage, 4, session, 199), session),
     ).toBe("on-time");
   });
 });

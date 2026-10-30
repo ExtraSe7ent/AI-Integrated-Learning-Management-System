@@ -1,5 +1,6 @@
+import {EssayDraft} from "../AI/Insights";
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   ClipboardList,
@@ -20,23 +21,16 @@ import {
   Empty,
 } from "../shared/UI";
 import { CourseContext } from "../shared/CourseComponents";
-import { assessmentFor, updateAssessment } from "../data/assessment";
+import { assessmentFor, updateAssessment, beginAssessment, submitAssessment, pointsFor } from "../data/assessment";
 import type { Assignment } from "../data/fixtures";
 import { useDemo } from "../data/DemoProvider";
 export function BaiTap() {
-  const { data, setData } = useDemo();
+  const { data, setData, notify } = useDemo();
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const items = data.assignments.filter((a) => a.published);
   function start(a: Assignment) {
-    setData((d) =>
-      updateAssessment(d, a.id, {
-        draft: assessmentFor(d, a.id).draft || {
-          answers: ["", "", ""],
-          deadline: Date.now() + a.minutes * 60000,
-        },
-      }),
-    );
+    try {setData(beginAssessment(data,a.id));} catch(e) {notify((e as Error).message);return;}
     navigate("/sinh-vien/lam-bai?bai=" + a.id);
   }
   return (
@@ -112,27 +106,10 @@ export function BaiTap() {
                 <small>
                   Đóng lúc {new Date(a.closes).toLocaleString("vi-VN")}
                 </small>
-                {record.result ? (
-                  <Link
-                    className="button secondary"
-                    to={`/sinh-vien/ket-qua?bai=${a.id}`}
-                  >
-                    Xem kết quả
-                    <ArrowRight size={16} />
-                  </Link>
-                ) : (
-                  <Button
-                    disabled={
-                      record.attempts >= a.attempts ||
-                      Date.now() < Date.parse(a.opens) ||
-                      Date.now() >= Date.parse(a.closes)
-                    }
-                    onClick={() => start(a)}
-                  >
-                    {record.draft ? "Tiếp tục làm bài" : "Bắt đầu làm bài"}
-                    <ArrowRight size={16} />
-                  </Button>
-                )}
+                <div className="row-actions">
+                {record.result && <Link className="button secondary" to={`/sinh-vien/ket-qua?bai=${a.id}`}>Xem kết quả<ArrowRight size={16}/></Link>}
+                <Button disabled={data.appeals.some(x=>x.assignmentId===a.id&&x.status==="pending")||record.attempts>=a.attempts||Date.now()<Date.parse(a.opens)||Date.now()>=Date.parse(a.closes)} onClick={()=>start(a)}>{record.draft?"Tiếp tục làm bài":record.result?"Làm lại bài tập":"Bắt đầu làm bài"}<ArrowRight size={16}/></Button>
+                </div>
               </div>
             </Panel>
           );
@@ -185,17 +162,7 @@ export function LamBai({ practice = false }: { practice?: boolean }) {
       setDone(true);
       return;
     }
-    setData((d) =>
-      updateAssessment(d, a.id, {
-        result: {
-          score,
-          answers,
-          submitted: new Date().toLocaleString("vi-VN"),
-        },
-        draft: null,
-        attempts: assessmentFor(d, a.id).attempts + 1,
-      }),
-    );
+    try {setData(d=>submitAssessment(d,a.id,answers));}catch(e){notify((e as Error).message);return;}
     notify("Đã nộp bài. Phần tự luận chờ giảng viên duyệt.");
     navigate("/sinh-vien/ket-qua?bai=" + a.id);
   };
@@ -227,7 +194,8 @@ export function LamBai({ practice = false }: { practice?: boolean }) {
     submitted.current = false;
     notify("Đã tạo bộ luyện tập mẫu. Không tính điểm học phần.");
   }
-  if (!practice && !record.draft && !record.result)
+  if (!practice && record.result && !record.draft) return <Navigate to={"/sinh-vien/ket-qua?bai="+a.id} replace />;
+  if (!practice && !record.draft)
     return (
       <>
         <PageHeader title="Bạn chưa bắt đầu bài tập" />
@@ -436,7 +404,7 @@ export function KetQua() {
   const assignmentId = params.get("bai") || "a1";
   const assignment =
     data.assignments.find((a) => a.id === assignmentId) || data.assignments[0];
-  const [appeal, setAppeal] = useState(false),
+  const [appeal, setAppeal] = useState<number|null>(null),
     [reason, setReason] = useState("");
   const r = assessmentFor(data, assignmentId).result;
   return (
@@ -498,6 +466,7 @@ export function KetQua() {
                 <h2>
                   Câu {i + 1}: {title}
                 </h2>
+                <span>Điểm: {pointsFor(r)[i]}/{[4,3,3][i]}</span>
                 <Badge tone={i === 2 ? "amber" : "neutral"}>
                   {i === 2
                     ? r.approved
@@ -521,13 +490,14 @@ export function KetQua() {
                     ? "POST được dùng để tạo tài nguyên mới."
                     : "Giảng viên xem xét endpoint, method và lý do lựa chọn trước khi công bố điểm."}
               </p>
+              {i === 2 && !r.approved && <EssayDraft answer={r.answers[2]||""}/>}
               {i === 2 && r.comment && (
                 <div className="reply-block">
                   <strong>Nhận xét giảng viên</strong>
                   <p>{r.comment}</p>
                 </div>
               )}
-              <Button variant="secondary small" onClick={() => setAppeal(true)}>
+              <Button variant="secondary small" disabled={data.appeals.some(a=>a.assignmentId===assignmentId&&a.status==="pending"&&a.questionIndex===i)} onClick={() => setAppeal(i)}>
                 Yêu cầu phúc khảo
               </Button>
             </Panel>
@@ -551,8 +521,10 @@ export function KetQua() {
             ))}
         </>
       )}
-      {appeal && (
-        <Dialog title="Yêu cầu phúc khảo" onClose={() => setAppeal(false)}>
+      {appeal !== null && (
+        <Dialog title="Yêu cầu phúc khảo" onClose={() => setAppeal(null)}>
+          <p>Câu {appeal+1} · Bài làm: {r?.answers[appeal]||"Chưa trả lời"}</p>
+          <p>Điểm hiện tại: {r?pointsFor(r)[appeal]:0}/{[4,3,3][appeal]}</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -563,18 +535,20 @@ export function KetQua() {
                   {
                     id: crypto.randomUUID(),
                     assignmentId,
-                    question: assignment.title,
+                    question: `Câu ${appeal!+1} · ${["Định danh tài nguyên","HTTP method","API mượn sách"][appeal!]}`,
+                    questionIndex:appeal!,
+                    answer:r?.answers[appeal!]||"Chưa trả lời",
+                    previousPoints:r?pointsFor(r)[appeal!]:0,
+                    maxPoints:[4,3,3][appeal!],
                     reason: reason.trim(),
                     response: "",
                     status: "pending",
                   },
                 ],
-                notices: [
-                  ...d.notices,
-                  "Có yêu cầu phúc khảo mới đang chờ xử lý.",
-                ],
+                teacherNotices: [...d.teacherNotices,"Có yêu cầu phúc khảo mới đang chờ xử lý."],
+                readTeacherNotices:false,
               }));
-              setAppeal(false);
+              setAppeal(null);
               notify("Đã lưu yêu cầu phúc khảo.");
             }}
           >

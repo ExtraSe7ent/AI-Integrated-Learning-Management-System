@@ -17,7 +17,7 @@ export function RequestThread({ itemId }: { itemId: string }) {
         <div className="leader-thread" key={r.id}>
           <strong>
             {r.closed
-              ? "Đã hoàn tất rà soát"
+              ? "Đã đóng yêu cầu"
               : r.reply
                 ? "Đã phản hồi · Chờ rà soát lại"
                 : "Đang chờ giảng viên phản hồi"}
@@ -38,7 +38,9 @@ function ReviewForm({ item }: { item: Material }) {
   const { courseId, link, act, state } = useLeaderScope();
   const [level, setLevel] = useState(item.level),
     [reason, setReason] = useState("");
-  const pending = state.requests.some((r) => r.itemId === item.id && !r.closed);
+  const pending = state.requests.some(
+    (r) => r.itemId === item.id && !r.closed && !r.reply,
+  );
   const send = () =>
     act(
       (s) =>
@@ -191,7 +193,7 @@ export function LeaderRequests() {
               <option value="all">Tất cả yêu cầu</option>
               <option value="open">Chờ giảng viên</option>
               <option value="replied">Chờ rà soát lại</option>
-              <option value="closed">Đã hoàn tất</option>
+              <option value="closed">Đã đóng yêu cầu</option>
             </select>
           </Field>
           {rows.map(({ r, item }) => (
@@ -201,7 +203,7 @@ export function LeaderRequests() {
                 <Level value={item!.level} />
                 <strong>
                   {r.closed
-                    ? "Đã hoàn tất"
+                    ? "Đã đóng yêu cầu"
                     : r.reply
                       ? "Đã phản hồi · Chờ rà soát lại"
                       : "Đang chờ phản hồi"}

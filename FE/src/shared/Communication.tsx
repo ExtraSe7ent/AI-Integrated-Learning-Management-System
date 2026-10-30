@@ -1,20 +1,16 @@
+import { FeedbackImages, storeImages } from "./attachments";
 import { useState } from "react";
 import {
   MessageSquare,
   Send,
   Paperclip,
   CheckCircle2,
-  Search,
   ArrowUpRight,
   FileText,
   Plus,
   Trash2,
   Download,
-  Sparkles,
-  Flag,
-  ThumbsUp,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useDemo } from "../data/DemoProvider";
 import { courses } from "../data/fixtures";
 import { validateImages } from "../data/rules";
@@ -34,6 +30,8 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
     [category, setCategory] = useState("Bài giảng"),
     [course, setCourse] = useState("cs301"),
     [body, setBody] = useState(""),
+    [lessonId, setLessonId] = useState("l2"),
+    [saving, setSaving] = useState(false),
     [images, setImages] = useState<File[]>([]),
     [error, setError] = useState(""),
     [filter, setFilter] = useState("all");
@@ -97,12 +95,16 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
               </span>
             </div>
             <h2>{f.body}</h2>
-            {f.images.map((name) => (
-              <span className="attachment" key={name}>
-                <Paperclip size={14} />
-                {name}
-              </span>
-            ))}
+            {f.imageIds?.length ? (
+              <FeedbackImages ids={f.imageIds} names={f.images} />
+            ) : (
+              f.images.map((name) => (
+                <span className="attachment" key={name}>
+                  <Paperclip size={14} />
+                  {name}
+                </span>
+              ))
+            )}
             {f.response ? (
               <div className="reply-block">
                 <strong>Phản hồi của giảng viên</strong>
@@ -202,11 +204,28 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
       {compose && (
         <Dialog title="Gửi phản hồi" onClose={() => setCompose(false)}>
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
+              if (saving) return;
+              const selectedLesson = data.lessons.find(
+                (l) => l.id === lessonId,
+              );
+              if (!selectedLesson || course !== "cs301") {
+                setError("Chọn bài học có trong lớp trước khi gửi.");
+                return;
+              }
               const invalid = validateImages(images);
               if (invalid) {
                 setError(invalid);
+                return;
+              }
+              setSaving(true);
+              let imageIds: string[];
+              try {
+                imageIds = await storeImages(images);
+              } catch (err) {
+                setError((err as Error).message);
+                setSaving(false);
                 return;
               }
               setData((d) => ({
@@ -216,10 +235,11 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
                     id: crypto.randomUUID(),
                     student: d.profile.name,
                     course,
-                    lesson: "Thiết kế RESTful API",
+                    lesson: selectedLesson.title,
                     category,
                     body: body.trim(),
                     images: images.map((f) => f.name),
+                    imageIds,
                     response: "",
                     resolved: false,
                     date: new Date().toLocaleDateString("vi-VN"),
@@ -227,6 +247,7 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
                   ...d.feedback,
                 ],
               }));
+              setSaving(false);
               setCompose(false);
               setBody("");
               setImages([]);
@@ -260,7 +281,21 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
               </Field>
             </div>
             <Field label="Bài học">
-              <input value="Thiết kế RESTful API" readOnly />
+              <select
+                aria-label="Bài học"
+                value={course === "cs301" ? lessonId : ""}
+                onChange={(e) => setLessonId(e.target.value)}
+              >
+                <option value="">Chọn bài học</option>
+                {course === "cs301" &&
+                  data.lessons
+                    .filter((l) => l.published)
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.title}
+                      </option>
+                    ))}
+              </select>
             </Field>
             <Field label="Nội dung phản hồi">
               <textarea
@@ -275,7 +310,7 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(e) => {
                   const files = [...(e.target.files || [])];
                   setImages(files);
@@ -453,163 +488,4 @@ export function TaiLieu({ teacher = false }: { teacher?: boolean }) {
     </>
   );
 }
-export function TroLyAI({ teacher = false }: { teacher?: boolean }) {
-  const { data, setData, notify } = useDemo();
-  const lessonLink = teacher ? "/giang-vien/soan-bai" : "/sinh-vien/hoc/cs301";
-  const [text, setText] = useState(""),
-    [course, setCourse] = useState("cs301");
-  const ask = (question: string) => {
-    if (!question.trim()) return;
-    setData((d) => ({
-      ...d,
-      chat: [
-        ...d.chat,
-        {
-          question,
-          answer:
-            "Gợi ý: REST dùng URI để định danh tài nguyên và HTTP methods để biểu diễn thao tác. GET đọc dữ liệu, POST tạo tài nguyên. Hãy đối chiếu trang 1–2 trong bài giảng; để được hỗ trợ ngoài nội dung này, bạn hãy hỏi giảng viên.",
-          page: 1,
-        },
-      ],
-    }));
-    setText("");
-  };
-  return (
-    <>
-      <PageHeader
-        title={teacher ? "Trợ lý giảng dạy AI" : "Trợ lý học tập AI"}
-        description={
-          teacher
-            ? "Tra cứu học liệu và chuẩn bị nội dung cho lớp học."
-            : "Hỏi về bài học và đối chiếu câu trả lời với tài liệu nguồn."
-        }
-      />
-      <div className="ai-workspace">
-        <aside className="ai-context">
-          <h2>{teacher ? "Học liệu của lớp" : "Học liệu đang dùng"}</h2>
-          <Field label="Học phần">
-            <select value={course} onChange={(e) => setCourse(e.target.value)}>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code} · {c.title}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="source-document">
-            <FileText size={22} />
-            <div>
-              <strong>Thiết kế RESTful API</strong>
-              <small>Học liệu · 4 trang</small>
-            </div>
-            <Badge tone="green">Có nguồn</Badge>
-          </div>
-          <Link className="button secondary" to={lessonLink}>
-            Mở bài học
-            <ArrowUpRight size={16} />
-          </Link>
-          <hr />
-          <h3>Nguyên tắc hỗ trợ</h3>
-          <p className="muted">
-            AI có thể mắc lỗi. Luôn kiểm tra nguồn. Không dùng trợ lý để giải hộ
-            bài kiểm tra đang mở.
-          </p>
-        </aside>
-        <section className="ai-conversation">
-          <div className="conversation-heading">
-            <Sparkles size={20} />
-            <strong>Hỏi đáp theo học liệu</strong>
-          </div>
-          <div className="workspace-chat-log">
-            {data.chat.length ? (
-              data.chat.map((m, i) => (
-                <article key={i}>
-                  <div className="chat-user">{m.question}</div>
-                  <div className="chat-answer">
-                    <span className="ai-avatar">
-                      <Sparkles size={18} />
-                    </span>
-                    <div>
-                      <strong>Trợ lý VJU</strong>
-                      <p>{m.answer}</p>
-                      <Link className="source-chip" to={lessonLink}>
-                        Bài giảng RESTful API · Trang {m.page}
-                        <ArrowUpRight size={13} />
-                      </Link>
-                      <div className="row-actions">
-                        <button
-                          className="icon-button"
-                          aria-label="Phản hồi hữu ích"
-                          onClick={() => notify("Đã ghi nhận đánh giá.")}
-                        >
-                          <ThumbsUp size={14} />
-                        </button>
-                        <Link
-                          className="icon-button"
-                          aria-label="Báo cáo câu trả lời"
-                          to={
-                            teacher
-                              ? "/giang-vien/phan-hoi"
-                              : "/sinh-vien/phan-hoi"
-                          }
-                        >
-                          <Flag size={14} />
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="ai-empty">
-                <h2>
-                  {teacher
-                    ? "Bạn cần chuẩn bị nội dung nào?"
-                    : "Bạn muốn hỏi phần nào trong bài?"}
-                </h2>
-                <p>Chọn một câu hỏi bên dưới hoặc nhập câu hỏi của bạn.</p>
-                <div className="prompt-suggestions">
-                  {[
-                    "Giải thích RESTful API bằng ví dụ",
-                    "Phân biệt PUT và PATCH",
-                    "Giúp tôi ôn lại HTTP methods",
-                  ].map((q) => (
-                    <button key={q} onClick={() => ask(q)}>
-                      {q}
-                      <ArrowUpRight size={15} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <form
-            className="workspace-chat-input"
-            onSubmit={(e) => {
-              e.preventDefault();
-              ask(text);
-            }}
-          >
-            <Search size={18} />
-            <input
-              aria-label="Nhập câu hỏi AI"
-              placeholder="Hỏi về nội dung bài học…"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <button
-              className="button"
-              disabled={!text.trim()}
-              aria-label="Gửi câu hỏi"
-            >
-              <Send size={17} />
-            </button>
-          </form>
-          <small className="ai-disclaimer">
-            AI có thể mắc lỗi. Hãy kiểm tra nguồn và đối chiếu với bài giảng.
-          </small>
-        </section>
-      </div>
-    </>
-  );
-}
+export { Assistant as TroLyAI } from "../AI/Assistant";

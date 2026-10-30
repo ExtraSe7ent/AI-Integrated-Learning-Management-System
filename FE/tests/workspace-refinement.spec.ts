@@ -91,7 +91,7 @@ test("dashboard uses metric cards; teaching workspace has a white sidebar", asyn
   await page.goto("/giang-vien/tro-ly-ai");
   await expect(
     page.getByRole("link", { name: "Mở bài học", exact: true }),
-  ).toHaveAttribute("href", "/giang-vien/soan-bai");
+  ).toHaveAttribute("href", "/giang-vien/soan-bai?bai=l2&trang=1");
   await page.goto("/giang-vien/tai-lieu");
   await expect(
     page.getByRole("heading", { name: "Tài liệu tham khảo", exact: true }),

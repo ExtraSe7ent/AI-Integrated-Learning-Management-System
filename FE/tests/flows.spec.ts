@@ -70,6 +70,7 @@ test("lecturer grade and feedback appear in student results", async ({
     .fill("POST /api/loans, trả về 201 Created.");
   await page.getByRole("button", { name: "Nộp bài", exact: true }).click();
   await openRolePage(page, "/giang-vien/cham-bai");
+  await expect(page.getByText("Điểm đề xuất mẫu: 2.5 / 3",{exact:true})).toHaveCount(0);
   await page
     .getByLabel("Nhận xét cho sinh viên")
     .fill("Đã duyệt bài làm, cần bổ sung xử lý lỗi.");

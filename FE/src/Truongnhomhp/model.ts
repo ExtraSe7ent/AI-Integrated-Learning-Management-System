@@ -256,16 +256,16 @@ export function requestChange(
 ): Coordination {
   requiredItem(s, courseId, classId, id);
   if (!body.trim()) throw Error("Nhập nội dung cần giảng viên điều chỉnh.");
-  if (s.requests.some((r) => r.itemId === id && !r.closed))
-    throw Error(
-      "Học liệu đang có yêu cầu mở; rà soát phản hồi hiện tại trước.",
-    );
+  if (s.requests.some((r) => r.itemId === id && !r.closed && !r.reply))
+    throw Error("Chờ giảng viên phản hồi yêu cầu hiện tại trước.");
   return {
     ...s,
     items: s.items.map((i) => (i.id === id ? { ...i, level: 2 } : i)),
     completed: invalidate(s, classId),
     requests: [
-      ...s.requests,
+      ...s.requests.map((r) =>
+        r.itemId === id && !r.closed ? { ...r, closed: true } : r,
+      ),
       {
         id: requestId,
         itemId: id,

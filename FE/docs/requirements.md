@@ -1,181 +1,200 @@
-# Đối chiếu yêu cầu SRS với bản frontend
+# Đối chiếu yêu cầu SRS với frontend · 30/10/2026
 
-Nguồn: `../SRS_Checklist_Flipped_Classroom.xlsx`, các sheet **Sinh viên**, **Giảng viên**, **Trưởng khoa** và **Trưởng nhóm HP**, cột **Mã** và **Hạng mục kiểm tra**. Đọc workbook ở chế độ chỉ đọc; không dùng cột “Hiện trạng hệ thống” của bản cũ để kết luận cho bản FE mới. Bảng dưới giữ nguyên mã và nội dung từng yêu cầu.
+Nguồn yêu cầu: `../SRS_Checklist_Flipped_Classroom.xlsx`, đọc chỉ đọc. Bảng giữ mã và nội dung checklist, đối chiếu source hiện tại với bằng chứng kiểm thử tại [verification.md](verification.md); trạng thái hệ thống cũ trong workbook không phải kết quả nghiệm thu FE này.
 
-Đối chiếu SV/GV ban đầu: 16/10/2026; cập nhật đăng nhập, bổ sung TK-01–TK-04 và TN-01–TN-08: 24/10/2026. Tổng cộng **65 SV + 44 GV + 4 TK + 8 TN = 121 yêu cầu**. Đây là đánh giá phạm vi FE, không phải xác nhận nghiệm thu toàn bộ SRS hoặc backend.
+Tổng **146 mục**: **65 SV + 44 GV + 4 TK + 8 TN + 10 Admin + 7 AI + 8 NFR**. Phân loại hiện tại: **79 FE cục bộ, 42 Partial FE, 20 FE mô phỏng, 1 Cần runtime, 4 BE/triển khai**. Hai mục responsive SV-46/NFR-05 được cập nhật từ chờ runtime sang đã kiểm cục bộ với phạm vi viewport giả lập giới hạn. NFR-02 ≤2 giây vẫn chưa đo. Đây không phải xác nhận hoàn tất toàn bộ SRS.
 
-## Cách đọc trạng thái
+## Cách đọc
 
-- **FE đã triển khai**: thao tác hoặc quy tắc hoạt động trong trình duyệt trên dữ liệu demo; không suy ra có API, xác thực hoặc bảo vệ máy chủ.
-- **Mô phỏng**: có luồng minh họa nhưng kết quả dùng mẫu cố định hoặc chỉ đồng bộ cục bộ thay cho AI/realtime thật.
-- **Một phần**: đã có một phần yêu cầu, chi tiết còn thiếu được ghi rõ.
-- **Chưa triển khai**: chưa có luồng thực hiện đúng yêu cầu, dù có thể có nút dẫn tới chức năng liên quan.
+- **FE cục bộ**: hành vi được triển khai trong trình duyệt với fixture/local storage, không suy ra có xác thực, phân quyền hoặc dữ liệu máy chủ.
+- **Partial FE**: còn thiếu phần của yêu cầu ngay trong frontend; cột giới hạn nêu phần đó.
+- **FE mô phỏng**: có luồng và dữ liệu minh họa cho AI, email, thời gian hoặc kết nối; không có dịch vụ thật.
+- **Cần runtime**: chưa đo được tiêu chí runtime của yêu cầu.
+- **BE/triển khai**: cần hạ tầng/dịch vụ ngoài FE để kiểm chứng.
 
-## Sinh viên — 65 mục
+AD-07–AD-10 có CRUD, phân công và ghi danh hoạt động trong registry Admin, nhưng các workspace cũ chưa lấy đầy đủ danh mục/phạm vi/roster từ registry này. Đây là **khoảng trống tích hợp FE còn lại**, không phải phần chỉ cần backend. Nhiều kho học tập, hồ sơ và roster vẫn dùng chung fixture theo tài khoản/lớp cũ; tài khoản mới đăng nhập/đổi mật khẩu được nhưng chưa có dữ liệu học tập riêng đầy đủ.
 
-| Mã | Yêu cầu nguyên văn | Route | Trạng thái | Bằng chứng / giới hạn |
-| --- | --- | --- | --- | --- |
-| SV-01 | Đăng nhập bằng mã SV + mật khẩu | `/dang-nhap` | Mô phỏng | Kiểm tra tài khoản fixture 23110149 và mật khẩu; không xác thực máy chủ. |
-| SV-02 | Tài khoản do Admin cấp (không tự đăng ký) | `/dang-nhap` | FE đã triển khai | Thông báo tài khoản do Admin cấp; không có đăng ký tự do. |
-| SV-03 | Đăng nhập lần đầu bắt buộc đổi mật khẩu mặc định (AF-2) | `/doi-mat-khau` | Một phần | Có trang minh họa đổi mật khẩu; chưa phát hiện lần đăng nhập đầu hay bắt buộc chuyển trang. |
-| SV-04 | Sai mật khẩu báo lỗi; quên mật khẩu → liên hệ Admin | `/dang-nhap` | Một phần | Sai mật khẩu fixture bị từ chối; có hướng dẫn liên hệ Admin, chưa có khôi phục tài khoản máy chủ. |
-| SV-05 | Menu hiển thị theo role | `/sinh-vien/tong-quan` | FE đã triển khai | Role lấy từ tài khoản fixture SV/GV/TK/TN, guard chuyển route khác role về tổng quan đúng; không phải phân quyền máy chủ. |
-| SV-06 | Danh sách Phiên tự học AI theo học phần | `/sinh-vien/tu-hoc` | Một phần | Danh sách phiên và lọc trạng thái; nội dung gắn học phần mẫu CSE301. |
-| SV-07 | Tổng quan phiên: tên bài, tiến độ, thời hạn, trạng thái | `/sinh-vien/tu-hoc` | FE đã triển khai | Có tên, tiến độ theo phiên, hạn và trạng thái theo thời gian. |
-| SV-08 | Nút "Bắt đầu học" / "Tiếp tục" | `/sinh-vien/tu-hoc` | FE đã triển khai | Bắt đầu/Tiếp tục mở trình học và khôi phục tiến độ cục bộ. |
-| SV-09 | Hoàn thành 100% → "Completed", tính điểm tự học | `/sinh-vien/hoc/cs301` | Một phần | Ghi completedAt và hoàn thành 4 trang; bảng điểm hiện dùng một phiên động và các phiên mẫu. |
-| SV-10 | AF-1: Hết hạn vẫn xem được nhưng không tính điểm | `/sinh-vien/hoc/cs301` | Một phần | Hỗ trợ học muộn/xem lại, không tính điểm muộn; trang chưa mở trong rail vẫn chịu khóa tiến độ. |
-| SV-11 | AF-2: Đã hoàn thành vẫn vào xem lại để ôn | `/sinh-vien/hoc/cs301` | FE đã triển khai | Phiên hoàn thành cho xem lại các trang, không ghi đè mốc hoàn thành. |
-| SV-12 | Hiển thị slide + nút Trang trước / Trang sau | `/sinh-vien/hoc/cs301` | FE đã triển khai | Trình chiếu HTML minh họa 4 trang, có Trang trước/Trang sau; không đọc trang PDF upload. |
-| SV-13 | Thanh danh sách slide (thumbnail) bên trái | `/sinh-vien/hoc/cs301` | Một phần | Rail bên trái có số/tên trang và trạng thái; là thẻ nội dung, không ảnh thu nhỏ PDF. |
-| SV-14 | Ghi nhận slide đã xem để tính tiến độ | `/sinh-vien/hoc/cs301` | FE đã triển khai | Ghi tiến độ khi xác nhận chuyển/hoàn thành trang; lưu theo phiên. |
-| SV-15 | Nút "Chat với AI" và "Hỏi trên lớp" dùng được mọi lúc | `/sinh-vien/hoc/cs301` | FE đã triển khai | Tab Chat AI và nút Hỏi trên lớp luôn có trong màn học; trên điện thoại các vùng xếp dọc. |
-| SV-16 | Slide có quiz phải trả lời mới qua slide tiếp | `/sinh-vien/hoc/cs301` | FE đã triển khai | Câu hỏi đã duyệt gắn trang yêu cầu xác nhận trước khi tiến trang. |
-| SV-17 | Trắc nghiệm A/B/C/D, bấm xác nhận | `/sinh-vien/hoc/cs301` | FE đã triển khai | Bốn lựa chọn A–D và nút xác nhận. |
-| SV-18 | Hiện đúng/sai + giải thích ngay | `/sinh-vien/hoc/cs301` | FE đã triển khai | Hiện phản hồi đúng/sai cùng giải thích của câu hỏi ngay sau xác nhận. |
-| SV-19 | AF-1: Sai vẫn cho đi tiếp nhưng ghi nhận | `/sinh-vien/hoc/cs301` | FE đã triển khai | Sai vẫn tiến trang được; lưu lựa chọn trong answers theo id câu hỏi. |
-| SV-20 | Panel chat mở từ màn học slide | `/sinh-vien/hoc/cs301` | FE đã triển khai | Chat là tab trong panel bên cạnh màn học. |
-| SV-21 | Context = slide đang xem + toàn bộ học liệu lớp | `/sinh-vien/hoc/cs301` | Mô phỏng | Chọn phản hồi cố định theo trang; không RAG, không truy xuất toàn bộ học liệu lớp. |
-| SV-22 | Hỏi nhiều lượt (multi-turn) | `/sinh-vien/hoc/cs301` | Mô phỏng | Gửi được nhiều lượt; câu trả lời không suy luận từ lịch sử hội thoại. |
-| SV-23 | Lưu lịch sử chat | `/sinh-vien/hoc/cs301` | FE đã triển khai | Lịch sử câu hỏi/trả lời lưu localStorage; chưa tách lịch sử theo lớp/phiên. |
-| SV-24 | Có thể kèm câu hỏi mở khuyến khích tư duy | `/sinh-vien/hoc/cs301` | Mô phỏng | Phản hồi mẫu trong phạm vi có câu hỏi gợi mở cố định. |
-| SV-25 | AF-1: Đánh giá (rating/flag) câu trả lời | `/sinh-vien/hoc/cs301` | Một phần | Có nút hữu ích/báo lỗi; chỉ hiện thông báo, không lưu rating/flag. |
-| SV-26 | EX-1: Ngoài phạm vi → "hãy hỏi giảng viên" | `/sinh-vien/hoc/cs301` | Mô phỏng | Regex từ khóa điều hướng ngoài phạm vi sang giảng viên; không phải guardrail AI thật. |
-| SV-27 | Disclaimer "Chat AI có thể mắc lỗi…" | `/sinh-vien/hoc/cs301` | FE đã triển khai | Hiện cảnh báo AI có thể mắc lỗi; giới hạn phản hồi cố định được ghi trong tài liệu kỹ thuật. |
-| SV-28 | Nút "Hỏi trên lớp" tại slide đang xem | `/sinh-vien/hoc/cs301` | FE đã triển khai | Hỏi trên lớp mở form ngay tại trang đang xem. |
-| SV-29 | Form tự gắn slide + ô nhập câu hỏi | `/sinh-vien/hoc/cs301` | FE đã triển khai | Form tự gắn số trang và nhận nội dung câu hỏi. |
-| SV-30 | Cập nhật số lượng kiến thức mờ | `/sinh-vien/hoc/cs301` | FE đã triển khai | Số kiến thức mờ cập nhật từ danh sách gaps cục bộ. |
-| SV-31 | Popup "Kiến thức mờ (X)": nội dung, slide, ngày, trạng thái | `/sinh-vien/hoc/cs301` | Một phần | Popup có nội dung, trang, trạng thái và giải đáp; chưa lưu/hiện ngày tạo. |
-| SV-32 | Bấm mục để nhảy tới slide | `/sinh-vien/hoc/cs301` | FE đã triển khai | Chọn số trang trong popup nhảy đến trang tương ứng. |
-| SV-33 | Nút "Tạo câu hỏi luyện tập", chọn phạm vi slide | `/sinh-vien/luyen-tap` | Một phần | Có chọn phạm vi và tạo bộ mẫu; đổi phạm vi chưa thay đổi bộ câu hỏi cố định. |
-| SV-34 | AI sinh trắc nghiệm + điền trống kèm đáp án | `/sinh-vien/luyen-tap` | Mô phỏng | Bộ mẫu có trắc nghiệm/điền trống/tự luận và đáp án; không sinh bằng AI. |
-| SV-35 | Quiz tương tác: đúng/sai + giải thích ngay; tổng kết; "Tạo bộ mới" | `/sinh-vien/luyen-tap` | Một phần | Nộp để xem đáp án/điểm tự chấm và làm lại; chưa phản hồi ngay từng câu hoặc sinh bộ mới khác nội dung. |
-| SV-36 | Không tính điểm, không giới hạn lần | `/sinh-vien/luyen-tap` | FE đã triển khai | Luyện tập không ghi assessment tính điểm, không giới hạn lần làm lại. |
-| SV-37 | Danh sách tài liệu: tên, mô tả, loại (File / Liên kết) | `/sinh-vien/tai-lieu` | FE đã triển khai | Bảng tên, mô tả, loại PDF/liên kết/video và tìm kiếm. |
-| SV-38 | File → tải/mở; Liên kết → mở tab mới | `/sinh-vien/tai-lieu` | FE đã triển khai | Mở tab mới; PDF mẫu có nút tải. |
-| SV-39 | Tham gia bằng mã phiên hoặc quét QR | `/sinh-vien/tren-lop` | Mô phỏng | Nhập mã 6 số hoặc mở URL từ QR; chỉ chạy cùng origin/hồ sơ trình duyệt. |
-| SV-40 | Màn đếm ngược + 4 nút A/B/C/D + "Xác nhận" | `/sinh-vien/tren-lop` | FE đã triển khai | Đếm ngược, bốn nút A–D, nút xác nhận. |
-| SV-41 | Đã gửi → "Đã gửi"; GV chuyển câu → tự cập nhật | `/sinh-vien/tren-lop` | Mô phỏng | Đã gửi khóa trả lời; đổi câu đồng bộ qua storage event giữa các tab, chưa có server. |
-| SV-42 | AF-1: Mã sai/hết hạn báo lỗi | `/sinh-vien/tren-lop` | FE đã triển khai | Báo lỗi khi mã sai hoặc phiên chưa active; chưa có thời hạn riêng cho mã phiên. |
-| SV-43 | AF-2: Vào giữa chừng vẫn trả lời nếu còn giờ | `/sinh-vien/tren-lop` | Mô phỏng | Tab sinh viên tham gia giữa phiên có thể trả lời nếu đồng hồ còn giờ. |
-| SV-44 | AF-3: Hết giờ → ghi nhận "không trả lời" | `/sinh-vien/tren-lop` | Mô phỏng | Tab sinh viên đã tham gia đang chạy ghi sv1=-1 khi hết giờ; không có job server cho tab đã đóng. |
-| SV-45 | EX-1: Mất mạng, kết nối lại trước hết giờ vẫn trả lời | `/sinh-vien/tren-lop` | Một phần | Hiện trạng thái offline và tiếp tục cục bộ; không có cơ chế mất mạng/kết nối lại tới máy chủ. |
-| SV-46 | Giao diện tối ưu điện thoại | `/sinh-vien/tren-lop` | FE đã triển khai | Responsive một cột; đã có kiểm tra viewport 390px, chưa xác nhận thiết bị thật. |
-| SV-47 | Menu "Bài tập" ghi rõ "Tính điểm", tách với luyện tập | `/sinh-vien/bai-tap` | FE đã triển khai | Danh sách và sidebar có nhãn Tính điểm; Luyện tập là mục riêng. |
-| SV-48 | Giao diện thi: câu hỏi + đồng hồ đếm ngược | `/sinh-vien/lam-bai?bai=a1` | FE đã triển khai | Đề ba câu cùng đồng hồ; deadline lưu trong draft của từng bài. |
-| SV-49 | Trắc nghiệm + điền trống + tự luận | `/sinh-vien/lam-bai?bai=a1` | FE đã triển khai | Có radio trắc nghiệm, ô điền trống và textarea tự luận. |
-| SV-50 | Chặn dán (paste) | `/sinh-vien/lam-bai?bai=a1` | FE đã triển khai | onPaste chặn sự kiện dán khi cấu hình preventPaste; không thay thế kiểm soát phía server. |
-| SV-51 | Hết giờ tự nộp | `/sinh-vien/lam-bai?bai=a1` | FE đã triển khai | Timer tự nộp trong tab đang chạy; tải lại khôi phục deadline và nộp nếu đã hết giờ. |
-| SV-52 | AI chấm tự động + giải thích + phản hồi cá nhân từng câu | `/sinh-vien/ket-qua?bai=a1` | Một phần | TN/điền trống chấm bằng đáp án cố định; tự luận giảng viên duyệt, AI chỉ gợi ý mẫu. |
-| SV-53 | Giới hạn số lần làm | `/sinh-vien/bai-tap` | Một phần | Lưu attempts riêng từng bài và chặn giới hạn; sau lần nộp đầu danh sách ưu tiên Xem kết quả, chưa có luồng làm lại đầy đủ. |
-| SV-54 | Điểm tổng, tỷ lệ đúng, số câu | `/sinh-vien/ket-qua?bai=a1` | Một phần | Có tổng điểm và số đúng/2 câu tự chấm; chưa hiện tỷ lệ đúng toàn bộ 3 câu. |
-| SV-55 | Từng câu: loại, Đúng/Sai, điểm, đáp án đúng, giải thích, phản hồi | `/sinh-vien/ket-qua?bai=a1` | Một phần | Hiện loại, bài làm, giải thích, duyệt tự luận/nhận xét; thiếu đầy đủ điểm và đúng/sai riêng từng câu, phản hồi AI cá nhân. |
-| SV-56 | Hiện trạng thái + điểm mới của câu đã phúc khảo | `/sinh-vien/ket-qua?bai=a1` | Một phần | Hiện trạng thái/phản hồi và tổng điểm mới; phúc khảo chưa liên kết từng câu. |
-| SV-57 | Nút "Yêu cầu phúc khảo" tại từng câu | `/sinh-vien/ket-qua?bai=a1` | Một phần | Mỗi thẻ có nút nhưng tất cả tạo yêu cầu cấp bài tập, không lưu id câu. |
-| SV-58 | Form: câu hỏi, câu trả lời, điểm AI, lý do | `/sinh-vien/ket-qua?bai=a1` | Một phần | Có form lý do; không hiển thị và lưu đầy đủ câu trả lời/điểm AI của câu được chọn. |
-| SV-59 | Lưu "Pending", GV nhận thông báo | `/sinh-vien/ket-qua?bai=a1` | Mô phỏng | Lưu pending và thông báo cục bộ; giảng viên thấy trên cùng bộ dữ liệu demo. |
-| SV-60 | Điểm tự học = phiên hoàn thành đúng hạn / tổng phiên × 10 | `/sinh-vien/diem-so` | Một phần | Hàm đúng hạn/tổng phiên ×10 đã có; bảng điểm dùng s1 động cộng ba trạng thái mẫu, chưa tổng hợp mọi phiên tạo mới. |
-| SV-61 | Điểm TB bài tập = TB cộng điểm Bài tập AI | `/sinh-vien/diem-so` | Một phần | Hàm trung bình cộng đã có; UI lấy hai điểm mẫu và kết quả a1, chưa tổng hợp mọi bài mới. |
-| SV-62 | Chi tiết: danh sách phiên (đúng hạn/trễ/chưa), điểm từng bài | `/sinh-vien/diem-so` | Một phần | Có chi tiết phiên và bài tập; phần lớn là dòng mẫu, chưa bao quát tất cả phiên/bài mới. |
-| SV-63 | Chọn lớp, bài học, loại vấn đề (Bài giảng/Bài tập/Chat AI/Kỹ thuật/Khác) | `/sinh-vien/phan-hoi` | Một phần | Chọn lớp/loại; bài học cố định RESTful API, chưa có bộ chọn bài học. |
-| SV-64 | Đính kèm tối đa 5 ảnh, tổng 5MB | `/sinh-vien/phan-hoi` | Một phần | Kiểm tra tối đa 5 ảnh và tổng 5MB; chỉ lưu tên tệp, không upload hay lưu nội dung ảnh. |
-| SV-65 | Lịch sử phản hồi: trạng thái + câu trả lời GV | `/sinh-vien/phan-hoi` | FE đã triển khai | Danh sách có trạng thái và trả lời GV, cập nhật dữ liệu cục bộ. |
+Các đường dẫn trong cột source tính từ `src/`. Tham chiếu nguồn là vị trí kiểm tra lại, không phải khẳng định mọi nhánh được E2E bao phủ.
 
-Trạng thái: 31 fe đã triển khai, 11 mô phỏng, 23 một phần, 0 chưa triển khai.
+## Sinh viên
 
-## Giảng viên — 44 mục
+| ID | Yêu cầu | Phân loại | Route | Source chính | Giới hạn / bằng chứng |
+|---|---|---|---|---|---|
+| SV-01 | Đăng nhập bằng mã SV + mật khẩu | FE cục bộ | /dang-nhap | shared/Account.tsx; data/accounts.ts | Mã/mật khẩu từ registry Admin, không đăng ký, lỗi/liên hệ Admin, role guard; import/reset đặt mustChange và đổi mật khẩu lưu hash. |
+| SV-02 | Tài khoản do Admin cấp (không tự đăng ký) | FE cục bộ | /dang-nhap | shared/Account.tsx; data/accounts.ts | Mã/mật khẩu từ registry Admin, không đăng ký, lỗi/liên hệ Admin, role guard; import/reset đặt mustChange và đổi mật khẩu lưu hash. |
+| SV-03 | Đăng nhập lần đầu bắt buộc đổi mật khẩu mặc định (AF-2) | FE cục bộ | /doi-mat-khau | shared/Account.tsx | Mã/mật khẩu từ registry Admin, không đăng ký, lỗi/liên hệ Admin, role guard; import/reset đặt mustChange và đổi mật khẩu lưu hash. |
+| SV-04 | Sai mật khẩu báo lỗi; quên mật khẩu → liên hệ Admin | FE cục bộ | /dang-nhap | shared/Account.tsx | Mã/mật khẩu từ registry Admin, không đăng ký, lỗi/liên hệ Admin, role guard; import/reset đặt mustChange và đổi mật khẩu lưu hash. |
+| SV-05 | Menu hiển thị theo role | FE cục bộ | /sinh-vien/* | App.tsx; shared/Layout.tsx | Mã/mật khẩu từ registry Admin, không đăng ký, lỗi/liên hệ Admin, role guard; import/reset đặt mustChange và đổi mật khẩu lưu hash. |
+| SV-06 | Danh sách Phiên tự học AI theo học phần | Partial FE | /sinh-vien/tu-hoc | Sinhvien/TuHoc.tsx | Luồng session/progress/completed/late/review thực; danh sách session chung CSE301/l2 và record chưa phân account/class đầy đủ. |
+| SV-07 | Tổng quan phiên: tên bài, tiến độ, thời hạn, trạng thái | Partial FE | /sinh-vien/tu-hoc | Sinhvien/TuHoc.tsx | Luồng session/progress/completed/late/review thực; danh sách session chung CSE301/l2 và record chưa phân account/class đầy đủ. |
+| SV-08 | Nút "Bắt đầu học" / "Tiếp tục" | Partial FE | /sinh-vien/tu-hoc | Sinhvien/TuHoc.tsx | Luồng session/progress/completed/late/review thực; danh sách session chung CSE301/l2 và record chưa phân account/class đầy đủ. |
+| SV-09 | Hoàn thành 100% → "Completed", tính điểm tự học | Partial FE | /sinh-vien/hoc/:id; diem-so | data/study.ts; shared/Grades.tsx | Luồng session/progress/completed/late/review thực; danh sách session chung CSE301/l2 và record chưa phân account/class đầy đủ. |
+| SV-10 | AF-1: Hết hạn vẫn xem được nhưng không tính điểm | Partial FE | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/study.ts | Luồng session/progress/completed/late/review thực; danh sách session chung CSE301/l2 và record chưa phân account/class đầy đủ. |
+| SV-11 | AF-2: Đã hoàn thành vẫn vào xem lại để ôn | Partial FE | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/study.ts | Luồng session/progress/completed/late/review thực; danh sách session chung CSE301/l2 và record chưa phân account/class đầy đủ. |
+| SV-12 | Hiển thị slide + nút Trang trước / Trang sau | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Slide HTML mẫu và trước/sau có; total/tiêu đề metadata đã nối; không claim đọc PDF upload thật. |
+| SV-13 | Thanh danh sách slide (thumbnail) bên trái | Partial FE | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Danh sách số/tên trang, chưa thumbnail ảnh PDF thật. |
+| SV-14 | Ghi nhận slide đã xem để tính tiến độ | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/rules.ts | Lưu tiến độ/quiz theo session; xác nhận bắt buộc, sai vẫn đi tiếp, phản hồi/giải thích, chat panel. |
+| SV-15 | Nút "Chat với AI" và "Hỏi trên lớp" dùng được mọi lúc | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/rules.ts | Lưu tiến độ/quiz theo session; xác nhận bắt buộc, sai vẫn đi tiếp, phản hồi/giải thích, chat panel. |
+| SV-16 | Slide có quiz phải trả lời mới qua slide tiếp | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/rules.ts | Lưu tiến độ/quiz theo session; xác nhận bắt buộc, sai vẫn đi tiếp, phản hồi/giải thích, chat panel. |
+| SV-17 | Trắc nghiệm A/B/C/D, bấm xác nhận | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/rules.ts | Lưu tiến độ/quiz theo session; xác nhận bắt buộc, sai vẫn đi tiếp, phản hồi/giải thích, chat panel. |
+| SV-18 | Hiện đúng/sai + giải thích ngay | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/rules.ts | Lưu tiến độ/quiz theo session; xác nhận bắt buộc, sai vẫn đi tiếp, phản hồi/giải thích, chat panel. |
+| SV-19 | AF-1: Sai vẫn cho đi tiếp nhưng ghi nhận | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/rules.ts | Lưu tiến độ/quiz theo session; xác nhận bắt buộc, sai vẫn đi tiếp, phản hồi/giải thích, chat panel. |
+| SV-20 | Panel chat mở từ màn học slide | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/rules.ts | Lưu tiến độ/quiz theo session; xác nhận bắt buộc, sai vẫn đi tiếp, phản hồi/giải thích, chat panel. |
+| SV-21 | Context = slide đang xem + toàn bộ học liệu lớp | FE mô phỏng | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Quy tắc trả lời theo course/keyword và nối nhiều lượt UI; không RAG/toàn học liệu/context multi-turn thật. |
+| SV-22 | Hỏi nhiều lượt (multi-turn) | FE mô phỏng | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Quy tắc trả lời theo course/keyword và nối nhiều lượt UI; không RAG/toàn học liệu/context multi-turn thật. |
+| SV-23 | Lưu lịch sử chat | Partial FE | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Chat lưu lâu localStorage nhưng shared fixture, chưa tách lịch sử từng account/class. |
+| SV-24 | Có thể kèm câu hỏi mở khuyến khích tư duy | FE mô phỏng | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Gợi ý theo rule có câu khuyến khích tự giải thích. |
+| SV-25 | AF-1: Đánh giá (rating/flag) câu trả lời | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Assistant và HocBai đã lưu rating/report thật local qua recordChatFeedback; aria-pressed phản ánh state. |
+| SV-26 | EX-1: Ngoài phạm vi → "hãy hỏi giảng viên" | FE mô phỏng | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Có fallback hỏi GV, nguồn rỗng ngoài scope và guardrail keyword; không đảm bảo guardrail model thật. |
+| SV-27 | Disclaimer "Chat AI có thể mắc lỗi…" | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx,285,482 | Disclaimer ở reader và trang Assistant. |
+| SV-28 | Nút "Hỏi trên lớp" tại slide đang xem | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx,285,482 | Hỏi trên lớp tự gắn trang, form nội dung và đếm; dữ liệu vẫn cùng workspace demo. |
+| SV-29 | Form tự gắn slide + ô nhập câu hỏi | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx,285,482 | Hỏi trên lớp tự gắn trang, form nội dung và đếm; dữ liệu vẫn cùng workspace demo. |
+| SV-30 | Cập nhật số lượng kiến thức mờ | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx,285,482 | Hỏi trên lớp tự gắn trang, form nội dung và đếm; dữ liệu vẫn cùng workspace demo. |
+| SV-31 | Popup "Kiến thức mờ (X)": nội dung, slide, ngày, trạng thái | Partial FE | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx; data/fixtures.ts | Popup nội dung/trang/trạng thái có; Gap chưa date/session/account scope. |
+| SV-32 | Bấm mục để nhảy tới slide | FE cục bộ | /sinh-vien/hoc/:id | Sinhvien/HocBai.tsx | Bấm gap nhảy trang; cần validate trang khi metadata bị xóa. |
+| SV-33 | Nút "Tạo câu hỏi luyện tập", chọn phạm vi slide | FE mô phỏng | /sinh-vien/luyen-tap | Sinhvien/BaiTap.tsx,247,281 | AIPractice filter pool theo scope, đổi bộ, TN/điền, kiểm từng câu/giải thích/tổng kết, không điểm/không giới hạn; sinh model thật ngoài scope. |
+| SV-34 | AI sinh trắc nghiệm + điền trống kèm đáp án | FE mô phỏng | /sinh-vien/luyen-tap | Sinhvien/BaiTap.tsx,247,281 | AIPractice filter pool theo scope, đổi bộ, TN/điền, kiểm từng câu/giải thích/tổng kết, không điểm/không giới hạn; sinh model thật ngoài scope. |
+| SV-35 | Quiz tương tác: đúng/sai + giải thích ngay; tổng kết; "Tạo bộ mới" | FE mô phỏng | /sinh-vien/luyen-tap | Sinhvien/BaiTap.tsx,247,281 | AIPractice filter pool theo scope, đổi bộ, TN/điền, kiểm từng câu/giải thích/tổng kết, không điểm/không giới hạn; sinh model thật ngoài scope. |
+| SV-36 | Không tính điểm, không giới hạn lần | FE mô phỏng | /sinh-vien/luyen-tap | Sinhvien/BaiTap.tsx | AIPractice filter pool theo scope, đổi bộ, TN/điền, kiểm từng câu/giải thích/tổng kết, không điểm/không giới hạn; sinh model thật ngoài scope. |
+| SV-37 | Danh sách tài liệu: tên, mô tả, loại (File / Liên kết) | Partial FE | /sinh-vien/tai-lieu | shared/Communication.tsx | Tên/mô tả/loại, mở link/tab/tải PDF mẫu; resource pool chung CSE301, chưa thư viện theo từng lớp mới/account. |
+| SV-38 | File → tải/mở; Liên kết → mở tab mới | Partial FE | /sinh-vien/tai-lieu | shared/Communication.tsx | Tên/mô tả/loại, mở link/tab/tải PDF mẫu; resource pool chung CSE301, chưa thư viện theo từng lớp mới/account. |
+| SV-39 | Tham gia bằng mã phiên hoặc quét QR | FE cục bộ | /sinh-vien/tren-lop | shared/LopTrucTiep.tsx,153 | Mã/QR, timer/A-D/confirm, sync câu mới, reset selected, late join, timeout participant -1; phiên mã cứng demo chưa vòng đời BE. |
+| SV-40 | Màn đếm ngược + 4 nút A/B/C/D + "Xác nhận" | FE cục bộ | /sinh-vien/tren-lop | shared/LopTrucTiep.tsx,153 | Mã/QR, timer/A-D/confirm, sync câu mới, reset selected, late join, timeout participant -1; phiên mã cứng demo chưa vòng đời BE. |
+| SV-41 | Đã gửi → "Đã gửi"; GV chuyển câu → tự cập nhật | FE cục bộ | /sinh-vien/tren-lop | shared/LopTrucTiep.tsx,100 | Mã/QR, timer/A-D/confirm, sync câu mới, reset selected, late join, timeout participant -1; phiên mã cứng demo chưa vòng đời BE. |
+| SV-42 | AF-1: Mã sai/hết hạn báo lỗi | FE cục bộ | /sinh-vien/tren-lop | shared/LopTrucTiep.tsx | Mã/QR, timer/A-D/confirm, sync câu mới, reset selected, late join, timeout participant -1; phiên mã cứng demo chưa vòng đời BE. |
+| SV-43 | AF-2: Vào giữa chừng vẫn trả lời nếu còn giờ | FE cục bộ | /sinh-vien/tren-lop | shared/LopTrucTiep.tsx | Mã/QR, timer/A-D/confirm, sync câu mới, reset selected, late join, timeout participant -1; phiên mã cứng demo chưa vòng đời BE. |
+| SV-44 | AF-3: Hết giờ → ghi nhận "không trả lời" | FE cục bộ | /sinh-vien/tren-lop | shared/LopTrucTiep.tsx | Mã/QR, timer/A-D/confirm, sync câu mới, reset selected, late join, timeout participant -1; phiên mã cứng demo chưa vòng đời BE. |
+| SV-45 | EX-1: Mất mạng, kết nối lại trước hết giờ vẫn trả lời | FE mô phỏng | /sinh-vien/tren-lop | shared/LopTrucTiep.tsx | Online/offline UI và sync localStorage cùng trình duyệt; reconnect mạng/server thật ngoài scope. |
+| SV-46 | Giao diện tối ưu điện thoại | FE cục bộ | /sinh-vien/tren-lop | styles/responsive.css; tests/flows.spec.ts | Đã kiểm route/luồng ở viewport giả lập 390px và 1440px trong E2E; chưa xác nhận thiết bị thật hoặc mọi kích thước. |
+| SV-47 | Menu "Bài tập" ghi rõ "Tính điểm", tách với luyện tập | FE cục bộ | /sinh-vien/bai-tap; lam-bai | Sinhvien/BaiTap.tsx,158 | Nhãn tính điểm/tách luyện tập, thi 3 loại template, timer tự nộp và preventPaste. |
+| SV-48 | Giao diện thi: câu hỏi + đồng hồ đếm ngược | FE cục bộ | /sinh-vien/bai-tap; lam-bai | Sinhvien/BaiTap.tsx,158 | Nhãn tính điểm/tách luyện tập, thi 3 loại template, timer tự nộp và preventPaste. |
+| SV-49 | Trắc nghiệm + điền trống + tự luận | FE cục bộ | /sinh-vien/bai-tap; lam-bai | Sinhvien/BaiTap.tsx,158 | Nhãn tính điểm/tách luyện tập, thi 3 loại template, timer tự nộp và preventPaste. |
+| SV-50 | Chặn dán (paste) | FE cục bộ | /sinh-vien/bai-tap; lam-bai | Sinhvien/BaiTap.tsx,158 | Nhãn tính điểm/tách luyện tập, thi 3 loại template, timer tự nộp và preventPaste. |
+| SV-51 | Hết giờ tự nộp | FE cục bộ | /sinh-vien/bai-tap; lam-bai | Sinhvien/BaiTap.tsx,158 | Nhãn tính điểm/tách luyện tập, thi 3 loại template, timer tự nộp và preventPaste. |
+| SV-52 | AI chấm tự động + giải thích + phản hồi cá nhân từng câu | FE mô phỏng | /sinh-vien/lam-bai | Sinhvien/BaiTap.tsx; Giangvien/BaiTap.tsx | TN/điền tự chấm, essayDraft theo tiêu chí text, GV duyệt; chấm model thật ngoài scope. |
+| SV-53 | Giới hạn số lần làm | FE cục bộ | /sinh-vien/bai-tap | Sinhvien/BaiTap.tsx,142,223 | Nút làm lại khi còn lượt; begin/submit guard draft/lượt/pending appeal, deadline cap closes. |
+| SV-54 | Điểm tổng, tỷ lệ đúng, số câu | Partial FE | /sinh-vien/ket-qua | Sinhvien/BaiTap.tsx | Điểm tổng và đúng/2 câu tự chấm có; thiếu tỷ lệ đúng/tổng3 thống nhất với tự luận. |
+| SV-55 | Từng câu: loại, Đúng/Sai, điểm, đáp án đúng, giải thích, phản hồi | Partial FE | /sinh-vien/ket-qua | Sinhvien/BaiTap.tsx | Có điểm từng câu và giải thích/comment; nhãn Đúng/Sai/đáp án lựa chọn đầy đủ chưa hoàn thiện. |
+| SV-56 | Hiện trạng thái + điểm mới của câu đã phúc khảo | Partial FE | /sinh-vien/ket-qua | Sinhvien/BaiTap.tsx,566 | Điểm câu sau regrade phản ánh vào result; trạng thái appeal hiện tổng ở card riêng, chưa gắn trạng thái/điểm đổi vào từng câu rõ ràng. |
+| SV-57 | Nút "Yêu cầu phúc khảo" tại từng câu | FE cục bộ | /sinh-vien/ket-qua | Sinhvien/BaiTap.tsx,566 | Mỗi câu mở appeal theo index; chống trùng pending câu. |
+| SV-58 | Form: câu hỏi, câu trả lời, điểm AI, lý do | Partial FE | /sinh-vien/ket-qua | Sinhvien/BaiTap.tsx,566 | Snapshot question/answer/points được lưu; modal SV hiện chỉ input lý do, chưa trình bày đầy đủ context như yêu cầu. |
+| SV-59 | Lưu "Pending", GV nhận thông báo | FE cục bộ | /sinh-vien/ket-qua | Sinhvien/BaiTap.tsx,566 | Pending lưu và teacherNotices đúng audience, readTeacherNotices=false. |
+| SV-60 | Điểm tự học = phiên hoàn thành đúng hạn / tổng phiên × 10 | Partial FE | /sinh-vien/diem-so | shared/Grades.tsx,288 | learningSummary đã derive mọi phiên/bài published và Grades hiển thị danh sách động; dữ liệu vẫn shared workspace, chưa từng account/lớp đầy đủ. |
+| SV-61 | Điểm TB bài tập = TB cộng điểm Bài tập AI | Partial FE | /sinh-vien/diem-so | shared/Grades.tsx,288 | learningSummary đã derive mọi phiên/bài published và Grades hiển thị danh sách động; dữ liệu vẫn shared workspace, chưa từng account/lớp đầy đủ. |
+| SV-62 | Chi tiết: danh sách phiên (đúng hạn/trễ/chưa), điểm từng bài | Partial FE | /sinh-vien/diem-so | shared/Grades.tsx,288 | learningSummary đã derive mọi phiên/bài published và Grades hiển thị danh sách động; dữ liệu vẫn shared workspace, chưa từng account/lớp đầy đủ. |
+| SV-63 | Chọn lớp, bài học, loại vấn đề (Bài giảng/Bài tập/Chat AI/Kỹ thuật/Khác) | Partial FE | /sinh-vien/phan-hoi | shared/Communication.tsx,263 | Chọn lớp/loại/lesson published; CSE301 có, các lớp khác chưa map lesson nên gửi bị chặn rõ ràng. |
+| SV-64 | Đính kèm tối đa 5 ảnh, tổng 5MB | FE cục bộ | /sinh-vien/phan-hoi | shared/Communication.tsx | Validate tối đa5/tổng5MB/MIME raster; IDB lưu File, GV mở/xem thumbnail được. |
+| SV-65 | Lịch sử phản hồi: trạng thái + câu trả lời GV | Partial FE | /sinh-vien/phan-hoi | shared/Communication.tsx,106 | Có lịch sử/trạng thái/trả lời nhưng shared data không theo studentId của account import mới. |
 
-| Mã | Yêu cầu nguyên văn | Route | Trạng thái | Bằng chứng / giới hạn |
-| --- | --- | --- | --- | --- |
-| GV-01 | Danh sách bài học trong lớp | `/giang-vien/bai-hoc` | Một phần | Danh sách bài học mẫu của CSE301; chưa quản lý độc lập nội dung từng lớp. |
-| GV-02 | Tạo / sửa: tên bài học, thứ tự | `/giang-vien/bai-hoc` | FE đã triển khai | Tạo/đổi tên và đổi thứ tự bài học, lưu cục bộ. |
-| GV-03 | Xoá bài học khi chưa có dữ liệu SV | `/giang-vien/bai-hoc` | FE đã triển khai | Khóa xóa nếu activity=true; bảo vệ FE theo dữ liệu mẫu, chưa có kiểm tra máy chủ. |
-| GV-04 | Upload slide bài giảng | `/giang-vien/soan-bai` | Một phần | Chọn PDF tối đa 10MB và xem trước object URL; không upload hoặc lưu tệp lâu dài. |
-| GV-05 | Danh sách slide bên trái, preview bên phải | `/giang-vien/soan-bai` | Một phần | Danh sách trang trái/preview phải; trang mẫu chưa trích xuất từ PDF chọn. |
-| GV-06 | Thêm / xoá / sắp xếp từng slide | `/giang-vien/soan-bai` | Mô phỏng | Thêm/xóa/đổi thứ tự tên trang trong component state; không sửa PDF hoặc đồng bộ nội dung sang SV. |
-| GV-07 | Thêm video YouTube | `/giang-vien/soan-bai` | Một phần | Kiểm tra URL YouTube và thêm vào tài liệu lớp; không nhúng player vào trang học. |
-| GV-08 | Tạo câu hỏi quiz gắn từng slide (4 đáp án, đáp án đúng, giải thích) | `/giang-vien/ngan-hang-cau-hoi` | FE đã triển khai | CRUD câu hỏi 4 lựa chọn, đúng/giải thích, số trang 1–4. |
-| GV-09 | "AI gợi ý câu hỏi" → GV rà soát, chỉnh sửa | `/giang-vien/ngan-hang-cau-hoi` | Mô phỏng | Thêm câu gợi ý cố định ở trạng thái chờ duyệt, cho sửa/duyệt; không gọi AI. |
-| GV-10 | AF-1: Import / export câu hỏi Excel/CSV | `/giang-vien/ngan-hang-cau-hoi` | Một phần | Nhập XLSX/CSV theo cấu trúc và xuất XLSX; chưa có xuất CSV, parser CSV không hỗ trợ mọi biến thể. |
-| GV-11 | Câu hỏi dùng lại cho poll trên lớp | `/giang-vien/tren-lop` | FE đã triển khai | Màn hỏi trên lớp dùng danh sách questions đã duyệt giống tự học. |
-| GV-12 | Đặt giờ bắt đầu – kết thúc | `/giang-vien/phien-tu-hoc` | FE đã triển khai | Thiết lập mở/đóng; kiểm tra kết thúc sau bắt đầu. |
-| GV-13 | Tự Active khi đến giờ bắt đầu | `/giang-vien/phien-tu-hoc` | Một phần | Trạng thái tính từ đồng hồ trình duyệt khi render; chưa có scheduler máy chủ hay bảo đảm cập nhật đúng thời điểm nếu màn không render lại. |
-| GV-14 | AF-1: Gia hạn thời gian | `/giang-vien/phien-tu-hoc` | FE đã triển khai | Phiên đã công bố cho gia hạn hạn đóng, chặn rút ngắn. |
-| GV-15 | AF-2: Thiết lập nhiều phiên | `/giang-vien/phien-tu-hoc` | Một phần | Tạo nhiều phiên, progress riêng; nội dung vẫn dùng chung một bài mẫu. |
-| GV-16 | Cấu hình tiêu đề, thời gian làm, mở – đóng | `/giang-vien/tao-bai-tap` | FE đã triển khai | Tạo tiêu đề/thời lượng/mở/đóng và lưu bài nháp; mỗi bài có id riêng. |
-| GV-17 | Bố cục theo loại câu + điểm (VD TN 16 câu – 8đ…) | `/giang-vien/tao-bai-tap` | Mô phỏng | Chỉ trình bày cấu trúc mẫu 1 TN/4đ, 1 điền/3đ, 1 luận/3đ; chưa tùy chỉnh số câu/điểm. |
-| GV-18 | Chặn paste | `/giang-vien/tao-bai-tap` | FE đã triển khai | Cờ preventPaste áp dụng vào form sinh viên. |
-| GV-19 | "Tạo đề mới" có AI hỗ trợ → GV rà soát | `/giang-vien/tao-bai-tap` | Mô phỏng | Có gợi ý/duyệt mẫu; đề mới dùng lại bộ ba câu cố định, chưa sinh và biên tập đề bằng AI. |
-| GV-20 | "Import đề" | `/giang-vien/tao-bai-tap` | Chưa triển khai | Nút Import câu hỏi dẫn tới ngân hàng; chưa import một đề đầy đủ vào bài tập. |
-| GV-21 | Nhiều đề, bật/tắt từng đề, ngẫu nhiên hoá | `/giang-vien/bai-tap` | Một phần | Nhiều bài và bật/tắt đã có; cờ random chỉ ghi yêu cầu tích hợp BE, không ngẫu nhiên hóa câu hỏi. |
-| GV-22 | Thêm tài liệu: upload file hoặc dán liên kết | `/giang-vien/tai-lieu` | Một phần | Thêm URL có kiểm tra HTTP(S); không có upload tệp tài liệu tham khảo. |
-| GV-23 | Tiêu đề, mô tả ngắn; sắp xếp, sửa, xoá | `/giang-vien/tai-lieu` | Một phần | Có tiêu đề/mô tả khi thêm và xóa; chưa sửa hoặc sắp xếp tài liệu. |
-| GV-24 | Bấm "Hỏi trên lớp" → chọn câu hỏi, chọn lớp | `/giang-vien/tren-lop` | Một phần | Mở màn hỏi; lớp CSE301 cố định, câu lấy theo thứ tự đã duyệt, chưa chọn lớp/câu tùy ý. |
-| GV-25 | Màn chiếu: câu hỏi + 4 đáp án + đếm ngược | `/giang-vien/tren-lop` | FE đã triển khai | Câu hỏi, bốn đáp án, đồng hồ và nút fullscreen. |
-| GV-26 | Mã phiên (số ngắn) + mã QR | `/giang-vien/tren-lop` | Mô phỏng | Mã mẫu 261016 và QR URL; không tạo phiên phía server và không đồng bộ khác thiết bị. |
-| GV-27 | "Đổi câu hỏi" chuyển câu | `/giang-vien/tren-lop` | Mô phỏng | Câu tiếp theo đổi câu và reset timer/answers, đồng bộ tab cục bộ. |
-| GV-28 | Hết giờ hoặc tất cả đã trả lời → hiện kết quả | `/giang-vien/tren-lop` | Mô phỏng | Tự hiện khi hết giờ hoặc có 4 câu trả lời; 4 là ngưỡng mẫu, không phải sĩ số tham gia thật. |
-| GV-29 | Số SV đã trả lời | `/giang-vien/tren-lop` | Mô phỏng | Đếm answers cục bộ, có nút thêm lượt trả lời mẫu. |
-| GV-30 | Phân bố từng đáp án, tỷ lệ đúng | `/giang-vien/tren-lop` | Một phần | Biểu đồ số lượt theo lựa chọn; đánh dấu đáp án đúng, chưa có tỷ lệ đúng dạng số. |
-| GV-31 | Popup danh sách, gom theo slide + số lượng | `/giang-vien/tien-do` | Một phần | Bảng gom số kiến thức mờ theo trang; danh sách chi tiết ở Phản hồi, chưa có popup nhóm. |
-| GV-32 | Đánh dấu "Đã giải thích" từng mục hoặc cả nhóm | `/giang-vien/phan-hoi` | Một phần | Giải đáp từng mục bằng form; chưa có đánh dấu cả nhóm hoặc chỉ đánh dấu không nhập giải đáp. |
-| GV-33 | Tiến độ tự học từng SV (tên, email, bài, % hoàn thành) | `/giang-vien/tien-do` | Một phần | Có tên/email, progress s1 động cho sv1 và người khác mẫu; chưa theo dõi mọi phiên/người dùng. |
-| GV-34 | Kết quả bài tập: điểm, % đúng, thời gian nộp | `/giang-vien/tien-do` | Một phần | Có điểm bài tập; chưa tổng hợp tỷ lệ đúng/thời gian nộp trong dashboard. |
-| GV-35 | Tương tác: Chat AI, quiz trên lớp, phản hồi | `/giang-vien/tien-do` | Một phần | Có số chat/phản hồi/kiến thức mờ; chưa tổng hợp quiz trên lớp theo từng SV. |
-| GV-36 | Phân tích AI: nội dung sai nhiều, đề xuất | `/giang-vien/tien-do` | Mô phỏng | Khuyến nghị HTTP methods cố định, có nhãn Phân tích minh họa; không phân tích AI. |
-| GV-37 | Cảnh báo SV tiến độ thấp / điểm dưới ngưỡng | `/giang-vien/tien-do` | Một phần | Bộ lọc tiến độ mẫu dưới 50% và Nhắc học tạo thông báo cục bộ; chưa ngưỡng tùy chỉnh/điểm thấp/email. |
-| GV-38 | Bảng: STT, Mã SV, Họ đệm, Tên, Điểm tự học, Điểm TB bài tập | `/giang-vien/diem-so` | Một phần | Có bộ chọn hai lớp mẫu và danh sách/điểm tương ứng; STT/mã/tên gộp/điểm đã có, chưa tách Họ đệm và Tên. |
-| GV-39 | Xuất Excel | `/giang-vien/diem-so` | FE đã triển khai | ExcelJS tạo/download XLSX theo lớp và tìm kiếm đang chọn; dòng động nhận diện sv1, dữ liệu còn lại minh họa. |
-| GV-40 | Danh sách: thời gian, loại, trạng thái | `/giang-vien/phan-hoi` | FE đã triển khai | Danh sách có ngày, loại, trạng thái và lọc chờ/đã xử lý. |
-| GV-41 | Chi tiết: lớp, bài, SV, mô tả, ảnh; trả lời; "Đã xử lý" | `/giang-vien/phan-hoi` | Một phần | Có lớp/bài/SV/nội dung và trả lời, tự đánh dấu xử lý; ảnh chỉ là tên, không xem ảnh thật. |
-| GV-42 | Danh sách phúc khảo: SV, bài, câu, trạng thái | `/giang-vien/phuc-khao` | Một phần | Danh sách có SV/bài/trạng thái; trường question dùng tên bài, chưa định danh câu cụ thể. |
-| GV-43 | Giữ nguyên (ghi lý do) hoặc chấm lại → tính lại điểm TB | `/giang-vien/phuc-khao` | Một phần | Giữ nguyên/chấm lại và phản hồi cập nhật tổng điểm bài; điểm TB chỉ tổng hợp a1 cùng hai điểm mẫu. |
-| GV-44 | SV nhận thông báo kết quả | `/giang-vien/phuc-khao` | Mô phỏng | Tạo thông báo cục bộ kết quả và hiện phía SV; chưa gửi sự kiện/email máy chủ. |
+## Giảng viên
 
-Trạng thái: 11 fe đã triển khai, 10 mô phỏng, 22 một phần, 1 chưa triển khai.
+| ID | Yêu cầu | Phân loại | Route | Source chính | Giới hạn / bằng chứng |
+|---|---|---|---|---|---|
+| GV-01 | Danh sách bài học trong lớp | FE cục bộ | /giang-vien/bai-hoc | Giangvien/BaiHoc.tsx | CRUD tên/order và guard không xóa activity; soạn nhận lessonId, metadata lưu đúng lesson. |
+| GV-02 | Tạo / sửa: tên bài học, thứ tự | FE cục bộ | /giang-vien/bai-hoc | Giangvien/BaiHoc.tsx | CRUD tên/order và guard không xóa activity; soạn nhận lessonId, metadata lưu đúng lesson. |
+| GV-03 | Xoá bài học khi chưa có dữ liệu SV | FE cục bộ | /giang-vien/bai-hoc | Giangvien/BaiHoc.tsx | CRUD tên/order và guard không xóa activity; soạn nhận lessonId, metadata lưu đúng lesson. |
+| GV-04 | Upload slide bài giảng | Partial FE | /giang-vien/soan-bai | Giangvien/BaiHoc.tsx | PDF preview cục bộ, metadata slides lưu/thêm/xóa/sắp xếp; chưa upload/extract/chỉnh PDF thật, reader content minh họa. |
+| GV-05 | Danh sách slide bên trái, preview bên phải | Partial FE | /giang-vien/soan-bai | Giangvien/BaiHoc.tsx | PDF preview cục bộ, metadata slides lưu/thêm/xóa/sắp xếp; chưa upload/extract/chỉnh PDF thật, reader content minh họa. |
+| GV-06 | Thêm / xoá / sắp xếp từng slide | Partial FE | /giang-vien/soan-bai | Giangvien/BaiHoc.tsx | PDF preview cục bộ, metadata slides lưu/thêm/xóa/sắp xếp; chưa upload/extract/chỉnh PDF thật, reader content minh họa. |
+| GV-07 | Thêm video YouTube | FE cục bộ | /giang-vien/soan-bai | Giangvien/BaiHoc.tsx | Thêm YouTube link lưu video/resources; chưa claim nhúng phát video tại reader. |
+| GV-08 | Tạo câu hỏi quiz gắn từng slide (4 đáp án, đáp án đúng, giải thích) | FE cục bộ | /giang-vien/ngan-hang-cau-hoi | Giangvien/CauHoi.tsx | Structured quiz 4 lựa chọn/đáp án/giải thích/page có CRUD trong bank; scope bank chung demo. |
+| GV-09 | "AI gợi ý câu hỏi" → GV rà soát, chỉnh sửa | FE mô phỏng | /giang-vien/ngan-hang-cau-hoi | Giangvien/CauHoi.tsx | Gợi ý mẫu cần GV duyệt/sửa; không model sinh thật. |
+| GV-10 | AF-1: Import / export câu hỏi Excel/CSV | FE cục bộ | /giang-vien/ngan-hang-cau-hoi; tren-lop | Giangvien/CauHoi.tsx; shared/LopTrucTiep.tsx | Import Excel/CSV và export Excel, quiz approved dùng lại trên lớp. |
+| GV-11 | Câu hỏi dùng lại cho poll trên lớp | FE cục bộ | /giang-vien/ngan-hang-cau-hoi; tren-lop | Giangvien/CauHoi.tsx; shared/LopTrucTiep.tsx | Import Excel/CSV và export Excel, quiz approved dùng lại trên lớp. |
+| GV-12 | Đặt giờ bắt đầu – kết thúc | FE cục bộ | /giang-vien/phien-tu-hoc | Giangvien/PhienTuHoc.tsx | Đặt opens/closes, validation thứ tự thời gian. |
+| GV-13 | Tự Active khi đến giờ bắt đầu | FE mô phỏng | /giang-vien/phien-tu-hoc | data/rules.ts; Giangvien/PhienTuHoc.tsx | sessionState theo now khi render; chưa timer rerender tại ranh giờ hoặc scheduler server. |
+| GV-14 | AF-1: Gia hạn thời gian | FE cục bộ | /giang-vien/phien-tu-hoc; tao-bai-tap | Giangvien/PhienTuHoc.tsx; Giangvien/BaiTap.tsx | Gia hạn published không rút ngắn; thêm được nhiều session; nội dung session chung l2 là giới hạn đã biết. |
+| GV-15 | AF-2: Thiết lập nhiều phiên | FE cục bộ | /giang-vien/phien-tu-hoc; tao-bai-tap | Giangvien/PhienTuHoc.tsx; Giangvien/BaiTap.tsx | Gia hạn published không rút ngắn; thêm được nhiều session; nội dung session chung l2 là giới hạn đã biết. |
+| GV-16 | Cấu hình tiêu đề, thời gian làm, mở – đóng | FE cục bộ | /giang-vien/phien-tu-hoc; tao-bai-tap | Giangvien/PhienTuHoc.tsx; Giangvien/BaiTap.tsx | Tiêu đề/thời gian/mở/đóng được lưu riêng assignment. |
+| GV-17 | Bố cục theo loại câu + điểm (VD TN 16 câu – 8đ…) | Partial FE | /giang-vien/tao-bai-tap | Giangvien/BaiTap.tsx | Đề cố định3 câu 4/3/3 điểm, chưa cấu hình số câu/điểm/cấu trúc tùy ý. |
+| GV-18 | Chặn paste | FE cục bộ | /giang-vien/tao-bai-tap | Giangvien/BaiTap.tsx; Sinhvien/BaiTap.tsx | Cấu hình preventPaste được áp dụng ở form SV. |
+| GV-19 | "Tạo đề mới" có AI hỗ trợ → GV rà soát | Partial FE | /giang-vien/tao-bai-tap | Giangvien/BaiTap.tsx | Gợi ý đề mẫu/duyệt minh họa, chưa tạo/chỉnh nội dung đề riêng. |
+| GV-20 | "Import đề" | Partial FE | /giang-vien/tao-bai-tap | Giangvien/BaiTap.tsx | Import bank có, chưa nối questionIds/import đề riêng vào assignment template. |
+| GV-21 | Nhiều đề, bật/tắt từng đề, ngẫu nhiên hoá | Partial FE | /giang-vien/bai-tap | Giangvien/BaiTap.tsx,138,276 | Nhiều assignment/bật tắt có; random chỉ flag và chưa nhiều đề/ngẫu nhiên thật. |
+| GV-22 | Thêm tài liệu: upload file hoặc dán liên kết | Partial FE | /giang-vien/tai-lieu | shared/Communication.tsx | Tài liệu thêm link/xóa có; thiếu upload file/sửa/sắp đầy đủ như checklist. |
+| GV-23 | Tiêu đề, mô tả ngắn; sắp xếp, sửa, xoá | Partial FE | /giang-vien/tai-lieu | shared/Communication.tsx | Tài liệu thêm link/xóa có; thiếu upload file/sửa/sắp đầy đủ như checklist. |
+| GV-24 | Bấm "Hỏi trên lớp" → chọn câu hỏi, chọn lớp | Partial FE | /giang-vien/tren-lop | shared/LopTrucTiep.tsx,100 | Chiếu câu approved theo bank có; chưa picker chọn câu/lớp cụ thể trước phiên. |
+| GV-25 | Màn chiếu: câu hỏi + 4 đáp án + đếm ngược | FE cục bộ | /giang-vien/tren-lop | shared/LopTrucTiep.tsx,235 | Câu/4 đáp án/timer/fullscreen, mã/QR, next, auto reveal khi hết giờ/all participants, đếm answers. |
+| GV-26 | Mã phiên (số ngắn) + mã QR | FE cục bộ | /giang-vien/tren-lop | shared/LopTrucTiep.tsx,235 | Câu/4 đáp án/timer/fullscreen, mã/QR, next, auto reveal khi hết giờ/all participants, đếm answers. |
+| GV-27 | "Đổi câu hỏi" chuyển câu | FE cục bộ | /giang-vien/tren-lop | shared/LopTrucTiep.tsx,235 | Câu/4 đáp án/timer/fullscreen, mã/QR, next, auto reveal khi hết giờ/all participants, đếm answers. |
+| GV-28 | Hết giờ hoặc tất cả đã trả lời → hiện kết quả | FE cục bộ | /giang-vien/tren-lop | shared/LopTrucTiep.tsx | Câu/4 đáp án/timer/fullscreen, mã/QR, next, auto reveal khi hết giờ/all participants, đếm answers. |
+| GV-29 | Số SV đã trả lời | FE cục bộ | /giang-vien/tren-lop | shared/LopTrucTiep.tsx | Câu/4 đáp án/timer/fullscreen, mã/QR, next, auto reveal khi hết giờ/all participants, đếm answers. |
+| GV-30 | Phân bố từng đáp án, tỷ lệ đúng | Partial FE | /giang-vien/tren-lop | shared/LopTrucTiep.tsx | Có phân bố số chọn từng đáp án; thiếu tỷ lệ đúng tổng rõ ràng. |
+| GV-31 | Popup danh sách, gom theo slide + số lượng | Partial FE | /giang-vien/tien-do; phan-hoi | Giangvien/TheoDoi.tsx; shared/Communication.tsx | Count chưa giải thích theo trang và danh sách có; chưa popup gom group slide như yêu cầu. |
+| GV-32 | Đánh dấu "Đã giải thích" từng mục hoặc cả nhóm | FE cục bộ | /giang-vien/phan-hoi | shared/Communication.tsx | Từng gap có nhập giải đáp/Đã giải thích; checklist chấp nhận từng mục hoặc cả nhóm. |
+| GV-33 | Tiến độ tự học từng SV (tên, email, bài, % hoàn thành) | Partial FE | /giang-vien/tien-do | Giangvien/TheoDoi.tsx | Tên/email/progress có và sv1 dùng summary động; chưa chọn session/lesson và dữ liệu từng account mới. |
+| GV-34 | Kết quả bài tập: điểm, % đúng, thời gian nộp | Partial FE | /giang-vien/tien-do | Giangvien/TheoDoi.tsx | Điểm summary, chat/feedback/gap count có; thiếu % đúng/thời điểm nộp và hoạt động quiz live trên dashboard. |
+| GV-35 | Tương tác: Chat AI, quiz trên lớp, phản hồi | Partial FE | /giang-vien/tien-do | Giangvien/TheoDoi.tsx | Điểm summary, chat/feedback/gap count có; thiếu % đúng/thời điểm nộp và hoạt động quiz live trên dashboard. |
+| GV-36 | Phân tích AI: nội dung sai nhiều, đề xuất | FE mô phỏng | /giang-vien/tien-do | Giangvien/TheoDoi.tsx | LearningInsights tính wrong/answered/gaps từ state và đề xuất theo trang; không model thật. |
+| GV-37 | Cảnh báo SV tiến độ thấp / điểm dưới ngưỡng | FE cục bộ | /giang-vien/tien-do | Giangvien/TheoDoi.tsx,150 | Normalized progress/grade thống nhất lọc/render/export; ngưỡng progress<50 OR grade<5, có nhắc local. |
+| GV-38 | Bảng: STT, Mã SV, Họ đệm, Tên, Điểm tự học, Điểm TB bài tập | Partial FE | /giang-vien/diem-so | shared/Grades.tsx | Bảng STT/mã/họ tên/2 điểm có; chưa tách Họ đệm/Tên và scope registry mới. |
+| GV-39 | Xuất Excel | FE cục bộ | /giang-vien/diem-so | shared/Grades.tsx,74 | Xuất xlsx thật; phản hồi có thời gian/loại/trạng thái. |
+| GV-40 | Danh sách: thời gian, loại, trạng thái | FE cục bộ | /giang-vien/phan-hoi | shared/Communication.tsx | Xuất xlsx thật; phản hồi có thời gian/loại/trạng thái. |
+| GV-41 | Chi tiết: lớp, bài, SV, mô tả, ảnh; trả lời; "Đã xử lý" | FE cục bộ | /giang-vien/phan-hoi | shared/Communication.tsx | Thông tin lớp/bài/SV/nội dung/ảnh IDB/trả lời/Đã xử lý có trong workspace demo. |
+| GV-42 | Danh sách phúc khảo: SV, bài, câu, trạng thái | FE cục bộ | /giang-vien/phuc-khao | Giangvien/TheoDoi.tsx,281 | Appeal theo câu/snapshot, quyết định/lý do/regradeQuestion tổng điểm/notice; pending khóa làm lại, chấm tự luận giữ điểm đã appeal. |
+| GV-43 | Giữ nguyên (ghi lý do) hoặc chấm lại → tính lại điểm TB | FE cục bộ | /giang-vien/phuc-khao | Giangvien/TheoDoi.tsx,281 | Appeal theo câu/snapshot, quyết định/lý do/regradeQuestion tổng điểm/notice; pending khóa làm lại, chấm tự luận giữ điểm đã appeal. |
+| GV-44 | SV nhận thông báo kết quả | FE cục bộ | /giang-vien/phuc-khao | Giangvien/TheoDoi.tsx | Appeal theo câu/snapshot, quyết định/lý do/regradeQuestion tổng điểm/notice; pending khóa làm lại, chấm tự luận giữ điểm đã appeal. |
 
-## Trưởng khoa — 4 mục
+## Trưởng nhóm HP
 
-Nguồn bổ sung: sheet **Trưởng khoa**, vùng **B2:I5**. Cột E dưới đây giữ nguyên nội dung workbook; cột “Chưa có” của hệ thống cũ không được sửa và không đại diện trạng thái FE hiện tại.
+| ID | Yêu cầu | Phân loại | Route | Source chính | Giới hạn / bằng chứng |
+|---|---|---|---|---|---|
+| TN-01 | Đăng nhập với role CourseLeader | FE cục bộ | /dang-nhap | data/accounts.ts | Login role, scope lớp/học phần fixture, review/compare/M0–M3/request/followup/completion, editable guard và reset chuẩn hóa khi sửa. |
+| TN-02 | Danh sách các lớp cùng học phần | FE cục bộ | /truong-nhom-hp/chuan-hoa | Truongnhomhp/Overview.tsx; Review.tsx | Login role, scope lớp/học phần fixture, review/compare/M0–M3/request/followup/completion, editable guard và reset chuẩn hóa khi sửa. |
+| TN-03 | Rà soát slide, quiz, đề bài tập từng lớp | FE cục bộ | /truong-nhom-hp/chuan-hoa | Truongnhomhp/Overview.tsx; Review.tsx | Login role, scope lớp/học phần fixture, review/compare/M0–M3/request/followup/completion, editable guard và reset chuẩn hóa khi sửa. |
+| TN-04 | So sánh giữa các lớp, yêu cầu GV điều chỉnh | FE cục bộ | /truong-nhom-hp/so-sanh; yeu-cau | Truongnhomhp/Compare.tsx; model.ts | Login role, scope lớp/học phần fixture, review/compare/M0–M3/request/followup/completion, editable guard và reset chuẩn hóa khi sửa. |
+| TN-05 | Cụ thể hoá mức xử lý M0–M3 | FE cục bộ | /truong-nhom-hp/chuan-hoa/:classId | Truongnhomhp/model.ts,357 | Login role, scope lớp/học phần fixture, review/compare/M0–M3/request/followup/completion, editable guard và reset chuẩn hóa khi sửa. |
+| TN-06 | Đánh dấu "Hoàn thành chuẩn hoá" | FE cục bộ | /truong-nhom-hp/chuan-hoa/:classId | Truongnhomhp/model.ts,357 | Login role, scope lớp/học phần fixture, review/compare/M0–M3/request/followup/completion, editable guard và reset chuẩn hóa khi sửa. |
+| TN-07 | AF-1: Sửa trực tiếp nội dung nếu có quyền | FE cục bộ | /truong-nhom-hp/hoc-lieu/:id/sua | Truongnhomhp/Materials.tsx; model.ts | Login role, scope lớp/học phần fixture, review/compare/M0–M3/request/followup/completion, editable guard và reset chuẩn hóa khi sửa. |
+| TN-08 | Tạo / sửa nội dung, bài tập, tài liệu như GV | Partial FE | /truong-nhom-hp/hoc-lieu; tai-lieu | Truongnhomhp/Materials.tsx; Resources.tsx | Text editor slides/quiz/assignment và reference links có; chưa tương đương structured editor GV, upload hoặc metadata bài tập đầy đủ. |
 
-| Mã | Yêu cầu nguyên văn | Route | Trạng thái | Bằng chứng / giới hạn |
-| --- | --- | --- | --- | --- |
-| TK-01 | Đăng nhập với role Dean | `/dang-nhap` | Mô phỏng | TK001/12345678 có role `truong-khoa`; khôi phục phiên, đăng xuất và guard route hoạt động bằng fixture, chưa có auth máy chủ. |
-| TK-02 | Tổng quan toàn khoa | `/truong-khoa/tong-quan` | FE đã triển khai | Chọn học kỳ, đếm học phần/lớp/sinh viên không trùng, hoàn thành trung bình theo lượt học và bảng so sánh học phần; dữ liệu là các roster đại diện. |
-| TK-03 | Drill-down: học phần → lớp | `/truong-khoa/hoc-phan/:courseId/lop/:classId` | FE đã triển khai | Danh sách học phần → chi tiết học phần → lớp/sinh viên; tìm học phần/sinh viên, chọn lớp; giữ học kỳ trong URL và từ chối lớp không thuộc học phần. |
-| TK-04 | Mức hoàn thành, cảnh báo SV yếu toàn khoa | `/truong-khoa/canh-bao` | FE đã triển khai | Tiến độ, điểm, lý do cảnh báo; lọc phụ thuộc học phần/lớp, tìm SV, mở đúng lớp. Ngưỡng `<50%` hoặc `<5` là giả định local; chưa có chính sách/API cảnh báo của trường. |
+## Trưởng khoa
 
-Trạng thái TK: 3 FE đã triển khai, 1 mô phỏng. Hồ sơ riêng, chuông popup và điều hướng là phần hỗ trợ dùng chung của workspace. Admin vẫn chưa triển khai. Phần Trưởng nhóm HP (CourseLeader) được đối chiếu riêng bên dưới; không có vai trò Trưởng bộ môn.
+| ID | Yêu cầu | Phân loại | Route | Source chính | Giới hạn / bằng chứng |
+|---|---|---|---|---|---|
+| TK-01 | Đăng nhập với role Dean | FE cục bộ | /dang-nhap | data/accounts.ts | Role guard/tổng quan khoa/drilldown học phần-lớp/cảnh báo ngưỡng; summary đã nối helper mới; danh mục khoa/lớp vẫn fixture, chưa map registry Admin. |
+| TK-02 | Tổng quan toàn khoa | FE cục bộ | /truong-khoa/tong-quan; hoc-phan/:id/lop/:id; canh-bao | Truongkhoa/data.ts; Overview.tsx; Courses.tsx; ClassDetail.tsx; Alerts.tsx | Role guard/tổng quan khoa/drilldown học phần-lớp/cảnh báo ngưỡng; summary đã nối helper mới; danh mục khoa/lớp vẫn fixture, chưa map registry Admin. |
+| TK-03 | Drill-down: học phần → lớp | FE cục bộ | /truong-khoa/tong-quan; hoc-phan/:id/lop/:id; canh-bao | Truongkhoa/data.ts; Overview.tsx; Courses.tsx; ClassDetail.tsx; Alerts.tsx | Role guard/tổng quan khoa/drilldown học phần-lớp/cảnh báo ngưỡng; summary đã nối helper mới; danh mục khoa/lớp vẫn fixture, chưa map registry Admin. |
+| TK-04 | Mức hoàn thành, cảnh báo SV yếu toàn khoa | FE cục bộ | /truong-khoa/tong-quan; hoc-phan/:id/lop/:id; canh-bao | Truongkhoa/data.ts; Overview.tsx; Courses.tsx; ClassDetail.tsx; Alerts.tsx | Role guard/tổng quan khoa/drilldown học phần-lớp/cảnh báo ngưỡng; summary đã nối helper mới; danh mục khoa/lớp vẫn fixture, chưa map registry Admin. |
 
-Dữ liệu khởi tạo: 3 học phần, 4 lớp, 12 sinh viên không trùng, 23 lượt ghi danh, 67% hoàn thành; 7 dòng cảnh báo theo lớp thuộc 4 sinh viên. Học kỳ II rỗng. `sv1` chỉ ghép tiến độ `s1` và điểm động vào CSE301.01; các roster khác vẫn là mẫu. Xem [giới hạn](limitations.md#trưởng-khoa-và-phạm-vi-dữ-liệu).
+## Admin
 
-## Trưởng nhóm HP — 8 mục
+| ID | Yêu cầu | Phân loại | Route | Source chính | Giới hạn / bằng chứng |
+|---|---|---|---|---|---|
+| AD-01 | Đăng nhập Admin | FE cục bộ | /dang-nhap | Admin/Accounts.tsx; Admin/model.ts; Admin/excel.ts | Login Admin AD001, role guard/mustChange/active áp dụng; session theo sessionStorage, registry/hash localStorage. |
+| AD-02 | Import SV từ Excel (Mã SV, Họ tên, Email) → mật khẩu mặc định | FE cục bộ | /admin/tai-khoan/import | Admin/Accounts.tsx; Admin/model.ts; Admin/excel.ts | XLSX thật, template, preview lỗi toàn bộ, validate header/id/email/khoa/trùng, import revalidate; loại selector đã khóa busy; default password/mustChange thật local. |
+| AD-03 | Import GV từ Excel (Mã GV, Họ tên, Email, Khoa) | FE cục bộ | /admin/tai-khoan/import | Admin/Accounts.tsx; Admin/model.ts; Admin/excel.ts | XLSX thật, template, preview lỗi toàn bộ, validate header/id/email/khoa/trùng, import revalidate; loại selector đã khóa busy; default password/mustChange thật local. |
+| AD-04 | Gán role CourseLeader / Dean | FE cục bộ | /admin/tai-khoan/:id | Admin/Accounts.tsx; Admin/model.ts; Admin/excel.ts | Chỉ kind teacher được gán giang-vien/CourseLeader/Dean; admin/student bị model từ chối. |
+| AD-05 | Reset mật khẩu về mặc định | FE cục bộ | /admin/tai-khoan/:id | Admin/Accounts.tsx; Admin/model.ts; Admin/excel.ts | Reset hash rỗng và mustChange=true sau dialog; login default và bắt đổi có tác dụng. |
+| AD-06 | Vô hiệu hoá tài khoản (không xoá dữ liệu) | FE cục bộ | /admin/tai-khoan/:id | Admin/Accounts.tsx; Admin/model.ts; Admin/excel.ts | Active false giữ nguyên dữ liệu, provider và login chặn truy cập; kích hoạt lại có. |
+| AD-07 | Tạo / sửa học phần (Mã, Tên, Khoa) | Partial FE | /admin/hoc-phan/:courseId | Admin/Courses.tsx; Admin/model.ts; Admin/excel.ts | Tạo/sửa mã/tên/khoa và validate duplicate thật ở registry; role cũ chưa lấy toàn bộ danh mục động này. |
+| AD-08 | Tạo lớp (Tên, Học kỳ, Năm học, Đợt) | Partial FE | /admin/lop/:classId | Admin/Courses.tsx; Admin/model.ts; Admin/excel.ts | Tạo/sửa tên/kỳ/năm/đợt và validate thật ở registry; chưa mọi role cũ dùng lớp mới. |
+| AD-09 | Gán GV, gán Trưởng nhóm HP | Partial FE | /admin/lop/:classId | Admin/Courses.tsx; Admin/model.ts; Admin/excel.ts | Assign active GV/CourseLeader theo ID có validate và lưu; chưa đồng bộ phạm vi học phần/lớp các role cũ. |
+| AD-10 | Import danh sách SV vào lớp | Partial FE | /admin/lop/:classId/import | Admin/Courses.tsx; Admin/model.ts; Admin/excel.ts | Import enrollment active SV/chống trùng/revalidate thật; chưa chuyển dữ liệu học tập roster mọi role cũ sang registry mới. |
 
-Nguồn bổ sung: sheet **Trưởng nhóm HP**, vùng **B2:I9**. Cột yêu cầu dưới đây chép nguyên văn E2:E9 bằng cách đọc workbook chỉ đọc. Các giá trị “Chưa có” của hệ thống cũ và ghi chú “SRS chưa định nghĩa M0–M3” được giữ nguyên trong workbook; chúng không phải kết quả kiểm chứng FE hiện tại.
+## Hệ thống AI
 
-| Mã | Yêu cầu nguyên văn | Route | Trạng thái | Bằng chứng / giới hạn |
-| --- | --- | --- | --- | --- |
-| TN-01 | Đăng nhập với role CourseLeader | `/dang-nhap` | Mô phỏng | TN001/12345678 gán role `truong-nhom-hp`, guard/reload/đăng xuất; chưa có xác thực hoặc phân quyền máy chủ. |
-| TN-02 | Danh sách các lớp cùng học phần | `/truong-nhom-hp/chuan-hoa?hp=cs301` | FE đã triển khai | Chọn một trong hai học phần được phân công, ma trận ba loại học liệu theo lớp; kiểm phạm vi học phần/lớp và thống kê theo dữ liệu điều phối. |
-| TN-03 | Rà soát slide, quiz, đề bài tập từng lớp | `/truong-nhom-hp/chuan-hoa/:classId/hoc-lieu/:itemId` | FE đã triển khai | Đọc nội dung chữ thực của cả ba loại, xem mức/phiên bản/quyền và luồng yêu cầu; fixture chưa phải bộ slide/đề sản xuất. |
-| TN-04 | So sánh giữa các lớp, yêu cầu GV điều chỉnh | `/truong-nhom-hp/so-sanh`, `/truong-nhom-hp/yeu-cau` | FE đã triển khai | So sánh cùng loại ở hai lớp khác nhau trong một học phần; yêu cầu → GV sở hữu sửa/trả lời ở `/giang-vien/bai-hoc` → rà soát lại; lưu qua reload trong cùng kho local, không gửi thông điệp ra ngoài. |
-| TN-05 | Cụ thể hoá mức xử lý M0–M3 | `/truong-nhom-hp/chuan-hoa` | FE đã triển khai | M0 Chưa rà soát, M1 Đang xử lý, M2 Cần điều chỉnh, M3 Đạt chuẩn; lọc/thống kê có nhãn. Đây là định nghĩa quy trình đã chốt cho bản này, không phải quy tắc có sẵn trong SRS; không dùng 2a/2b. |
-| TN-06 | Đánh dấu "Hoàn thành chuẩn hoá" | `/truong-nhom-hp/chuan-hoa/:classId` | FE đã triển khai | Chỉ hoàn thành khi đủ slides/quiz/bài tập, tất cả M3 và không còn yêu cầu mở; yêu cầu chưa trả lời chặn M3. Tạo/sửa/yêu cầu/rà soát làm mất dấu hoàn thành cũ. |
-| TN-07 | AF-1: Sửa trực tiếp nội dung nếu có quyền | `/truong-nhom-hp/hoc-lieu/:itemId/sua` | FE đã triển khai | UI và model kiểm quyền/scope; `api2-slides` bị khóa sửa trực tiếp. Sửa hợp lệ tăng phiên bản, đưa về M1 để rà soát lại; đây là quyền fixture cục bộ. |
-| TN-08 | Tạo / sửa nội dung, bài tập, tài liệu như GV | `/truong-nhom-hp/hoc-lieu`, `/truong-nhom-hp/tai-lieu` | Một phần | Có tạo/sửa tiêu đề và nội dung chữ slides/quiz/đề bài tập, thêm/sửa tham chiếu HTTP/HTTPS hoặc PDF `/materials/` theo học phần. Chưa có đầy đủ trình nhập PDF/PPT, ngân hàng câu hỏi có cấu trúc hay AI như công cụ GV cũ; kho điều phối riêng chưa thay Lesson/Question/Assignment toàn hệ thống. |
+| ID | Yêu cầu | Phân loại | Route | Source chính | Giới hạn / bằng chứng |
+|---|---|---|---|---|---|
+| AI-01 | Trả lời chatbot có trích dẫn từ học liệu | FE mô phỏng | /sinh-vien/tro-ly-ai; hoc/:id | AI/model.ts; AI/Assistant.tsx | AnswerFromMaterial trả rule/citation/fallback/guardrail, history/rating/report trong Assistant; chưa model/RAG; nguồn mới và liên kết nguồn trong lịch sử được ẩn khi metadata không còn khớp; rating/report ở reader và Assistant lưu cục bộ. |
+| AI-02 | Sinh câu hỏi luyện tập từ slide | FE mô phỏng | /sinh-vien/luyen-tap | AI/model.ts; AI/Practice.tsx | Practice bank scope/rotate/TN+blank/check/explanation/source/summary thực; không sinh model. |
+| AI-03 | Chấm bài tự động + giải thích + phản hồi cá nhân | FE mô phỏng | /sinh-vien/ket-qua; /giang-vien/cham-bai | AI/model.ts; AI/Insights.tsx | TN/điền chấm local, essayDraft kiểm nội dung+tiêu chí/feedback và GV duyệt; không model AI thật. |
+| AI-04 | Phân tích dữ liệu, nhận diện vùng yếu, đề xuất | FE mô phỏng | /giang-vien/tien-do | AI/model.ts; AI/Insights.tsx | Insights derive wrong answers/gaps hiện có, đề xuất có căn cứ; scope CSE301 demo/account cũ, không analytics server. |
+| AI-05 | Quét deadline phiên tự học / bài tập 24 giờ trước | FE mô phỏng | /admin/nhac-han; /giang-vien/nhac-han | AI/model.ts; AI/Reminders.tsx | DeadlineCandidate lọc published/chưa hoàn thành/due trong24h, nút quét thời điểm chọn; CSE301.01 cố định và không scheduler máy chủ. |
+| AI-06 | Gửi email: tên SV, lớp, bài, hạn, tiến độ | FE mô phỏng | /admin/nhac-han | AI/model.ts; AI/Reminders.tsx | Email preview đủ tên/lớp/bài/hạn/tiến độ, ghi rõ chưa gửi; không gửi email thật. |
+| AI-07 | Lưu bản ghi nhắc nhở | FE mô phỏng | /admin/nhac-han | AI/model.ts; AI/Reminders.tsx | Reminder records khóa student/class/item/deadline/channel, dedup, lưu localStorage và history; notice SV demo có, chưa service nhắc thật. |
 
-Trạng thái TN: **6 FE đã triển khai, 1 mô phỏng, 1 một phần**. Hồ sơ và chuông riêng là hỗ trợ workspace. Hai học phần/ba lớp/chín học liệu khởi tạo là đại diện; CSE301 có 2/6 M3 và một M2, CSE204 có một lớp nên hiển thị trạng thái thiếu lớp thứ hai khi so sánh. Xem [giới hạn](limitations.md#trưởng-nhóm-hp-và-điều-phối-học-liệu).
+## Phi chức năng (NFR)
 
-## Vị trí mã nguồn để kiểm tra lại
+| ID | Yêu cầu | Phân loại | Route | Source chính | Giới hạn / bằng chứng |
+|---|---|---|---|---|---|
+| NFR-01 | Tối thiểu 500 người dùng đồng thời | BE/triển khai | — | Không có load test | 500 concurrent cần hạ tầng + load test; không xác nhận bằng FE local. |
+| NFR-02 | Xem slide, trả lời quiz ≤ 2 giây | Cần runtime | /sinh-vien/hoc/:id | Slide HTML và quiz local | Slide/quiz local có đường đi; chưa đo thời gian ≤2 giây theo tiêu chí SRS, giữ trạng thái chưa kiểm chứng. |
+| NFR-03 | AI chấm tự luận ≤ 30 giây/bài | BE/triển khai | — | Không gọi AI model thật | Không model chấm tự luận thật; không thể xác nhận<=30s. |
+| NFR-04 | Uptime ≥ 99,5%, 24/7 | BE/triển khai | — | Không hạ tầng production trong phạm vi | Không chứng minh uptime99.5%/24x7 từ repo FE. |
+| NFR-05 | Responsive máy tính + điện thoại | FE cục bộ | Các route mẫu | styles/responsive.css; tests/flows.spec.ts | E2E quét các route mẫu ở viewport giả lập 390px/1440px; ảnh Admin/AI bổ sung 800px. Bằng chứng giới hạn ở các route/trạng thái đã kiểm, chưa thiết bị vật lý hoặc mọi trình duyệt. |
+| NFR-06 | Mã hoá khi truyền (HTTPS/TLS) và khi lưu | BE/triển khai | — | data/DemoProvider.tsx; shared/AccountProvider.tsx | TLS/at-rest production cần hosting/server; hash demo không thay thế mã hóa lưu production. |
+| NFR-07 | Mở rộng thêm ngành / học phần | Partial FE | /truong-khoa/hoc-phan; /truong-nhom-hp/* | data/fixtures.ts; Truongnhomhp/model.ts | Admin CRUD danh mục có; nhiều role còn constants/scope fixture, chưa mở rộng ngành/học phần xuyên hệ thống. |
+| NFR-08 | Disclaimer Chat AI | FE cục bộ | /sinh-vien/hoc/:id; tro-ly-ai | Sinhvien/HocBai.tsx; shared/Communication.tsx | Disclaimer Chat AI hiện trong reader và Assistant. |
 
-- `src/App.tsx`: tuyến đường và các màn thực tế.
-- `src/Truongnhomhp/`: chuẩn hoá, rà soát/so sánh, yêu cầu, biên soạn và hồ sơ; `model.ts` kiểm phạm vi/quyền/chuyển mức/hoàn thành, `TeacherRequests.tsx` nhận trả lời giảng viên trên cùng bản ghi.
-- `src/Truongkhoa/`: shell, tổng quan, học phần/lớp, cảnh báo và hồ sơ; `data.ts` tổng hợp roster/tiến độ/cảnh báo, `data.test.ts` kiểm quy tắc.
-- `src/data/accounts.ts`, `src/shared/AccountProvider.tsx`: tài khoản fixture và guard theo role.
-- `src/Sinhvien/HocBai.tsx`, `src/data/study.ts`: slide, quiz, chat mẫu, kiến thức mờ và ghi hoàn thành.
-- `src/Sinhvien/BaiTap.tsx`, `src/data/assessment.ts`: bài tập/luyện tập, timer, kết quả và yêu cầu phúc khảo.
-- `src/Giangvien/BaiHoc.tsx`, `CauHoi.tsx`, `PhienTuHoc.tsx`, `BaiTap.tsx`, `TheoDoi.tsx`: biên soạn, duyệt, cài đặt, chấm và giám sát.
-- `src/shared/Account.tsx`, `Communication.tsx`, `Grades.tsx`, `LopTrucTiep.tsx`: tài khoản, tài liệu, phản hồi, bảng điểm và poll.
-- `src/data/DemoProvider.tsx`: localStorage và storage event; `src/data/fixtures.ts`: dữ liệu giả định.
-
-Xem [giới hạn](limitations.md) và [bằng chứng kiểm thử](verification.md) trước khi dùng các trạng thái làm tiêu chí nghiệm thu.
+Xem [tổng kết audit](audit-2026-10-30.md), [giới hạn](limitations.md) và [kiểm chứng](verification.md) trước khi dùng bảng này làm tiêu chí nghiệm thu.

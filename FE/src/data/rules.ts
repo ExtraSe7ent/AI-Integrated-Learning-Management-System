@@ -14,7 +14,14 @@ export const sessionState = (start: number, end: number, now = Date.now()) =>
   now < start ? "scheduled" : now >= end ? "closed" : "open";
 export function validateImages(files: { size: number; type: string }[]) {
   if (files.length > 5) return "Chọn tối đa 5 ảnh.";
-  if (files.some((f) => !f.type.startsWith("image/")))
+  if (
+    files.some(
+      (f) =>
+        !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+          f.type,
+        ),
+    )
+  )
     return "Chỉ chấp nhận tệp hình ảnh.";
   if (files.reduce((n, f) => n + f.size, 0) > 5 * 1024 * 1024)
     return "Tổng dung lượng ảnh không được vượt quá 5 MB.";

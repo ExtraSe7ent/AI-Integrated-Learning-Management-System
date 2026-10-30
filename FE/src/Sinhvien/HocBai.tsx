@@ -1,3 +1,8 @@
+import {
+  answerFromMaterial,
+  materialSourceAvailable,
+  recordChatFeedback,
+} from "../AI/model";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -30,7 +35,14 @@ export function HocBai() {
     data.sessions.find((s) => s.id === sessionId) || data.sessions[0];
   const lessonTitle =
     data.lessons.find((l) => l.id === "l2")?.title || "Thiết kế RESTful API";
-  const [page, setPage] = useState(Math.min(record.progress + 1, 4)),
+  const titles = data.lessons.find((l) => l.id === "l2")?.slides || slideTitles;
+  const total = titles.length;
+  const [page, setPage] = useState(
+      Math.max(
+        1,
+        Math.min(Number(params.get("trang")) || record.progress + 1, total),
+      ),
+    ),
     [selected, setSelected] = useState<number>(),
     [tab, setTab] = useState("question"),
     [gap, setGap] = useState(false),
@@ -49,7 +61,7 @@ export function HocBai() {
     state === "scheduled" ||
     Boolean(record.completedAt);
   function go(next: number) {
-    setPage(next);
+    setPage(Math.max(1, Math.min(next, total)));
     setSelected(undefined);
   }
   function confirmAnswer() {
@@ -66,36 +78,32 @@ export function HocBai() {
     }));
   }
   function next() {
+    if (!locked && page > record.progress + 1) {
+      notify("Hoàn thành các trang trước theo thứ tự để ghi nhận tiến độ.");
+      return;
+    }
     setData((d) => ({
       ...d,
       studySessions: {
         ...d.studySessions,
-        [sessionId]: advanceStudy(record, page, session),
+        [sessionId]: advanceStudy(record, page, session, Date.now(), total),
       },
     }));
-    if (page < 4) go(page + 1);
+    if (page < total) go(page + 1);
     else
       notify("Đã hoàn thành phiên tự học. Bạn có thể xem lại bất cứ lúc nào.");
   }
   function ask() {
     if (!question.trim()) return;
     const text = question.trim();
-    const outside =
-      !/api|rest|http|tài nguyên|post|get|put|patch|uri|bài|giải thích|trang/i.test(
-        text,
-      );
+    const reply = answerFromMaterial(
+      "cs301",
+      text,
+      materialSourceAvailable(data),
+    );
     setData((d) => ({
       ...d,
-      chat: [
-        ...d.chat,
-        {
-          question: text,
-          page,
-          answer: outside
-            ? "Học liệu chưa có thông tin phù hợp. Bạn hãy hỏi giảng viên để được giải đáp."
-            : `Gợi ý: ${page === 1 ? "REST tổ chức API theo tài nguyên. Mỗi tài nguyên có một URI, còn HTTP method mô tả thao tác." : page === 2 ? "GET đọc dữ liệu, POST tạo mới, PUT thay thế và PATCH cập nhật một phần tài nguyên." : "Mã 2xx thể hiện thành công, 4xx là lỗi từ yêu cầu, 5xx là lỗi phía máy chủ."} Bạn sẽ chọn method nào khi cập nhật một thuộc tính?`,
-        },
-      ],
+      chat: [...d.chat, { question: text, ...reply, courseId: "cs301" }],
     }));
     setQuestion("");
   }
@@ -114,11 +122,13 @@ export function HocBai() {
           <h1>{lessonTitle}</h1>
         </div>
         <div className="reader-progress">
-          <span>{record.progress}/4 trang hoàn thành</span>
-          <Progress value={(record.progress / 4) * 100} />
+          <span>
+            {record.progress}/{total} trang hoàn thành
+          </span>
+          <Progress value={(record.progress / total) * 100} />
         </div>
-        <Badge tone={record.progress === 4 ? "green" : "red"}>
-          {record.progress === 4
+        <Badge tone={record.progress === total ? "green" : "red"}>
+          {record.progress === total
             ? "Hoàn thành"
             : state === "open"
               ? "Đang học"
@@ -130,7 +140,7 @@ export function HocBai() {
       <div className="reader-layout">
         <aside className="slide-rail">
           <h2>Nội dung bài học</h2>
-          {slideTitles.map((title, i) => (
+          {titles.map((title, i) => (
             <button
               key={title}
               className={`slide-thumb ${page === i + 1 ? "selected" : ""}`}
@@ -154,7 +164,7 @@ export function HocBai() {
           <div className="reader-toolbar">
             <span>
               <FileText size={16} />
-              Trang {page} / 4
+              Trang {page} / {total}
             </span>
             <div>
               <button
@@ -169,7 +179,7 @@ export function HocBai() {
                 className="icon-button"
                 aria-label="Trang sau"
                 disabled={
-                  page >= 4 ||
+                  page >= total ||
                   !canAdvance(
                     Boolean(q),
                     answered ? saved === q?.correct : undefined,
@@ -198,7 +208,7 @@ export function HocBai() {
             <span className="slide-chapter">
               {String(page).padStart(2, "0")} / RESTFUL API
             </span>
-            <h2>{slideTitles[page - 1]}</h2>
+            <h2>{titles[page - 1]}</h2>
             {page === 1 ? (
               <>
                 <p className="slide-lead">
@@ -295,17 +305,18 @@ export function HocBai() {
             </button>
             <Button
               disabled={
+                (!locked && page > record.progress + 1) ||
                 state === "scheduled" ||
                 (!locked &&
                   !canAdvance(
                     Boolean(q),
                     answered ? saved === q?.correct : undefined,
                   )) ||
-                (locked && page === 4)
+                (locked && page === total)
               }
               onClick={next}
             >
-              {page === 4 ? "Hoàn thành phiên" : "Trang tiếp theo"}
+              {page === total ? "Hoàn thành phiên" : "Trang tiếp theo"}
               <ArrowRight size={16} />
             </Button>
           </div>
@@ -411,26 +422,36 @@ export function HocBai() {
                       <div className="chat-answer">
                         <Sparkles size={17} />
                         <p>{m.answer}</p>
-                        <button
-                          className="source-chip"
-                          onClick={() => go(m.page)}
-                        >
-                          Bài giảng · Trang {m.page}
-                        </button>
+                        {m.page > 0 &&
+                          m.page <= total &&
+                          materialSourceAvailable(data) && (
+                            <button
+                              className="source-chip"
+                              onClick={() => go(m.page)}
+                            >
+                              Bài giảng · Trang {m.page}
+                            </button>
+                          )}
                         <div>
                           <button
                             className="icon-button"
                             aria-label="Đánh giá hữu ích"
-                            onClick={() => notify("Đã ghi nhận đánh giá.")}
+                            aria-pressed={m.rating === "helpful"}
+                            onClick={() =>
+                              setData((d) =>
+                                recordChatFeedback(d, i, "helpful"),
+                              )
+                            }
                           >
                             <ThumbsUp size={14} />
                           </button>
                           <button
                             className="icon-button"
                             aria-label="Báo lỗi phản hồi"
+                            aria-pressed={m.rating === "reported"}
                             onClick={() =>
-                              notify(
-                                "Bạn có thể gửi chi tiết qua mục Phản hồi & hỗ trợ.",
+                              setData((d) =>
+                                recordChatFeedback(d, i, "reported"),
                               )
                             }
                           >

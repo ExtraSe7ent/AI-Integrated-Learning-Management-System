@@ -1,9 +1,14 @@
+import { learningSummary } from "../data/learningSummary";
+import { LearningInsights } from "../AI/Insights";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Download, Bell, Sparkles, CheckCircle2 } from "lucide-react";
+import { Download, Bell, CheckCircle2 } from "lucide-react";
 import { students } from "../data/fixtures";
-import { assessmentFor, updateAssessment } from "../data/assessment";
-import { studyFor } from "../data/study";
+import {
+  assessmentFor,
+  updateAssessment,
+  regradeQuestion,
+} from "../data/assessment";
 import { useDemo } from "../data/DemoProvider";
 import {
   PageHeader,
@@ -22,10 +27,16 @@ export function TheoDoi() {
   const { data, setData, notify } = useDemo();
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all");
-  const rows = students.filter(
+  const summary = learningSummary(data);
+  const normalized = students.map((s) =>
+    s.id === "sv1"
+      ? { ...s, progress: summary.progress, grade: summary.average }
+      : s,
+  );
+  const rows = normalized.filter(
     (s) =>
       (s.name + s.code).toLowerCase().includes(query.toLowerCase()) &&
-      (filter !== "risk" || s.progress < 50),
+      (filter !== "risk" || s.progress < 50 || s.grade < 5),
   );
   return (
     <>
@@ -57,28 +68,28 @@ export function TheoDoi() {
         items={[
           {
             label: "Sinh viên trong mẫu",
-            value: "08",
+            value: String(normalized.length),
             note: "Danh sách minh họa",
           },
           {
             label: "Tiến độ trung bình",
-            value: "68%",
+            value:
+              Math.round(
+                normalized.reduce((n, s) => n + s.progress, 0) /
+                  normalized.length,
+              ) + "%",
             note: "Phiên RESTful API",
           },
-          { label: "Cần hỗ trợ", value: "02", note: "Tiến độ dưới 50%" },
+          {
+            label: "Cần hỗ trợ",
+            value: String(
+              normalized.filter((s) => s.progress < 50 || s.grade < 5).length,
+            ),
+            note: "Tiến độ dưới 50% hoặc điểm dưới 5",
+          },
         ]}
       />
-      <div className="insight-strip">
-        <Sparkles size={22} />
-        <div>
-          <strong>Nội dung nên củng cố: HTTP methods</strong>
-          <p>
-            Gợi ý mẫu: dành thêm thời gian cho PUT/PATCH và thực hành thiết kế
-            endpoint.
-          </p>
-        </div>
-        <Badge tone="amber">Phân tích minh họa</Badge>
-      </div>
+      <LearningInsights />
       <Panel>
         <div className="toolbar">
           <div className="tabs">
@@ -129,26 +140,19 @@ export function TheoDoi() {
                     </div>
                   </td>
                   <td>
-                    <Progress
-                      value={
-                        s.id === "sv1"
-                          ? Math.round(
-                              (studyFor(data, "s1").progress / 4) * 100,
-                            )
-                          : s.progress
-                      }
-                      label
-                    />
+                    <Progress value={s.progress} label />
                   </td>
                   <td>
-                    {s.id === "sv1" && data.assessments.a1?.result
-                      ? data.assessments.a1?.result.score
-                      : s.grade}
+                    {s.grade}
                     /10
                   </td>
                   <td>
-                    <Badge tone={s.progress < 50 ? "amber" : "green"}>
-                      {s.progress < 50 ? "Cần nhắc học" : "Đang học tốt"}
+                    <Badge
+                      tone={s.progress < 50 || s.grade < 5 ? "amber" : "green"}
+                    >
+                      {s.progress < 50 || s.grade < 5
+                        ? "Cần nhắc học"
+                        : "Đang học tốt"}
                     </Badge>
                   </td>
                   <td>
@@ -273,6 +277,11 @@ export function PhucKhao() {
             <div className="reply-block">
               <strong>Lý do của sinh viên</strong>
               <p>{a.reason}</p>
+              <p>Bài làm: {a.answer || "Chưa ghi nhận"}</p>
+              <p>
+                Điểm trước phúc khảo: {a.previousPoints ?? "—"}/
+                {a.maxPoints ?? 3}
+              </p>
             </div>
             {a.status === "pending" ? (
               <form
@@ -286,9 +295,11 @@ export function PhucKhao() {
                     ...(accepted && assessmentFor(d, a.assignmentId).result
                       ? updateAssessment(d, a.assignmentId, {
                           result: {
-                            ...assessmentFor(d, a.assignmentId).result!,
-                            score,
-                            approved: true,
+                            ...regradeQuestion(
+                              assessmentFor(d, a.assignmentId).result!,
+                              a.questionIndex ?? 2,
+                              score,
+                            ),
                           },
                         })
                       : d),
@@ -315,19 +326,19 @@ export function PhucKhao() {
               >
                 <div className="form-grid">
                   <Field label="Quyết định">
-                    <select name="decision">
+                    <select name="decision" aria-label="Quyết định">
                       <option value="rejected">Giữ nguyên điểm</option>
                       <option value="accepted">Chấm lại</option>
                     </select>
                   </Field>
-                  <Field label="Điểm tổng sau chấm lại">
+                  <Field label="Điểm câu sau chấm lại">
                     <input
                       type="number"
                       min={0}
-                      max={10}
+                      max={a.maxPoints ?? 3}
                       step="0.1"
                       required
-                      defaultValue={data.assessments.a1?.result?.score || 0}
+                      defaultValue={a.previousPoints ?? 0}
                       name="score"
                     />
                   </Field>

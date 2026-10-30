@@ -1,6 +1,6 @@
-# Thiết kế Figma · cập nhật 24/10/2026
+# Thiết kế Figma · cập nhật 30/10/2026
 
-[File thiết kế của nhóm](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=15-223) hiện có **54 khung desktop**.
+[File thiết kế của nhóm](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=15-223) hiện có **67 khung desktop**.
 
 | Trang | Nội dung | Khung |
 | --- | --- | ---: |
@@ -8,6 +8,7 @@
 | [Giảng viên](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=20-2) | Tổng quan, lớp, học liệu, tự học, bài tập/chấm bài, câu hỏi, trực tiếp, theo dõi, bảng điểm có chọn lớp, AI, tài liệu, phản hồi, phúc khảo, hồ sơ và popup | 19 |
 | [Trưởng khoa](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=84-2673) | Tổng quan khoa, học phần, chi tiết học phần, lớp/SV, cảnh báo, hồ sơ và popup chuông | 7 |
 | [Trưởng nhóm HP](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=98-2840) | Tổng quan, lớp, rà soát, so sánh, yêu cầu, học liệu, biên soạn, tài liệu, hồ sơ và popup | 10 |
+| [Admin & Hệ thống AI](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-1968) | Tài khoản/import, học phần/lớp/ghi danh, nhắc hạn, trợ lý, luyện tập, chấm nháp và phân tích | 13 |
 | [Tài khoản](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=21-3216) | Đăng nhập chung và đổi mật khẩu | 2 |
 
 Tổng quan là khung 01 của từng vai trò. Canvas có ba cột, đọc từ trái sang phải rồi xuống hàng; khoảng cách dọc tính theo khung cao nhất của hàng. Danh sách layer cũng được xếp để khung 01 hiện trên cùng. Hồ sơ nằm trong trang của từng vai trò. Trang mobile do người dùng xóa không được tạo lại hoặc đồng bộ.
@@ -42,7 +43,7 @@ Bảy khung native trên trang **Trưởng khoa** (`84:2673`) mở rộng Campus
 
 Kiểm tra cấu trúc native sau tinh chỉnh: **349 lớp chữ chỉnh sửa được, 247 container auto-layout, 3 instance button hiện có, 7 image fill logo gốc**, chỉ dùng Be Vietnam Pro, không có chữ cao 1px hoặc placeholder. Các bảng/điều khiển là node native; 7 ảnh PNG tham chiếu ở `.impeccable/review/dean/figma-*.png` phục vụ đối chiếu, không thay lớp UI và không được đưa vào bản chạy. Các SVG chính xác lấy từ Figma nằm ở `public/figma/dean`; `artifacts/figma-ledger/dean-asset-manifest.json` giữ provenance. Không tạo raster mới để ship.
 
-`artifacts/figma-ledger/dean-structural-audit.json` lưu ID, kích thước, tọa độ và phép đếm. Canvas/layer giữ thứ tự 01 trước, từ trái sang phải rồi xuống hàng. Tại mốc bàn giao Dean, `artifacts/design-state.json` ghi tổng 44 khung và trang Dean; ledger hiện đã bổ sung CourseLeader thành 54 khung. Các con số cấu trúc của 37 khung cũ ở trên là snapshot riêng, không phải audit lại toàn bộ 44 khung.
+`artifacts/figma-ledger/dean-structural-audit.json` lưu ID, kích thước, tọa độ và phép đếm. Canvas/layer giữ thứ tự 01 trước, từ trái sang phải rồi xuống hàng. Tại mốc bàn giao Dean, `artifacts/design-state.json` ghi tổng 44 khung và trang Dean; mốc CourseLeader sau đó bổ sung thành 54 khung, và mốc Admin/AI hiện tại là 67 khung. Các con số cấu trúc của 37 khung cũ ở trên là snapshot riêng, không phải audit lại toàn bộ 44 khung.
 
 ## Phần mở rộng Trưởng nhóm HP — 10 khung desktop native
 
@@ -66,3 +67,27 @@ Ledger cuối ghi **326 text node, 250 container auto-layout**, toàn bộ Be Vi
 Ba SVG xuất chính xác từ Figma ở `public/figma/course-leader`, chín SVG có sẵn dùng lại từ `public/figma/dean`; `artifacts/figma-ledger/course-leader-assets.json` giữ đường dẫn và URL nguồn. Logo VJU dài có sẵn được dùng nguyên hình; không thêm raster mới vào bản chạy. Mười ảnh `figma-*.png` trong `.impeccable/review/course-leader/` là tham chiếu toàn khung, không phải ảnh UI được ship thay node native.
 
 Finish reviewer đã đối chiếu 10 ảnh Figma với 16 ảnh runtime và nguồn; disposition `ship` ở phạm vi local. Browser có khác biệt nhỏ về vị trí nội dung, độ cao hàng bảng và control thực nhưng giữ cấu trúc/ngữ cảnh, không phải cam kết pixel-perfect. Mười màn của vai trò mới đã có thiết kế bàn giao. Panel trả lời mới ở màn Bài học giảng viên được kiểm bằng browser capture `teacher-reply.png`; khung Figma Bài học giảng viên cũ chưa bổ sung panel đó. Không khẳng định mọi màn giảng viên cũ đã đồng bộ lại.
+
+## Admin & Hệ thống AI — 13 khung desktop native · 30/10
+
+Trang **06 · Admin & Hệ thống AI** (`119:1967`) mở rộng Campus agenda đỏ/trắng/be. `artifacts/admin-ai/design-first.json` ghi các frame dựng trước UI; `design-final.json` ghi trạng thái cuối. Giữ 54 khung desktop cũ; không tạo mobile Figma. Các PNG review là tham chiếu, không thay node native hoặc asset ship.
+
+| Thứ tự | Khung | Node |
+| --- | --- | --- |
+| 01 | Quản lý tài khoản | [119:1968](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-1968) |
+| 02 | Import tài khoản | [119:2056](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2056) |
+| 03 | Quản lý tài khoản GV001 | [119:2129](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2129) |
+| 04 | Học phần & lớp | [119:2180](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2180) |
+| 05 | CSE301 · Phát triển ứng dụng nâng cao | [119:2242](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2242) |
+| 06 | Lớp CSE301.01 | [119:2318](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2318) |
+| 07 | Import sinh viên vào lớp CSE301.01 | [119:2402](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2402) |
+| 08 | Nhắc hạn học tập | [119:2465](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2465) |
+| 09 | Nhật ký nhắc hạn | [119:2518](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2518) |
+| 10 | Trợ lý học tập AI | [119:2571](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2571) |
+| 11 | Luyện tập từ học liệu | [119:2631](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2631) |
+| 12 | Chấm nháp và phản hồi | [119:2686](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2686) |
+| 13 | Phân tích học tập | [119:2743](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8?node-id=119-2743) |
+
+Cấu trúc cuối: **364 lớp TEXT chỉnh sửa được, 217 auto-layout container**, chỉ Be Vietnam Pro, không có `badText`. 13 ảnh `figma-*.png` trong `.impeccable/review/admin-ai/` được dùng khi review. Bản cuối giữ một đề xuất chấm nháp và disclosure trợ lý mô phỏng bằng chữ native.
+
+Các khung thể hiện mẫu tác vụ; runtime kế thừa sidebar/header/component hiện có và thích ứng responsive. Không tuyên bố pixel-copy hoặc mọi trạng thái đã thiết kế; chưa nối prototype đầy đủ, sửa Figma không tự cập nhật code. Figma và suite xanh không chứng minh AD-07–AD-10 đã tích hợp xuyên vai trò; xem [matrix](requirements.md).

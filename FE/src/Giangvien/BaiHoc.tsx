@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Plus,
   GripVertical,
@@ -126,7 +126,7 @@ export function BaiHoc() {
               </button>
               <Link
                 className="button secondary small"
-                to="/giang-vien/soan-bai"
+                to={`/giang-vien/soan-bai?bai=${l.id}`}
               >
                 Soạn bài
                 <ArrowRight size={15} />
@@ -191,14 +191,16 @@ export function BaiHoc() {
 }
 export function SoanBai() {
   const { data, setData, notify } = useDemo();
+  const [params] = useSearchParams();
+  const lessonId=params.get("bai")||"l2";
+  const lesson=data.lessons.find(l=>l.id===lessonId);
   const [tab, setTab] = useState("slides"),
-    [title, setTitle] = useState("Thiết kế RESTful API"),
-    [pages, setPages] = useState(slideTitles),
+    [title, setTitle] = useState(lesson?.title||""),
+    [pages, setPages] = useState(lesson?.slides||slideTitles),
     [selected, setSelected] = useState(0),
     [preview, setPreview] = useState(""),
     [filename, setFilename] = useState(""),
-    [video, setVideo] = useState("");
-  const lesson = data.lessons.find((l) => l.id === "l2");
+    [video, setVideo] = useState(lesson?.video||"");
   function reorder(i: number, dir: number) {
     setPages((p) => {
       const next = [...p];
@@ -206,6 +208,7 @@ export function SoanBai() {
       return next;
     });
   }
+  if(!lesson) return <Panel title="Không tìm thấy bài học"><Link to="/giang-vien/bai-hoc">Về bài học</Link></Panel>;
   return (
     <>
       <PageHeader
@@ -219,7 +222,7 @@ export function SoanBai() {
                 setData((d) => ({
                   ...d,
                   lessons: d.lessons.map((l) =>
-                    l.id === "l2" ? { ...l, title } : l,
+                    l.id === lessonId ? { ...l, title, slides:pages, video } : l,
                   ),
                 }));
                 notify("Đã lưu thông tin bài học.");
@@ -236,7 +239,7 @@ export function SoanBai() {
                 setData((d) => ({
                   ...d,
                   lessons: d.lessons.map((l) =>
-                    l.id === "l2" ? { ...l, title, published: true } : l,
+                    l.id === lessonId ? { ...l, title, slides:pages, video, published: true } : l,
                   ),
                 }));
                 notify("Đã công bố học liệu.");

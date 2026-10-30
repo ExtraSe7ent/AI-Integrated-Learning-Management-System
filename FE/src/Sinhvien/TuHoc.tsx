@@ -14,6 +14,7 @@ import { useDemo } from "../data/DemoProvider";
 import { sessionState } from "../data/rules";
 export function TuHoc() {
   const { data } = useDemo();
+  const total = data.lessons.find((l) => l.id === "l2")?.slides?.length || 4;
   const sessions = data.sessions.filter((s) => s.published);
   return (
     <>
@@ -33,7 +34,7 @@ export function TuHoc() {
             Date.parse(s.opens),
             Date.parse(s.closes),
           );
-          const complete = studyFor(data, s.id).progress === 4;
+          const complete = Boolean(studyFor(data, s.id).completedAt);
           return (
             <Panel key={s.id} className="session-card">
               <div className="session-symbol">
@@ -57,7 +58,10 @@ export function TuHoc() {
                   <span>CSE301 · Tuần 07</span>
                 </div>
                 <h2>{s.title}</h2>
-                <p>Phát triển ứng dụng nâng cao · 4 trang · 3 câu hỏi</p>
+                <p>
+                  Phát triển ứng dụng nâng cao · {total} trang ·{" "}
+                  {data.questions.filter((q) => q.approved).length} câu hỏi
+                </p>
                 <div className="session-facts">
                   <span>
                     <Clock3 size={15} />
@@ -71,7 +75,10 @@ export function TuHoc() {
                   </span>
                 </div>
                 <Progress
-                  value={(studyFor(data, s.id).progress / 4) * 100}
+                  value={
+                    (Math.min(studyFor(data, s.id).progress, total) / total) *
+                    100
+                  }
                   label
                 />
               </div>

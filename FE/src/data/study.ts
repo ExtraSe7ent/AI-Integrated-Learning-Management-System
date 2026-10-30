@@ -17,16 +17,17 @@ export function advanceStudy(
   page: number,
   session: Session,
   now = Date.now(),
+  total = 4,
 ): StudyProgress {
   if (
     now < Date.parse(session.opens) ||
     (!session.late && now >= Date.parse(session.closes)) ||
-    progress.completedAt
+    progress.completedAt || page > progress.progress + 1
   )
     return progress;
   return {
     ...progress,
     progress: Math.max(progress.progress, page),
-    completedAt: page === 4 ? new Date(now).toISOString() : null,
+    completedAt: page === total ? new Date(now).toISOString() : null,
   };
 }

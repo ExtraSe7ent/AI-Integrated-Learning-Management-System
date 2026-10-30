@@ -1,10 +1,39 @@
-# Kiểm chứng frontend · cập nhật 24/10/2026
+# Kiểm chứng frontend · 30/10/2026
+
+Kết quả cho frontend cục bộ, không xác nhận backend hoặc toàn bộ 146 yêu cầu. Lượt cuối sau hai tinh chỉnh UI/review đạt **35/35 unit, 52/52 E2E (3,5 phút) và TypeScript/Vite production build**. Các mốc 23/40 hoặc 51/52 trước đó là lịch sử, không thay kết quả cuối này.
+
+## Kiểm tra tự động hiện tại
+
+- Unit kiểm Admin registry/import/role/active, AI rules, deadline dedup và các model SV/GV/TK/TN hiện có.
+- E2E kiểm tài khoản/guard/đổi mật khẩu, import Excel thực, học phần/lớp/ghi danh, AI/practice/nhắc hạn, cùng regression các vai trò cũ. Các assertion cuối xác nhận không có đề xuất chấm mẫu thứ hai khi đã nộp bài và có disclosure mô phỏng nhìn thấy được.
+- Các route mẫu được quét ở viewport giả lập 1440px và 390px; kết quả responsive chỉ áp dụng phạm vi route/trạng thái đã kiểm. Không đo thời gian NFR-02 ≤2 giây, tải 500 người hoặc thiết bị vật lý.
+- Build còn cảnh báo chunk chính **547,33KB** và lazy ExcelJS **929,39KB**. Không thêm dependency mới hoặc tắt cảnh báo để qua build.
+
+Báo cáo E2E: `artifacts/playwright-report/index.html`. Mã kiểm tra trong `tests/`, unit cạnh các model. Chạy lại theo README; Playwright cần máy chủ Vite đang chạy riêng.
+
+Hai thử nghiệm mutation chỉ chạy trên **bản sao cô lập** dưới `artifacts/admin-ai/mutation/` (bản sao/cache đã dọn sau chạy, giữ log): đảo guard import làm test từ chối dữ liệu lỗi thất bại; đảo predicate chọn tài khoản làm assertion trạng thái active thất bại. Log ở `artifacts/admin-ai/mutation-result.txt` và `mutation-account-status-result.txt`. Đây là bằng chứng test bắt được thay đổi có chủ ý, không phải lỗi của ứng dụng gốc; source gốc không bị mutation.
+
+## Ảnh runtime và review
+
+`.impeccable/review/admin-ai/runtime.json` ghi **25 ảnh runtime** tại 1440/390/800px: tài khoản/import/lỗi/reset, học phần/lớp/ghi danh, trợ lý/không nguồn, luyện tập, chấm nháp/phân tích, nhắc hạn/nhật ký/rỗng và một số màn điểm/kết quả. Log có `errors: []`, không tràn toàn trang hoặc ảnh hỏng ở các capture này. Có thêm **13 ảnh native Figma** để đối chiếu.
+
+Detector chạy **một lần**, `.impeccable/review/admin-ai/detector.json` trả `[]`; kết quả đó không phải chứng nhận trực quan/accessibility. Fresh finish review ban đầu yêu cầu sửa đề xuất chấm trùng và disclosure AI. Sau recapture, `finish-review.md` có `disposition: ship`, hai finding được giải quyết. Verdict cuối chỉ chấm lại hai sửa chữa đó; không phải một cuộc nghiệm thu độc lập toàn SRS. Reviewer không tự chạy lại browser/test/detector. Suite 52 cuối chạy xong sau review.
+
+## Figma
+
+13 khung Admin/AI native được dựng trước UI theo `artifacts/admin-ai/design-first.json`; `design-final.json` ghi **364 TEXT, 217 auto-layout container**, chỉ Be Vietnam Pro, `badText: []`. Tổng **67 desktop** gồm 54 khung cũ giữ nguyên; không thêm mobile Figma. Xem [figma.md](figma.md) để biết giới hạn fidelity.
+
+Các giới hạn FE còn lại ở [audit](audit-2026-10-30.md), [matrix](requirements.md) và [limitations](limitations.md) vẫn có hiệu lực dù suite xanh.
+
+## Lịch sử kiểm chứng · 24/10/2026
+
+Các đoạn dưới là snapshot ngày 24/10, giữ để tra cứu phạm vi cũ. Báo cáo Playwright hiện tại đã được thay bằng lần 52 ca ngày 30/10; các chữ “hiện tại/cuối” trong snapshot chỉ nói về mốc lịch sử này.
 
 Kết quả áp dụng frontend cục bộ, dùng fixture; không xác nhận backend Java hoặc toàn bộ 121 yêu cầu SRS.
 
 - npm run build: TypeScript và Vite thành công. ExcelJS được tải riêng; Vite vẫn báo chunk ExcelJS lớn.
 - npm test: **23/23 unit test đạt**: 16 ca hiện có (11 SV/GV/tài khoản + 5 Trưởng khoa) và 7 ca model Trưởng nhóm HP.
-- Playwright cuối sau sửa UI CourseLeader: **40/40 E2E đạt** (21 ca SV/GV/tài khoản + 9 Trưởng khoa + 10 Trưởng nhóm HP). `artifacts/playwright-report/index.html` là báo cáo đầy đủ 40 ca hiện tại; không còn là báo cáo scoped 9 ca ở mốc bàn giao Dean trước đó. Vite chạy tại http://127.0.0.1:5173; dùng Brave qua CHROMIUM_PATH.
+- Playwright cuối sau sửa UI CourseLeader: **40/40 E2E đạt** (21 ca SV/GV/tài khoản + 9 Trưởng khoa + 10 Trưởng nhóm HP). Tại mốc này, báo cáo đầy đủ 40 ca đã thay báo cáo scoped 9 ca Dean; báo cáo hiện nay được ghi ở phần 30/10 phía trên. Vite chạy tại http://127.0.0.1:5173; dùng Brave qua CHROMIUM_PATH.
 
 Các luồng được kiểm tra: học/khôi phục tiến độ, bài tập độc lập, duyệt điểm và nhận xét, công bố bài học, phản hồi hai phía, poll giữa hai tab; đăng nhập theo tài khoản, chặn route khác vai trò, reload/đăng xuất; popup chuông, điều hướng nhanh, canh tên môn, đóng menu ở mobile.
 
@@ -24,7 +53,7 @@ Figma: **54 khung desktop**, 16 sinh viên / 19 giảng viên / 2 tài khoản /
 
 Impeccable Operate được áp dụng với brief hiện có, hướng dẫn polish và craft-floor; hook thực tế đã chạy khi sửa UI. Spec Kit prerequisites trả đúng feature trong FE, tasks được cập nhật theo phạm vi mới. Xem [kiểm chứng skill](skill-audit.md).
 
-## Trưởng khoa — lịch sử kiểm chứng 24/10 trước phần CourseLeader
+### Trưởng khoa — lịch sử kiểm chứng 24/10 trước phần CourseLeader
 
 Năm unit test trong `src/Truongkhoa/data.test.ts` kiểm số SV không trùng/lượt ghi danh và trung bình có trọng số, phạm vi học phần, học kỳ rỗng, ranh giới chính xác 50%/5 điểm, và tiến độ SV liên kết không làm đổi roster mẫu khác. Chín ca `tests/dean.spec.ts` kiểm đăng nhập/guard/reload/đăng xuất, drill-down và cặp ID sai, bộ lọc cảnh báo và phục hồi, học kỳ rỗng/URL/tìm học phần, hồ sơ riêng lưu qua reload, chuông/menu, tiến độ từ SV sang lớp liên kết, và quét sáu route ở 1440px/390px.
 
@@ -38,7 +67,7 @@ Vite còn cảnh báo lazy chunk ExcelJS khoảng 929KB từ chức năng xuất
 
 Chưa kiểm API/auth máy chủ, AI thật, lưu tệp lâu dài, realtime giữa thiết bị, thiết bị vật lý hoặc mọi nhánh import/phúc khảo/timer. Xem [đối chiếu yêu cầu](requirements.md) và [giới hạn](limitations.md).
 
-## Trưởng nhóm HP — kiểm chứng cuối 24/10
+### Trưởng nhóm HP — kiểm chứng cuối 24/10
 
 Bảy ca trong `src/Truongnhomhp/model.test.ts` kiểm phạm vi học phần/lớp/item, quyền sửa trực tiếp, vòng yêu cầu/trả lời/duyệt, điều kiện hoàn thành và mất dấu hoàn thành, cùng URL tham chiếu hợp lệ. Mười ca `tests/course-leader.spec.ts` kiểm tài khoản/guard, học liệu chỉ đọc, ID sai phạm vi; nội dung so sánh thực ở hai lớp khác nhau và học phần một lớp; yêu cầu hai vai trò/rà soát lại/reload; hoàn thành rồi sửa; tạo đủ ba loại nội dung; tạo/sửa URL và lưu/phạm vi; hồ sơ/chuông riêng; 11 route ở 1440px/390px và Tab/Escape với menu đóng. Đây là kiểm chứng hành vi local, không phải phép thử phân quyền máy chủ.
 

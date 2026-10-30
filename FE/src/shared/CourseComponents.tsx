@@ -1,3 +1,4 @@
+import { useAccount } from "./AccountProvider";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -55,7 +56,9 @@ export function CourseCard({
     </Link>
   );
 }
-export function CourseContext({ teacher = false }: { teacher?: boolean }) {
+export function CourseContext({ teacher: requested }: { teacher?: boolean }) {
+  const { account } = useAccount();
+  const teacher = requested ?? account?.role === "giang-vien";
   return (
     <div className="course-context">
       <Link

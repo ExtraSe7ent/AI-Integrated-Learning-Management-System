@@ -1,3 +1,4 @@
+import { EssayDraft } from "../AI/Insights";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -10,7 +11,7 @@ import {
   Upload,
   Shuffle,
 } from "lucide-react";
-import { assessmentFor, updateAssessment } from "../data/assessment";
+import { assessmentFor, updateAssessment, pointsFor } from "../data/assessment";
 import { useDemo } from "../data/DemoProvider";
 import { PageHeader, Panel, Button, Badge, Field } from "../shared/UI";
 import { CourseContext } from "../shared/CourseComponents";
@@ -307,17 +308,20 @@ export function ChamBai() {
             {result?.answers[2] ||
               "Bài làm minh họa: POST /api/loans với bookId và studentId trong request body. Trả về 201 khi tạo thành công, 409 khi sách đã được mượn."}
           </div>
-          <div className="ai-grading">
-            <Sparkles size={20} />
-            <div>
-              <strong>Gợi ý chấm nháp · Minh họa</strong>
-              <p>
-                Phương án phù hợp về endpoint và method; cần bổ sung trường hợp
-                lỗi. Giảng viên quyết định điểm cuối cùng.
-              </p>
-              <span>Điểm đề xuất mẫu: 2.5 / 3</span>
+          {!result && (
+            <div className="ai-grading">
+              <Sparkles size={20} />
+              <div>
+                <strong>Gợi ý chấm nháp · Minh họa</strong>
+                <p>
+                  Phương án phù hợp về endpoint và method; cần bổ sung trường
+                  hợp lỗi. Giảng viên quyết định điểm cuối cùng.
+                </p>
+                <span>Điểm đề xuất mẫu: 2.5 / 3</span>
+              </div>
             </div>
-          </div>
+          )}
+          {result && <EssayDraft answer={result.answers[2] || ""} />}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -327,14 +331,17 @@ export function ChamBai() {
                 );
                 return;
               }
-              const base =
-                (result.answers[0] === "0" ? 4 : 0) +
-                (result.answers[1]?.trim().toUpperCase() === "POST" ? 3 : 0);
+              const base = pointsFor(result)[0] + pointsFor(result)[1];
               setData((d) => ({
                 ...updateAssessment(d, assignmentId, {
                   result: {
                     ...result,
                     score: Math.round((base + score) * 10) / 10,
+                    questionPoints: [
+                      pointsFor(result)[0],
+                      pointsFor(result)[1],
+                      score,
+                    ],
                     approved: true,
                     comment,
                   },

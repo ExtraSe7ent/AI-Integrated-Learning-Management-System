@@ -31,6 +31,8 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
     q = questions[live.question % Math.max(questions.length, 1)];
   const left = Math.max(0, Math.ceil((live.expiresAt - now) / 1000));
   const own = live.answers.sv1;
+  const participants=live.participants||[];
+  useEffect(()=>setSelected(undefined),[live.question,live.expiresAt]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -64,13 +66,10 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
         live: {
           ...d.live,
           revealed: true,
-          answers:
-            !teacher && joined && d.live.answers.sv1 === undefined
-              ? { ...d.live.answers, sv1: -1 }
-              : d.live.answers,
+          answers:Object.fromEntries((d.live.participants||[]).map(id=>[id,d.live.answers[id]??-1])),
         },
       }));
-    } else if (Object.keys(live.answers).length >= 4)
+    } else if (participants.length>0&&participants.every(id=>live.answers[id]!==undefined))
       setData((d) => ({ ...d, live: { ...d.live, revealed: true } }));
   }, [
     left,
@@ -92,6 +91,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
       live: {
         ...d.live,
         active: true,
+        participants:[],
         revealed: false,
         answers: {},
         expiresAt: Date.now() + 45000,
@@ -147,6 +147,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
                   );
                   return;
                 }
+                setData(d=>({...d,live:{...d.live,participants:[...new Set([...(d.live.participants||[]),"sv1"])]}}));
                 setJoined(true);
                 setError("");
               }}
@@ -308,8 +309,9 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
             <Panel title="Kết quả phiên">
               <p className="answer-count">
                 <Users size={20} />
-                <strong>{Object.keys(live.answers).length}</strong> câu trả lời
+                <strong>{Object.values(live.answers).filter(v=>v>=0).length}</strong> câu trả lời
               </p>
+              {live.revealed && <p>Tỷ lệ đúng: {Object.values(live.answers).filter(v=>v>=0).length?Math.round(Object.values(live.answers).filter(v=>v===q?.correct).length/Object.values(live.answers).filter(v=>v>=0).length*100):0}%</p>}
               {live.revealed ? (
                 q?.options.map((_, i) => {
                   const count = Object.values(live.answers).filter(
@@ -319,7 +321,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
                     <div className="poll-result" key={i}>
                       <b>{String.fromCharCode(65 + i)}</b>
                       <progress
-                        max={Math.max(Object.keys(live.answers).length, 1)}
+                        max={Math.max(Object.values(live.answers).filter(v=>v>=0).length, 1)}
                         value={count}
                       />
                       <span>{count}</span>

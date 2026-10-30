@@ -1,7 +1,6 @@
+import { learningSummary } from "../data/learningSummary";
 import { courses, gradeClasses, students } from "../data/fixtures";
 import type { Course, DemoData } from "../data/fixtures";
-import { assignmentAverage } from "../data/rules";
-import { studyFor } from "../data/study";
 
 export const ACTIVE_TERM = "2026-1";
 export const terms = [
@@ -32,14 +31,8 @@ export function facultyClasses(
       ? {
           ...s,
           name: data.profile.name,
-          progress: Math.round((studyFor(data, "s1").progress / 4) * 100),
-          grade: assignmentAverage([
-            8.5,
-            9,
-            ...(data.assessments.a1?.result
-              ? [data.assessments.a1.result.score]
-              : []),
-          ]),
+          progress: learningSummary(data).progress,
+          grade: learningSummary(data).average,
         }
       : { ...s },
   );
@@ -60,26 +53,22 @@ export function facultyClasses(
       id: "CSE204.01",
       course: courses[1],
       teacher: courses[1].teacher,
-      students: students
-        .slice(0, 6)
-        .map((s) => ({
-          ...s,
-          name: s.id === "sv1" ? data.profile.name : s.name,
-          progress: Math.min(100, s.progress + 10),
-          grade: Math.min(10, Math.round((s.grade + 0.2) * 10) / 10),
-        })),
+      students: students.slice(0, 6).map((s) => ({
+        ...s,
+        name: s.id === "sv1" ? data.profile.name : s.name,
+        progress: Math.min(100, s.progress + 10),
+        grade: Math.min(10, Math.round((s.grade + 0.2) * 10) / 10),
+      })),
     },
     {
       id: "CSE302.01",
       course: courses[2],
       teacher: courses[2].teacher,
-      students: students
-        .slice(3)
-        .map((s) => ({
-          ...s,
-          progress: Math.min(100, s.progress + 5),
-          grade: Math.min(10, Math.round((s.grade + 0.3) * 10) / 10),
-        })),
+      students: students.slice(3).map((s) => ({
+        ...s,
+        progress: Math.min(100, s.progress + 5),
+        grade: Math.min(10, Math.round((s.grade + 0.3) * 10) / 10),
+      })),
     },
   ];
 }

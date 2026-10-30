@@ -1,6 +1,8 @@
+import type { ReminderRecord } from "../AI/model";
+import { initialAdmin } from "../Admin/model";
 import { initialCoordination } from "../Truongnhomhp/model";
 export type Role =
-  "sinh-vien" | "giang-vien" | "truong-khoa" | "truong-nhom-hp";
+  "sinh-vien" | "giang-vien" | "truong-khoa" | "truong-nhom-hp" | "admin";
 export interface Course {
   id: string;
   code: string;
@@ -48,6 +50,8 @@ export const courses: Course[] = [
   },
 ];
 export interface Lesson {
+  slides?: string[];
+  video?: string;
   id: string;
   title: string;
   order: number;
@@ -166,6 +170,7 @@ export interface Feedback {
   category: string;
   body: string;
   images: string[];
+  imageIds?: string[];
   response: string;
   resolved: boolean;
   date: string;
@@ -177,6 +182,10 @@ export interface Gap {
   response: string;
 }
 export interface Appeal {
+  questionIndex?: number;
+  answer?: string;
+  previousPoints?: number;
+  maxPoints?: number;
   id: string;
   assignmentId: string;
   question: string;
@@ -190,6 +199,7 @@ export interface Assessment {
   draft: null | { answers: string[]; deadline: number };
   result: null | {
     score: number;
+    questionPoints?: number[];
     answers: string[];
     submitted: string;
     approved?: boolean;
@@ -229,6 +239,22 @@ export interface Resource {
 }
 export const demoDate = "16 tháng 10, 2026";
 export const initialData = {
+  admin: initialAdmin,
+  aiReminders: [] as ReminderRecord[],
+  gradeHistory: [
+    {
+      id: "history-model",
+      title: "Thiết kế mô hình ứng dụng",
+      score: 8.5,
+      comment: "Phân tích rõ ràng.",
+    },
+    {
+      id: "history-http",
+      title: "HTTP và cấu trúc tài nguyên",
+      score: 9,
+      comment: "Vận dụng tốt kiến thức.",
+    },
+  ],
   lessons: [
     {
       id: "l1",
@@ -310,7 +336,14 @@ export const initialData = {
     },
   ] as Gap[],
   notes: "",
-  chat: [] as { question: string; answer: string; page: number }[],
+  chat: [] as {
+    question: string;
+    answer: string;
+    page: number;
+    courseId?: string;
+    sources?: number[];
+    rating?: "helpful" | "reported";
+  }[],
   feedback: [
     {
       id: "f1",
@@ -334,6 +367,7 @@ export const initialData = {
     revealed: false,
     expiresAt: 0,
     answers: {} as Record<string, number>,
+    participants: [] as string[],
   },
   profile: {
     name: "Nguyễn Quang Anh",
