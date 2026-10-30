@@ -38,3 +38,5 @@ Xem [hướng dẫn FE](FE/README.md) và [giới hạn tích hợp](FE/docs/lim
 - [Đối chiếu yêu cầu](FE/docs/requirements.md)
 
 `node_modules`, bản build, cache và kết quả kiểm thử được bỏ qua bởi `.gitignore`. Giữ `FE/package-lock.json` để các thành viên cài cùng phiên bản thư viện bằng `npm ci`.
+
+Các cấu hình agent, báo cáo sử dụng skill và script dựng Figma/chụp ảnh riêng của môi trường thiết kế không được đưa vào repository. Các đường dẫn `artifacts/`, `.impeccable/` và script chụp ảnh được nhắc trong tài liệu kiểm chứng/Figma là bằng chứng lịch sử tại bản làm việc gốc, không phải file đi kèm repository này. Các bài kiểm thử có thể chạy lại nằm trong `FE/src/` và `FE/tests/`.

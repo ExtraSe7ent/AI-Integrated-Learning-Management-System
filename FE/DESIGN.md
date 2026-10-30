@@ -100,7 +100,7 @@ Bố cục có mật độ vừa phải, thanh điều hướng theo vai trò v�
 - Trạng thái có chữ; màu hỗ trợ nhận biết.
 - Hành trình Trước lớp → Trong lớp → Sau lớp nối các màn học.
 
-Nguồn chuẩn cho giá trị triển khai là `src/styles/tokens.css`, `app.css`, `learning.css` và `responsive.css`. Frontmatter mô tả token và kiểu tái sử dụng thực tế; sidecar `.impeccable/design.json` chứa motion, breakpoint và bản xem trước component.
+Nguồn chuẩn cho giá trị triển khai là `src/styles/tokens.css`, `app.css`, `learning.css` và `responsive.css`. Frontmatter mô tả token và kiểu tái sử dụng thực tế.
 
 ## Colors
 

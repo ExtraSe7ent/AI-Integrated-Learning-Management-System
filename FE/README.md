@@ -75,7 +75,6 @@ Nguồn yêu cầu là `../SRS_Checklist_Flipped_Classroom.xlsx`: **65 mục SV 
 - [Bằng chứng kiểm thử](docs/verification.md)
 - [Hệ thống thiết kế](DESIGN.md), [ngữ cảnh sản phẩm](PRODUCT.md)
 - [54 khung desktop Figma và cách tổ chức](docs/figma.md)
-- [Kiểm chứng khởi tạo và sử dụng ba bộ skill](docs/skill-audit.md)
 - [File Figma thiết kế](https://www.figma.com/design/l4noECFoQ384scu1ZIHeM8)
 
 Giao diện dùng đỏ, trắng và be ấm theo hướng Operate: ưu tiên thao tác, trạng thái và ngữ cảnh lớp học. Hai ảnh `../Logo/Long_logo.jpg`, `../Logo/Short_logo.jpeg` được dùng qua bản sao trong `public/brand`. `../Demo` và `../Images_demo` là tư liệu luồng của bản cũ đã bỏ, không phải thiết kế cần sao chép.
