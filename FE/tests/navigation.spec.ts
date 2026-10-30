@@ -1,5 +1,5 @@
 import { loginAs, openRolePage } from "./helpers";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./base";
 for (const role of ["sinh-vien", "giang-vien"] as const)
   test("account role determines workspace: " + role, async ({ page }) => {
     await page.goto("/dang-nhap?role=giang-vien");
@@ -85,6 +85,7 @@ test("course headings start at the same height and truncate long names", async (
   page,
 }) => {
   await openRolePage(page, "/sinh-vien/khoa-hoc");
+  await page.locator(".course-cover-title").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   const metrics = await page
     .locator(".course-cover-title")

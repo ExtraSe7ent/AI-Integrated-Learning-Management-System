@@ -14,6 +14,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
+import { useAccount } from "./AccountProvider";
 import { PageHeader, Panel, Button, Badge, Field, Journey } from "./UI";
 import { CourseContext } from "./CourseComponents";
 export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
@@ -30,7 +31,9 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
     questions = data.questions.filter((q) => q.approved),
     q = questions[live.question % Math.max(questions.length, 1)];
   const left = Math.max(0, Math.ceil((live.expiresAt - now) / 1000));
-  const own = live.answers.sv1;
+  const { account } = useAccount();
+  const me = account?.id ?? "";
+  const own = live.answers[me];
   const participants=live.participants||[];
   useEffect(()=>setSelected(undefined),[live.question,live.expiresAt]);
   useEffect(() => {
@@ -147,7 +150,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
                   );
                   return;
                 }
-                setData(d=>({...d,live:{...d.live,participants:[...new Set([...(d.live.participants||[]),"sv1"])]}}));
+                setData(d=>({...d,live:{...d.live,participants:[...new Set([...(d.live.participants||[]),me])]}}));
                 setJoined(true);
                 setError("");
               }}
@@ -280,7 +283,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
                         ...d,
                         live: {
                           ...d.live,
-                          answers: { ...d.live.answers, sv1: selected },
+                          answers: { ...d.live.answers, [me]: selected },
                         },
                       }));
                     }}

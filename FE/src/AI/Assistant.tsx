@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { Send, FileText, ThumbsUp, Flag } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
 import { PageHeader, Field, Button, Badge } from "../shared/UI";
-import { answerFromMaterial, materialSourceAvailable } from "./model";
+import { materialSourceAvailable } from "./model";
+import { askAssistant } from "../api/assistant";
 export function Assistant({ teacher = false }: { teacher?: boolean }) {
   const { data, setData } = useDemo();
   const [course, setCourse] = useState("cs301"),
@@ -23,14 +24,11 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
     setBusy(true);
     setError("");
     try {
-      const result = answerFromMaterial(course, q.trim(), available);
-      setData((d) => ({
-        ...d,
-        chat: [...d.chat, { question: q.trim(), ...result, courseId: course }],
-      }));
+      const reply = await askAssistant(course, q.trim());
+      setData((d) => ({ ...d, chat: [...d.chat, reply] }));
       setText("");
-    } catch {
-      setError("Không tạo được phản hồi. Hãy gửi lại câu hỏi.");
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -223,8 +221,7 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
             </Button>
           </form>
           <small className="ai-disclaimer">
-            Phản hồi mô phỏng từ học liệu mẫu; chưa kết nối mô hình AI. AI có
-            thể mắc lỗi. Hãy kiểm tra nguồn và đối chiếu với bài giảng.
+            AI có thể mắc lỗi. Hãy kiểm tra nguồn và đối chiếu với bài giảng.
           </small>
         </section>
       </div>

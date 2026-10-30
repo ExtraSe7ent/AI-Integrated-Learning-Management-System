@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./base";
 import { loginAs, openRolePage } from "./helpers";
 test("lesson editor keeps the selected lesson and slide order after reload", async ({
   page,

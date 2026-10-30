@@ -1,8 +1,5 @@
-import {
-  answerFromMaterial,
-  materialSourceAvailable,
-  recordChatFeedback,
-} from "../AI/model";
+import { materialSourceAvailable, recordChatFeedback } from "../AI/model";
+import { askAssistant } from "../api/assistant";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -93,19 +90,17 @@ export function HocBai() {
     else
       notify("Đã hoàn thành phiên tự học. Bạn có thể xem lại bất cứ lúc nào.");
   }
-  function ask() {
+  async function ask() {
     if (!question.trim()) return;
     const text = question.trim();
-    const reply = answerFromMaterial(
-      "cs301",
-      text,
-      materialSourceAvailable(data),
-    );
-    setData((d) => ({
-      ...d,
-      chat: [...d.chat, { question: text, ...reply, courseId: "cs301" }],
-    }));
     setQuestion("");
+    try {
+      const reply = await askAssistant("cs301", text);
+      setData((d) => ({ ...d, chat: [...d.chat, reply] }));
+    } catch (e) {
+      setQuestion(text);
+      notify((e as Error).message);
+    }
   }
   return (
     <>

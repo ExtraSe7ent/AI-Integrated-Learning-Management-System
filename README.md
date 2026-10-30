@@ -1,3 +1,16 @@
+# Nhánh after_convert_code: frontend nối backend Spring Boot
+
+| Thư mục | Nội dung |
+| --- | --- |
+| `FE/` | Frontend React đã nối với backend |
+| `lms-backend/` | Backend Java/Spring Boot. Xem [README](lms-backend/README.md) |
+
+Cần JDK 21 và Node.js 24. Chạy `run-backend.cmd`, sau đó `run-frontend.cmd`, rồi mở http://127.0.0.1:5173.
+
+Tài khoản mẫu, mật khẩu `12345678`: `23110149`, `GV001`, `TK001`, `TN001`, `AD001`.
+
+---
+
 # AI Integrated Learning Management System
 
 Hệ thống lớp học online theo mô hình LMS/lớp học đảo ngược, định hướng tích hợp AI.
