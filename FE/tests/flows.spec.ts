@@ -1,5 +1,5 @@
 import { openRolePage } from "./helpers";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./base";
 test("student confirms a question, advances and resumes after reload", async ({
   page,
 }) => {

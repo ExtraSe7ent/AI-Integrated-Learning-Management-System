@@ -1,6 +1,10 @@
 # VJU Learning — Frontend
 
-Giao diện LMS lớp học đảo ngược dành cho **Sinh viên**, **Giảng viên**, **Trưởng khoa**, **Trưởng nhóm HP (CourseLeader)** và **Admin**, xây bằng React, TypeScript, Vite và CSS. Đây là bản frontend có dữ liệu minh họa, lưu trên trình duyệt; backend Java chưa được triển khai.
+Giao diện LMS lớp học đảo ngược dành cho **Sinh viên**, **Giảng viên**, **Trưởng khoa**, **Trưởng nhóm HP (CourseLeader)** và **Admin**, xây bằng React, TypeScript, Vite và CSS.
+
+> **Đã nối backend Spring Boot** (`../lms-backend`). Dữ liệu, đăng nhập và phân quyền nằm ở server; chạy backend trước khi chạy frontend. `npm run dev` chuyển tiếp `/api` tới cổng 8080. Các đoạn bên dưới nói về `localStorage`, hash mật khẩu cục bộ hay "chưa có backend" mô tả bản trước khi tích hợp. Trạng thái hiện tại xem tại [README backend](../lms-backend/README.md).
+>
+> Còn dữ liệu mẫu cố định trong frontend: bảng Trưởng khoa (`src/Truongkhoa/data.ts`), danh sách lớp ở Bảng điểm và Theo dõi tiến độ, nội dung slide, ngân hàng luyện tập, cấu trúc đề ba câu.
 
 ## Chạy ứng dụng
 

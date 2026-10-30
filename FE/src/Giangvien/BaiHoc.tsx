@@ -15,6 +15,7 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
+import { uploadLessonPdf } from "../api/materials";
 import { slideTitles } from "../data/fixtures";
 import {
   PageHeader,
@@ -398,8 +399,12 @@ export function SoanBai() {
                     if (preview) URL.revokeObjectURL(preview);
                     setPreview(URL.createObjectURL(f));
                     setFilename(f.name);
-                    notify(
-                      "Đã mở PDF cục bộ. Tệp chưa được upload và không giữ sau khi tải lại.",
+                    void uploadLessonPdf(f, title || f.name).then(
+                      () =>
+                        notify(
+                          "Đã tải PDF lên máy chủ và bắt đầu lập chỉ mục cho trợ lý AI.",
+                        ),
+                      (e) => notify((e as Error).message),
                     );
                   }}
                 />

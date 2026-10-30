@@ -1,5 +1,7 @@
 # Giới hạn của frontend · 30/10/2026
 
+> Cập nhật: đã nối backend Spring Boot (`lms-backend`). Các mục về xác thực, lưu trữ `localStorage`, đồng bộ giữa tab và AI cục bộ bên dưới mô tả bản trước khi tích hợp; xem README của backend cho trạng thái hiện tại.
+
 Bản hiện tại dùng để trình diễn và kiểm tra luồng FE cục bộ. [Matrix 146 yêu cầu](requirements.md) phân biệt phần hoạt động, mô phỏng, Partial FE và chưa kiểm chứng; [audit](audit-2026-10-30.md) ghi các lỗi đã sửa. Chưa xác nhận toàn bộ SRS hoặc production.
 
 ## Backend và tài khoản

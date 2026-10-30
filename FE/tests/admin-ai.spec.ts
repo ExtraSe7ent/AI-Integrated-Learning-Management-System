@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./base";
 import type { Page } from "@playwright/test";
 import ExcelJS from "exceljs";
 async function login(page: Page, id = "AD001", password = "12345678") {
@@ -6,10 +6,16 @@ async function login(page: Page, id = "AD001", password = "12345678") {
   await page.getByLabel("Mã tài khoản", { exact: true }).fill(id);
   await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  // Login is a network call now: wait for its outcome before navigating away.
+  await page.waitForFunction(
+    () =>
+      location.pathname !== "/dang-nhap" ||
+      document.querySelector('[role="alert"]'),
+  );
 }
 async function signOut(page: Page) {
   await page.goto("/dang-nhap");
-  await page.evaluate(() => sessionStorage.removeItem("vju-preview-account"));
+  await page.evaluate(() => sessionStorage.removeItem("vju-token"));
   await page.reload();
 }
 async function sheet(rows: string[][]) {
@@ -136,7 +142,7 @@ test("AI uses valid sources, persists feedback and handles missing material", as
 }) => {
   await login(page, "23110149");
   await page.goto("/sinh-vien/tro-ly-ai");
-  await expect(page.locator(".ai-disclaimer")).toContainText("Phản hồi mô phỏng");
+  await expect(page.locator(".ai-disclaimer")).toContainText("AI có thể mắc lỗi");
   await page
     .getByRole("button", { name: "Phân biệt PUT và PATCH", exact: true })
     .click();

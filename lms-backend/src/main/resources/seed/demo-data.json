@@ -1,0 +1,472 @@
+{
+ "admin": {
+  "users": [
+   {
+    "id": "23110149",
+    "name": "Nguyễn Quang Anh",
+    "email": "student@example.edu",
+    "faculty": "Khoa học và Kỹ thuật máy tính",
+    "role": "sinh-vien",
+    "kind": "student",
+    "active": true,
+    "mustChange": false,
+    "passwordHash": ""
+   },
+   {
+    "id": "GV001",
+    "name": "Nguyễn Minh Anh",
+    "email": "lecturer@example.edu",
+    "faculty": "Khoa học và Kỹ thuật máy tính",
+    "role": "giang-vien",
+    "kind": "teacher",
+    "active": true,
+    "mustChange": false,
+    "passwordHash": ""
+   },
+   {
+    "id": "GV002",
+    "name": "Trần Hoàng Nam",
+    "email": "nam@example.edu",
+    "faculty": "Khoa học và Kỹ thuật máy tính",
+    "role": "giang-vien",
+    "kind": "teacher",
+    "active": true,
+    "mustChange": false,
+    "passwordHash": ""
+   },
+   {
+    "id": "TK001",
+    "name": "Trần Thu Hương",
+    "email": "dean@example.edu",
+    "faculty": "Khoa học và Kỹ thuật máy tính",
+    "role": "truong-khoa",
+    "kind": "teacher",
+    "active": true,
+    "mustChange": false,
+    "passwordHash": ""
+   },
+   {
+    "id": "TN001",
+    "name": "Lê Thanh Hà",
+    "email": "courseleader@example.edu",
+    "faculty": "Khoa học và Kỹ thuật máy tính",
+    "role": "truong-nhom-hp",
+    "kind": "teacher",
+    "active": true,
+    "mustChange": false,
+    "passwordHash": ""
+   },
+   {
+    "id": "AD001",
+    "name": "Quản trị viên",
+    "email": "admin@example.edu",
+    "faculty": "Khoa học và Kỹ thuật máy tính",
+    "role": "admin",
+    "kind": "admin",
+    "active": true,
+    "mustChange": false,
+    "passwordHash": ""
+   }
+  ],
+  "courses": [
+   {
+    "id": "cs301",
+    "code": "CSE301",
+    "title": "Phát triển ứng dụng nâng cao",
+    "faculty": "Khoa học và Kỹ thuật máy tính"
+   },
+   {
+    "id": "cs204",
+    "code": "CSE204",
+    "title": "Cơ sở dữ liệu",
+    "faculty": "Khoa học và Kỹ thuật máy tính"
+   },
+   {
+    "id": "cs302",
+    "code": "CSE302",
+    "title": "Thiết kế giao diện người dùng",
+    "faculty": "Khoa học và Kỹ thuật máy tính"
+   }
+  ],
+  "classes": [
+   {
+    "id": "CSE301.01",
+    "courseId": "cs301",
+    "name": "CSE301.01",
+    "term": "I",
+    "year": "2026–2027",
+    "round": "1",
+    "teacherId": "GV001",
+    "leaderId": "TN001",
+    "studentIds": [
+     "23110149"
+    ]
+   },
+   {
+    "id": "CSE301.02",
+    "courseId": "cs301",
+    "name": "CSE301.02",
+    "term": "I",
+    "year": "2026–2027",
+    "round": "1",
+    "teacherId": "GV001",
+    "leaderId": "TN001",
+    "studentIds": []
+   },
+   {
+    "id": "CSE204.01",
+    "courseId": "cs204",
+    "name": "CSE204.01",
+    "term": "I",
+    "year": "2026–2027",
+    "round": "1",
+    "teacherId": "GV002",
+    "leaderId": "TN001",
+    "studentIds": [
+     "23110149"
+    ]
+   },
+   {
+    "id": "CSE302.01",
+    "courseId": "cs302",
+    "name": "CSE302.01",
+    "term": "I",
+    "year": "2026–2027",
+    "round": "1",
+    "teacherId": "GV001",
+    "leaderId": "",
+    "studentIds": [
+     "23110149"
+    ]
+   }
+  ]
+ },
+ "aiReminders": [],
+ "gradeHistory": [
+  {
+   "id": "history-model",
+   "title": "Thiết kế mô hình ứng dụng",
+   "score": 8.5,
+   "comment": "Phân tích rõ ràng."
+  },
+  {
+   "id": "history-http",
+   "title": "HTTP và cấu trúc tài nguyên",
+   "score": 9,
+   "comment": "Vận dụng tốt kiến thức."
+  }
+ ],
+ "lessons": [
+  {
+   "id": "l1",
+   "title": "Kiến trúc ứng dụng web hiện đại",
+   "order": 1,
+   "published": true,
+   "activity": true
+  },
+  {
+   "id": "l2",
+   "title": "Thiết kế RESTful API",
+   "order": 2,
+   "published": true,
+   "activity": true
+  },
+  {
+   "id": "l3",
+   "title": "Xác thực và phân quyền",
+   "order": 3,
+   "published": false,
+   "activity": false
+  }
+ ],
+ "questions": [
+  {
+   "id": "q1",
+   "text": "Trong kiến trúc REST, mỗi tài nguyên được định danh bằng gì?",
+   "options": [
+    "Một URI duy nhất",
+    "Một kết nối TCP",
+    "Một bảng dữ liệu",
+    "Một phiên đăng nhập"
+   ],
+   "correct": 0,
+   "explanation": "URI định danh tài nguyên; HTTP method thể hiện hành động trên tài nguyên đó.",
+   "page": 1,
+   "approved": true
+  },
+  {
+   "id": "q2",
+   "text": "HTTP method nào được dùng để tạo một tài nguyên mới?",
+   "options": [
+    "GET",
+    "POST",
+    "DELETE",
+    "HEAD"
+   ],
+   "correct": 1,
+   "explanation": "POST thường tạo một tài nguyên mới trong collection.",
+   "page": 2,
+   "approved": true
+  },
+  {
+   "id": "q3",
+   "text": "Mã trạng thái nào thể hiện tạo tài nguyên thành công?",
+   "options": [
+    "200 OK",
+    "400 Bad Request",
+    "201 Created",
+    "404 Not Found"
+   ],
+   "correct": 2,
+   "explanation": "201 Created cho biết tài nguyên đã được tạo thành công.",
+   "page": 3,
+   "approved": true
+  }
+ ],
+ "sessions": [
+  {
+   "id": "s1",
+   "title": "RESTful API: từ nguyên lý đến thực hành",
+   "opens": "2026-10-01T08:00",
+   "closes": "2027-01-31T23:59",
+   "published": true,
+   "late": true
+  },
+  {
+   "id": "s2",
+   "title": "Xác thực và phân quyền",
+   "opens": "2027-02-01T08:00",
+   "closes": "2027-02-07T23:59",
+   "published": false,
+   "late": false
+  }
+ ],
+ "assignments": [
+  {
+   "id": "a1",
+   "title": "Thiết kế API quản lý thư viện",
+   "minutes": 30,
+   "opens": "2026-10-01T08:00",
+   "closes": "2027-01-31T23:59",
+   "published": true,
+   "preventPaste": true,
+   "attempts": 3,
+   "random": false
+  }
+ ],
+ "resources": [
+  {
+   "id": "r1",
+   "title": "Bài giảng RESTful API",
+   "description": "Tài liệu minh họa · PDF, 1 trang",
+   "url": "/materials/demo-lesson.pdf",
+   "kind": "pdf"
+  },
+  {
+   "id": "r2",
+   "title": "HTTP: tổng quan và phương thức",
+   "description": "Tài liệu chính thức MDN Web Docs",
+   "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview",
+   "kind": "link"
+  }
+ ],
+ "studySessions": {},
+ "gaps": [
+  {
+   "id": "g1",
+   "page": 2,
+   "body": "Khi nào nên dùng PUT thay cho PATCH?",
+   "response": ""
+  }
+ ],
+ "notes": "",
+ "chat": [],
+ "feedback": [
+  {
+   "id": "f1",
+   "student": "Nguyễn Quang Anh",
+   "course": "cs301",
+   "lesson": "Thiết kế RESTful API",
+   "category": "Bài giảng",
+   "body": "Thầy/cô có thể bổ sung ví dụ về phân trang và lọc tài nguyên không ạ?",
+   "images": [],
+   "response": "",
+   "resolved": false,
+   "date": "15/10/2026"
+  }
+ ],
+ "appeals": [],
+ "assessments": {},
+ "live": {
+  "active": false,
+  "code": "261016",
+  "question": 0,
+  "revealed": false,
+  "expiresAt": 0,
+  "answers": {},
+  "participants": []
+ },
+ "profile": {
+  "name": "Nguyễn Quang Anh",
+  "email": "student@example.edu",
+  "phone": "",
+  "major": "Khoa học và Kỹ thuật máy tính"
+ },
+ "teacherProfile": {
+  "name": "Nguyễn Minh Anh",
+  "email": "lecturer@example.edu",
+  "phone": "",
+  "major": "Khoa học và Kỹ thuật máy tính"
+ },
+ "deanProfile": {
+  "name": "Trần Thu Hương",
+  "email": "dean@example.edu",
+  "phone": ""
+ },
+ "notices": [
+  "Phiên tự học RESTful API đã mở.",
+  "Bài tập Thiết kế API đang chờ bạn hoàn thành.",
+  "Lớp CSE301 có lịch học lúc 13:00 hôm nay."
+ ],
+ "readNotices": false,
+ "teacherNotices": [
+  "Có bài nộp mới trong lớp CSE301.01.",
+  "Sinh viên gửi câu hỏi về PUT và PATCH.",
+  "Lớp CSE301 có lịch học lúc 13:00 hôm nay."
+ ],
+ "readTeacherNotices": false,
+ "readDeanNotices": false,
+ "coordination": {
+  "items": [
+   {
+    "id": "api-slides",
+    "courseId": "cs301",
+    "classId": "CSE301.01",
+    "kind": "slides",
+    "title": "Thiết kế RESTful API",
+    "body": "REST là một kiểu kiến trúc cho hệ thống phân tán. API tổ chức tài nguyên bằng URI và dùng HTTP để biểu diễn thao tác.\n\nGET đọc dữ liệu; POST tạo tài nguyên; PUT thay thế; PATCH cập nhật một phần; DELETE xoá tài nguyên.\n\nVí dụ: GET /books trả về danh sách sách. POST /books tạo sách và trả về mã 201.\n\nCâu hỏi kiểm tra: Khi cập nhật một thuộc tính của sách, bạn chọn PUT hay PATCH? Vì sao?",
+    "level": 1,
+    "editable": true,
+    "revision": 1
+   },
+   {
+    "id": "api-quiz",
+    "courseId": "cs301",
+    "classId": "CSE301.01",
+    "kind": "quiz",
+    "title": "HTTP và tài nguyên",
+    "body": "Câu 1: Phương thức nào dùng để đọc tài nguyên?\nA. GET\nB. POST\nC. DELETE\nĐáp án: A. GET\n\nCâu 2: Tạo tài nguyên thành công thường trả mã nào?\nA. 200\nB. 201\nC. 404\nĐáp án: B. 201",
+    "level": 3,
+    "editable": true,
+    "revision": 1
+   },
+   {
+    "id": "api-assignment",
+    "courseId": "cs301",
+    "classId": "CSE301.01",
+    "kind": "assignment",
+    "title": "Thiết kế API quản lý thư viện",
+    "body": "Thiết kế endpoint tạo sách, tìm sách và mượn sách. Nêu HTTP method, URI, request và response cho từng endpoint.\n\nNộp một tệp PDF mô tả thiết kế. Thang điểm: 10. Thời gian: 30 phút.",
+    "level": 2,
+    "editable": true,
+    "revision": 1
+   },
+   {
+    "id": "api2-slides",
+    "courseId": "cs301",
+    "classId": "CSE301.02",
+    "kind": "slides",
+    "title": "REST và thiết kế tài nguyên",
+    "body": "Tổ chức API theo tài nguyên: /books, /readers và /loans.\n\nDùng GET để đọc, POST để tạo. Phân biệt mã phản hồi 200, 201, 400 và 404.\n\nBài tập trên lớp: thiết kế endpoint mượn sách.",
+    "level": 0,
+    "editable": false,
+    "revision": 1
+   },
+   {
+    "id": "api2-quiz",
+    "courseId": "cs301",
+    "classId": "CSE301.02",
+    "kind": "quiz",
+    "title": "Kiểm tra HTTP",
+    "body": "Câu 1: Không tìm thấy tài nguyên trả mã nào?\nA. 201\nB. 404\nC. 500\nĐáp án: B. 404",
+    "level": 1,
+    "editable": true,
+    "revision": 1
+   },
+   {
+    "id": "api2-assignment",
+    "courseId": "cs301",
+    "classId": "CSE301.02",
+    "kind": "assignment",
+    "title": "API mượn sách",
+    "body": "Thiết kế POST /loans. Kiểm tra độc giả, tình trạng sách và dữ liệu đầu vào.\n\nTiêu chí: mô hình dữ liệu 3 điểm; endpoint 4 điểm; xử lý lỗi 3 điểm.",
+    "level": 3,
+    "editable": true,
+    "revision": 1
+   },
+   {
+    "id": "db-slides",
+    "courseId": "cs204",
+    "classId": "CSE204.01",
+    "kind": "slides",
+    "title": "Mô hình dữ liệu quan hệ",
+    "body": "Bảng gồm các hàng và cột. Khóa chính định danh bản ghi; khóa ngoại liên kết bảng.\n\nVí dụ: Books(id, title) và Loans(id, book_id, reader_id).",
+    "level": 3,
+    "editable": true,
+    "revision": 1
+   },
+   {
+    "id": "db-quiz",
+    "courseId": "cs204",
+    "classId": "CSE204.01",
+    "kind": "quiz",
+    "title": "Khóa chính và khóa ngoại",
+    "body": "Câu 1: Khóa nào định danh duy nhất bản ghi?\nA. Khóa chính\nB. Khóa ngoại\nĐáp án: A. Khóa chính",
+    "level": 3,
+    "editable": true,
+    "revision": 1
+   },
+   {
+    "id": "db-assignment",
+    "courseId": "cs204",
+    "classId": "CSE204.01",
+    "kind": "assignment",
+    "title": "Thiết kế CSDL thư viện",
+    "body": "Vẽ lược đồ Books, Readers và Loans. Nêu khóa chính/ngoại.\n\nTiêu chí: thực thể 4 điểm; ràng buộc 3 điểm; giải thích 3 điểm.",
+    "level": 3,
+    "editable": true,
+    "revision": 1
+   }
+  ],
+  "requests": [
+   {
+    "id": "request-seed",
+    "itemId": "api-assignment",
+    "body": "Bổ sung tiêu chí chấm điểm cho từng endpoint và cách xử lý lỗi.",
+    "reply": "",
+    "closed": false
+   }
+  ],
+  "completed": [],
+  "references": [
+   {
+    "id": "ref-pdf",
+    "courseId": "cs301",
+    "title": "Bài giảng RESTful API",
+    "url": "/materials/demo-lesson.pdf"
+   },
+   {
+    "id": "ref-http",
+    "courseId": "cs301",
+    "title": "HTTP: tổng quan và phương thức",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview"
+   }
+  ]
+ },
+ "leaderProfile": {
+  "name": "Lê Thanh Hà",
+  "email": "courseleader@example.edu",
+  "phone": ""
+ },
+ "readLeaderNotices": false
+}

@@ -1,9 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useDemo } from "../data/DemoProvider";
-import { passwordDigest } from "../Admin/model";
 import type { ManagedUser } from "../Admin/model";
-const KEY = "vju-preview-account";
+import { api, ApiError, getToken, setToken } from "../api/client";
 const Context = createContext<{
   account: ManagedUser | null;
   signIn: (id: string, password: string) => Promise<ManagedUser | null>;
@@ -16,57 +15,56 @@ const Context = createContext<{
   changePassword: async () => {},
 });
 export function AccountProvider({ children }: { children: ReactNode }) {
-  const { data, setData } = useDemo();
-  const [id, setId] = useState(() => {
-    try {
-      return sessionStorage.getItem(KEY) || "";
-    } catch {
-      return "";
-    }
-  });
-  const account = data.admin.users.find((u) => u.id === id && u.active) || null;
+  const { reload, bindAccount } = useDemo();
+  const [account, setAccount] = useState<ManagedUser | null>(null);
+  const [ready, setReady] = useState(!getToken());
+  async function enter(user: ManagedUser) {
+    setAccount(user);
+    bindAccount(user);
+    if (!user.mustChange) await reload();
+  }
   useEffect(() => {
-    try {
-      if (account) sessionStorage.setItem(KEY, account.id);
-      else sessionStorage.removeItem(KEY);
-    } catch {
-      /* In-memory session if storage is unavailable. */
-    }
-  }, [account]);
-  const matches = async (u: ManagedUser, password: string) =>
-    u.passwordHash
-      ? u.passwordHash === (await passwordDigest(password))
-      : password === "12345678";
+    if (ready) return;
+    api<ManagedUser>("/api/auth/me")
+      .then(enter)
+      .catch(() => setToken(null))
+      .finally(() => setReady(true));
+    // Restores the session once, on page load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   async function signIn(code: string, password: string) {
-    const u = data.admin.users.find(
-      (u) => u.active && u.id.toLowerCase() === code.trim().toLowerCase(),
-    );
-    if (!u || !(await matches(u, password))) return null;
-    setId(u.id);
-    return u;
+    try {
+      const { token, account: user } = await api<{
+        token: string;
+        account: ManagedUser;
+      }>("/api/auth/login", {
+        method: "POST",
+        body: { username: code.trim(), password },
+      });
+      setToken(token);
+      await enter(user);
+      return user;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return null;
+      throw e;
+    }
   }
   async function changePassword(old: string, next: string) {
     if (!account) throw Error("Đăng nhập trước khi đổi mật khẩu.");
-    if (!account.mustChange && !(await matches(account, old)))
-      throw Error("Mật khẩu hiện tại không đúng.");
-    if (next.length < 8) throw Error("Mật khẩu mới cần ít nhất 8 ký tự.");
-    if (await matches(account, next))
-      throw Error("Chọn mật khẩu mới khác mật khẩu hiện tại.");
-    const passwordHash = await passwordDigest(next);
-    setData((d) => ({
-      ...d,
-      admin: {
-        ...d.admin,
-        users: d.admin.users.map((u) =>
-          u.id === account.id ? { ...u, passwordHash, mustChange: false } : u,
-        ),
-      },
-    }));
+    const user = await api<ManagedUser>("/api/auth/change-password", {
+      method: "POST",
+      body: { oldPassword: old, newPassword: next },
+    });
+    await enter(user);
   }
+  function signOut() {
+    setToken(null);
+    setAccount(null);
+    bindAccount(null);
+  }
+  if (!ready) return null;
   return (
-    <Context.Provider
-      value={{ account, signIn, signOut: () => setId(""), changePassword }}
-    >
+    <Context.Provider value={{ account, signIn, signOut, changePassword }}>
       {children}
     </Context.Provider>
   );

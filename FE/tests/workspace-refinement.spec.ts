@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./base";
 import { openRolePage } from "./helpers";
 
 test("grade roster and exported workbook follow the selected class", async ({
