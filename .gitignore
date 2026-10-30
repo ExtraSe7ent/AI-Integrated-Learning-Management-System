@@ -14,7 +14,7 @@ playwright-report/
 .DS_Store
 .idea/
 
-# Local design review output and cache
-.impeccable/review/
-.impeccable/questions/
-.impeccable/hook.cache.json
+# Agent tooling and local configuration
+.impeccable/
+.specify/
+.agents/
