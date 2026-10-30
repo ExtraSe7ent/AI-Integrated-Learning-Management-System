@@ -1,0 +1,329 @@
+.dean-workspace {
+  --muted: #645d58;
+}
+.dean-workspace .sidebar {
+  padding: 17px;
+  gap: 18px;
+}
+.dean-workspace .brand {
+  height: 65px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.dean-workspace .brand img {
+  margin: 0;
+}
+.dean-workspace .workspace-label {
+  margin: 0;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.dean-workspace .workspace-label small {
+  font-size: 11px;
+}
+.dean-faculty-name {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.dean-workspace .sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.dean-workspace .nav-item {
+  margin: 0;
+  padding: 10px;
+  font-size: 12px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.dean-workspace .user-block {
+  border-top: 1px solid var(--line);
+  padding: 16px 0 0;
+  flex-shrink: 0;
+}
+.dean-workspace .user-block small {
+  font-size: 11px;
+}
+.dean-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  max-width: none;
+  vertical-align: middle;
+}
+.dean-workspace .topbar {
+  padding: 0 24px;
+  background: var(--surface);
+}
+.dean-workspace .section-switch {
+  font-size: 13px;
+  font-weight: 400;
+}
+.dean-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 34px;
+  max-width: 1530px;
+}
+.dean-workspace .page-heading {
+  margin: 0;
+  min-height: 65px;
+}
+.dean-workspace .page-heading p {
+  font-size: 13px;
+  margin-top: 6px;
+  line-height: 1.6;
+}
+.dean-workspace .panel {
+  margin: 0;
+  padding: 20px;
+}
+.dean-workspace .panel-heading {
+  margin-bottom: 16px;
+}
+.dean-workspace .panel-heading h2 {
+  font-size: 16px;
+}
+.dean-workspace .field {
+  margin-bottom: 0;
+  gap: 6px;
+  width: 248px;
+  max-width: 100%;
+}
+.dean-workspace .field > span {
+  font-size: 12px;
+  color: var(--ink);
+}
+.dean-workspace .field input,
+.dean-workspace .field select {
+  height: 40px;
+  border-color: var(--line);
+  padding: 10px;
+}
+.dean-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+}
+.dean-workspace .dean-course-search .field {
+  width: 360px;
+}
+.dean-workspace .metric-strip {
+  margin: 0;
+  gap: 14px;
+}
+.dean-metrics.four .metric-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.dean-workspace .metric-strip > div {
+  padding: 18px;
+}
+.dean-workspace .metric-strip span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.dean-workspace .metric-strip strong {
+  font-size: 26px;
+  font-weight: 500;
+  margin: 4px 0;
+  line-height: 1.6;
+}
+.dean-workspace .metric-strip small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.dean-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 758fr) minmax(300px, 352fr);
+  gap: 24px;
+  align-items: start;
+}
+.dean-workspace table {
+  font-size: 12px;
+  width: 100%;
+}
+.dean-workspace .table-wrap {
+  position: relative;
+}
+.dean-workspace th {
+  padding: 12px 10px;
+  font-size: 11px;
+  background: var(--ground);
+  color: var(--muted);
+}
+.dean-workspace td {
+  padding: 20px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.dean-workspace td p {
+  font-size: 11px;
+  color: var(--muted);
+}
+.dean-workspace .progress-wrap {
+  min-width: 110px;
+  max-width: 170px;
+  font-size: 12px;
+}
+.dean-course-table td:first-child {
+  width: 38%;
+}
+.dean-course-table.compact td:first-child {
+  width: 40%;
+}
+.dean-course-table.compact .progress-wrap {
+  min-width: 100px;
+}
+.dean-row-link {
+  font-weight: 500;
+}
+.dean-row-link:hover,
+.dean-breadcrumbs a:hover {
+  color: var(--red);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.dean-attention {
+  color: var(--red);
+}
+.dean-workspace .dean-support-panel > p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.dean-support-total {
+  color: var(--red);
+  font-size: 32px;
+  font-weight: 500;
+  display: block;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.dean-workspace .dean-support-panel hr {
+  margin: 16px 0;
+}
+.dean-support-person {
+  margin-bottom: 16px;
+}
+.dean-support-person strong {
+  font-size: 14px;
+}
+.dean-support-person p {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.dean-workspace .dean-support-panel .button {
+  min-width: 160px;
+}
+.dean-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--red);
+}
+.dean-threshold {
+  color: var(--muted);
+  font-size: 13px;
+}
+.dean-workspace .panel .dean-filters,
+.dean-alert-search {
+  margin-bottom: 20px;
+}
+.dean-workspace .dean-alert-search .field {
+  width: 360px;
+}
+.dean-profile-form {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 16px;
+}
+.dean-workspace .dean-profile-form .field {
+  width: 500px;
+}
+.dean-profile-form > p {
+  font-size: 13px;
+}
+.dean-profile-form > .button {
+  min-width: 160px;
+}
+.dean-no-notices {
+  padding: 18px;
+  font-size: 13px;
+}
+.dean-workspace .notice-preview-row > span {
+  flex: 1;
+}
+@media (max-width: 1200px) {
+  .dean-overview-grid {
+    grid-template-columns: 1fr;
+  }
+  .dean-support-person {
+    display: inline-block;
+    min-width: 240px;
+    margin-right: 20px;
+  }
+}
+@media (max-width: 800px) {
+  .dean-content {
+    padding: 24px;
+  }
+  .dean-workspace .sidebar {
+    gap: 14px;
+    visibility: hidden;
+  }
+  .dean-workspace .sidebar.is-open {
+    visibility: visible;
+  }
+  .dean-workspace .brand {
+    justify-content: space-between;
+  }
+  .dean-metrics.four .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dean-workspace table {
+    min-width: 700px;
+  }
+}
+@media (max-width: 600px) {
+  .dean-content {
+    padding: 24px 16px;
+    gap: 22px;
+  }
+  .dean-workspace h1 {
+    font-size: 25px;
+  }
+  .dean-workspace .page-heading p {
+    font-size: 12px;
+  }
+  .dean-workspace .metric-strip {
+    grid-template-columns: 1fr;
+  }
+  .dean-workspace .metric-strip > div {
+    padding: 14px;
+  }
+  .dean-workspace .metric-strip strong {
+    font-size: 24px;
+  }
+  .dean-workspace .field input,
+  .dean-workspace .field select {
+    font-size: 16px;
+    height: 44px;
+  }
+  .dean-filters > .field,
+  .dean-workspace .dean-course-search .field,
+  .dean-workspace .dean-alert-search .field {
+    width: 100%;
+  }
+  .dean-filters {
+    align-items: stretch;
+  }
+  .dean-support-person {
+    min-width: 0;
+    display: block;
+    margin-right: 0;
+  }
+}

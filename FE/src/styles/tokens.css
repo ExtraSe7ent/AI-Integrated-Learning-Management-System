@@ -1,0 +1,208 @@
+:root {
+  font-family: "Be Vietnam Pro", sans-serif;
+  color: #292728;
+  background: #f7f6f2;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --red: #a4262c;
+  --red-dark: #82212a;
+  --red-soft: #f9edeb;
+  --ink: #292728;
+  --muted: #74716e;
+  --line: #e9e6e0;
+  --surface: #fff;
+  --ground: #f7f6f2;
+  --sage: #eaf0e9;
+  --green: #41624b;
+  --amber: #8a611f;
+  --sand: #f3eddf;
+  --radius: 12px;
+  --sidebar: 238px;
+  --shadow: 0 12px 36px #30251d12;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  touch-action: manipulation;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  color: inherit;
+}
+img {
+  display: block;
+  max-width: 100%;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.35;
+}
+h2 {
+  font-size: 17px;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+h3 {
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+p {
+  line-height: 1.75;
+}
+small {
+  font-size: 11px;
+}
+strong {
+  font-weight: 600;
+}
+svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 22px 0;
+}
+::selection {
+  background: #ebc5c5;
+  color: #512027;
+}
+:focus-visible {
+  outline: 3px solid #c7787a;
+  outline-offset: 3px;
+}
+input,
+textarea,
+select {
+  caret-color: var(--red);
+}
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d5c9c5;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+.visually-hidden,
+.skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.skip-link:focus {
+  position: fixed;
+  top: 8px;
+  left: 250px;
+  padding: 12px;
+  background: var(--surface);
+  z-index: 100;
+}
+.muted {
+  color: var(--muted);
+}
+.green-text {
+  color: var(--green);
+}
+.error-text,
+.danger {
+  color: var(--red);
+}
+.error-text {
+  margin: 12px 0;
+}
+.small-dot,
+.status-dot,
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+}
+.status-dot {
+  background: #66846a;
+}
+.live-dot {
+  background: var(--red);
+}
+.info-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 20px 0;
+}
+.row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.inline-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.inline-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mobile-only {
+  display: none !important;
+}

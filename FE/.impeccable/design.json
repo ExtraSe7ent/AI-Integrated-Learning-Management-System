@@ -1,0 +1,358 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T08:17:49.308549+00:00",
+  "title": "Design System: VJU Learning",
+  "extensions": {
+    "colorMeta": {
+      "red": {
+        "role": "primary",
+        "displayName": "Đỏ học thuật",
+        "tonalRamp": [
+          "oklch(15% 0.1619 23.7)",
+          "oklch(27% 0.1619 23.7)",
+          "oklch(39% 0.1619 23.7)",
+          "oklch(51% 0.1619 23.7)",
+          "oklch(63% 0.1619 23.7)",
+          "oklch(75% 0.1619 23.7)",
+          "oklch(87% 0.1619 23.7)",
+          "oklch(95% 0.1619 23.7)"
+        ]
+      },
+      "red-dark": {
+        "role": "primary",
+        "displayName": "Đỏ trầm",
+        "tonalRamp": [
+          "oklch(15% 0.1312 20.3)",
+          "oklch(27% 0.1312 20.3)",
+          "oklch(39% 0.1312 20.3)",
+          "oklch(51% 0.1312 20.3)",
+          "oklch(63% 0.1312 20.3)",
+          "oklch(75% 0.1312 20.3)",
+          "oklch(87% 0.1312 20.3)",
+          "oklch(95% 0.1312 20.3)"
+        ]
+      },
+      "red-soft": {
+        "role": "primary",
+        "displayName": "Đỏ giấy nhạt",
+        "tonalRamp": [
+          "oklch(15% 0.0133 28.9)",
+          "oklch(27% 0.0133 28.9)",
+          "oklch(39% 0.0133 28.9)",
+          "oklch(51% 0.0133 28.9)",
+          "oklch(63% 0.0133 28.9)",
+          "oklch(75% 0.0133 28.9)",
+          "oklch(87% 0.0133 28.9)",
+          "oklch(95% 0.0133 28.9)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Mực ấm",
+        "tonalRamp": [
+          "oklch(15% 0.0034 345.5)",
+          "oklch(27% 0.0034 345.5)",
+          "oklch(39% 0.0034 345.5)",
+          "oklch(51% 0.0034 345.5)",
+          "oklch(63% 0.0034 345.5)",
+          "oklch(75% 0.0034 345.5)",
+          "oklch(87% 0.0034 345.5)",
+          "oklch(95% 0.0034 345.5)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Xám ấm",
+        "tonalRamp": [
+          "oklch(15% 0.0059 67.7)",
+          "oklch(27% 0.0059 67.7)",
+          "oklch(39% 0.0059 67.7)",
+          "oklch(51% 0.0059 67.7)",
+          "oklch(63% 0.0059 67.7)",
+          "oklch(75% 0.0059 67.7)",
+          "oklch(87% 0.0059 67.7)",
+          "oklch(95% 0.0059 67.7)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Đường giấy",
+        "tonalRamp": [
+          "oklch(15% 0.0087 84.6)",
+          "oklch(27% 0.0087 84.6)",
+          "oklch(39% 0.0087 84.6)",
+          "oklch(51% 0.0087 84.6)",
+          "oklch(63% 0.0087 84.6)",
+          "oklch(75% 0.0087 84.6)",
+          "oklch(87% 0.0087 84.6)",
+          "oklch(95% 0.0087 84.6)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Mặt giấy",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.9)",
+          "oklch(27% 0.0000 89.9)",
+          "oklch(39% 0.0000 89.9)",
+          "oklch(51% 0.0000 89.9)",
+          "oklch(63% 0.0000 89.9)",
+          "oklch(75% 0.0000 89.9)",
+          "oklch(87% 0.0000 89.9)",
+          "oklch(95% 0.0000 89.9)"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Nền ngà",
+        "tonalRamp": [
+          "oklch(15% 0.0054 95.1)",
+          "oklch(27% 0.0054 95.1)",
+          "oklch(39% 0.0054 95.1)",
+          "oklch(51% 0.0054 95.1)",
+          "oklch(63% 0.0054 95.1)",
+          "oklch(75% 0.0054 95.1)",
+          "oklch(87% 0.0054 95.1)",
+          "oklch(95% 0.0054 95.1)"
+        ]
+      },
+      "sage": {
+        "role": "secondary",
+        "displayName": "Giấy xô thơm",
+        "tonalRamp": [
+          "oklch(15% 0.0113 141.3)",
+          "oklch(27% 0.0113 141.3)",
+          "oklch(39% 0.0113 141.3)",
+          "oklch(51% 0.0113 141.3)",
+          "oklch(63% 0.0113 141.3)",
+          "oklch(75% 0.0113 141.3)",
+          "oklch(87% 0.0113 141.3)",
+          "oklch(95% 0.0113 141.3)"
+        ]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "Xanh lá trầm",
+        "tonalRamp": [
+          "oklch(15% 0.0537 153.5)",
+          "oklch(27% 0.0537 153.5)",
+          "oklch(39% 0.0537 153.5)",
+          "oklch(51% 0.0537 153.5)",
+          "oklch(63% 0.0537 153.5)",
+          "oklch(75% 0.0537 153.5)",
+          "oklch(87% 0.0537 153.5)",
+          "oklch(95% 0.0537 153.5)"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Hổ phách đất",
+        "tonalRamp": [
+          "oklch(15% 0.0961 75.1)",
+          "oklch(27% 0.0961 75.1)",
+          "oklch(39% 0.0961 75.1)",
+          "oklch(51% 0.0961 75.1)",
+          "oklch(63% 0.0961 75.1)",
+          "oklch(75% 0.0961 75.1)",
+          "oklch(87% 0.0961 75.1)",
+          "oklch(95% 0.0961 75.1)"
+        ]
+      },
+      "sand": {
+        "role": "secondary",
+        "displayName": "Cát ấm",
+        "tonalRamp": [
+          "oklch(15% 0.0197 87.5)",
+          "oklch(27% 0.0197 87.5)",
+          "oklch(39% 0.0197 87.5)",
+          "oklch(51% 0.0197 87.5)",
+          "oklch(63% 0.0197 87.5)",
+          "oklch(75% 0.0197 87.5)",
+          "oklch(87% 0.0197 87.5)",
+          "oklch(95% 0.0197 87.5)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Lời chào trang đăng nhập."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Tiêu đề trang."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Tiêu đề khu vực."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Nội dung nghiệp vụ."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Nút và điều hướng."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 12px 36px #30251d12",
+        "purpose": "Menu và vùng nổi; panel nghỉ không đổ bóng."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-feedback",
+        "value": "background 0.15s",
+        "purpose": "Đổi nền nút khi hover."
+      },
+      {
+        "name": "nav-feedback",
+        "value": "background 0.16s, color 0.16s",
+        "purpose": "Phản hồi điều hướng."
+      },
+      {
+        "name": "drawer",
+        "value": "transform 0.2s ease",
+        "purpose": "Mở sidebar mobile."
+      },
+      {
+        "name": "content-in",
+        "value": "0.25s ease-out",
+        "purpose": "Vào trang nhẹ; tắt với prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1600px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1250px"
+      },
+      {
+        "name": "tablet-landscape",
+        "value": "1050px"
+      },
+      {
+        "name": "drawer",
+        "value": "800px"
+      },
+      {
+        "name": "phone",
+        "value": "600px"
+      }
+    ],
+    "roleWorkspaces": {
+      "student": {
+        "surface": "surface",
+        "navigation": "light"
+      },
+      "teacher": {
+        "surface": "red-dark",
+        "selection": "red-soft"
+      },
+      "header": {
+        "currentSection": "quick navigation dropdown",
+        "notifications": "dismissible anchored panel"
+      },
+      "mobile": "Close drawer and account menu after any selection, including current route",
+      "courseTitles": "Top aligned; two line ellipsis",
+      "login": "One account form; role supplied by account data, no role picker",
+      "accountMenu": [
+        "profile",
+        "change password",
+        "sign out"
+      ]
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Hành động chính trong một khu vực công việc.",
+      "html": "<button class=\"ds-button\">Tiếp tục học</button>",
+      "css": ".ds-button{font-family:\"Be Vietnam Pro\",sans-serif;font-size:11px;display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;border-radius:7px;padding:10px 15px;min-height:38px;font-weight:500;line-height:1.4;cursor:pointer;background:var(--red,#a4262c);color:white;transition:background .15s}.ds-button:hover{background:var(--red-dark,#82212a)}.ds-button:focus-visible{outline:3px solid #c7787a;outline-offset:3px;}.ds-button:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Hành động phụ bên cạnh nút chính hoặc trong hàng.",
+      "html": "<button class=\"ds-secondary\">Xem kết quả</button>",
+      "css": ".ds-secondary{font-family:\"Be Vietnam Pro\",sans-serif;font-size:11px;border:1px solid #ddd7d0;background:white;color:#4b4541;border-radius:7px;padding:10px 15px;min-height:38px;font-weight:500;cursor:pointer;transition:background .15s}.ds-secondary:hover{background:#f6f1ed;border-color:#d0c5bc}.ds-secondary:focus-visible{outline:3px solid #c7787a;outline-offset:3px;}"
+    },
+    {
+      "name": "Labeled Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Ô nhập có label và vùng focus rõ.",
+      "html": "<label class=\"ds-field\"><span>Tên bài học</span><input placeholder=\"Nhập tên bài học\" /></label>",
+      "css": ".ds-field{font-family:\"Be Vietnam Pro\",sans-serif;font-size:11px;display:flex;flex-direction:column;gap:7px;color:#484039;font-weight:500}.ds-field input{font:inherit;font-size:12px;border:1px solid #ded7cf;border-radius:7px;padding:11px 12px;background:white;color:var(--ink,#292728);caret-color:var(--red,#a4262c)}.ds-field input:focus-visible{outline:3px solid #c7787a;outline-offset:3px;}"
+    },
+    {
+      "name": "Role Navigation",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Menu vai trò với trạng thái trang hiện tại.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Học tập\"><a class=\"ds-nav-active\" href=\"#tong-quan\" aria-current=\"page\">Tổng quan</a><a href=\"#tu-hoc\">Tự học</a></nav>",
+      "css": ".ds-nav{font-family:\"Be Vietnam Pro\",sans-serif;font-size:11px;display:flex;flex-direction:column;gap:2px;max-width:220px}.ds-nav a{display:flex;align-items:center;padding:10px 12px;min-height:42px;border-radius:7px;color:#484442;text-decoration:none;transition:background .16s,color .16s}.ds-nav a:hover{background:#f8f5f1;color:var(--red,#a4262c)}.ds-nav a.ds-nav-active{background:var(--red-soft,#f9edeb);color:var(--red,#a4262c);font-weight:600}.ds-nav a:focus-visible{outline:3px solid #c7787a;outline-offset:3px;}"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "description": "Nhãn ngắn thể hiện trạng thái có chữ.",
+      "html": "<span class=\"ds-badge\">Đã hoàn thành</span>",
+      "css": ".ds-badge{font-family:\"Be Vietnam Pro\",sans-serif;font-size:11px;display:inline-flex;align-items:center;gap:5px;padding:3px 8px;line-height:1.5;font-size:9px;border-radius:4px;background:#ecf3ed;color:#446b50;font-weight:500;white-space:nowrap}"
+    },
+    {
+      "name": "Work Panel",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Bề mặt trắng tách một vùng công việc khỏi nền.",
+      "html": "<section class=\"ds-panel\"><h2>Phiên tự học</h2><p>Thiết kế RESTful API · CSE301</p><a href=\"#hoc\">Bắt đầu học →</a></section>",
+      "css": ".ds-panel{font-family:\"Be Vietnam Pro\",sans-serif;font-size:11px;background:var(--surface,#fff);border:1px solid var(--line,#e9e6e0);border-radius:12px;padding:21px;color:var(--ink,#292728)}.ds-panel h2{font-size:14px;font-weight:600;margin:0 0 19px}.ds-panel p{line-height:1.75;color:var(--muted,#74716e)}.ds-panel a{color:var(--red,#a4262c);font-weight:500;text-decoration:none}.ds-panel a:hover{text-decoration:underline;text-underline-offset:4px}.ds-panel a:focus-visible{outline:3px solid #c7787a;outline-offset:3px;}"
+    },
+    {
+      "name": "Lesson Journey",
+      "kind": "custom",
+      "description": "Định hướng ba giai đoạn lớp học đảo ngược.",
+      "html": "<div class=\"ds-journey\"><span class=\"ds-current\"><b>1</b>Trước lớp</span><i></i><span><b>2</b>Trong lớp</span><i></i><span><b>3</b>Sau lớp</span></div>",
+      "css": ".ds-journey{font-family:\"Be Vietnam Pro\",sans-serif;font-size:11px;display:flex;align-items:center;gap:9px;color:#77685b;font-size:10px}.ds-journey span{display:flex;align-items:center;gap:7px}.ds-journey b{width:19px;height:19px;border-radius:50%;display:inline-grid;place-items:center;background:#ede4d8;font-size:8px;font-weight:500}.ds-journey .ds-current{color:var(--red,#a4262c);font-weight:500}.ds-current b{background:var(--red,#a4262c);color:white}.ds-journey i{width:22px;height:1px;background:#d9c8b5}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Campus agenda",
+    "overview": "Giao diện Operate dành cho ngày học ở đại học: nhìn thấy lớp đang học, việc tiếp theo và trạng thái hoàn thành trước khi tìm thông tin bổ sung. Đỏ học thuật tạo điểm tựa, nền be ấm giữ không gian đọc bình tĩnh, các bề mặt trắng tách nội dung nghiệp vụ.\n\nBố cục có mật độ vừa phải, thanh điều hướng theo vai trò và ngữ cảnh học phần ổn định. Hai logo VJU được dùng nguyên hình trong khung phù hợp; không đổi màu hay kéo méo. Tên VJU Learning là nhãn làm việc của bản demo.",
+    "keyCharacteristics": [
+      "Thao tác chính rõ ràng, thông tin lớp và bài học luôn có ngữ cảnh.",
+      "Đỏ định hướng hành động, trắng chứa công việc, be tạo nền đọc.",
+      "Trạng thái có chữ; màu hỗ trợ nhận biết.",
+      "Hành trình Trước lớp → Trong lớp → Sau lớp nối các màn học.",
+      "Hai vai trò có nhận diện điều hướng riêng; thanh đầu mở điều hướng nhanh và thông báo tại chỗ."
+    ],
+    "rules": [
+      {
+        "name": "The Labeled State Rule",
+        "body": "Mỗi trạng thái cần nhãn chữ; không dùng màu như tín hiệu duy nhất cho đúng/sai, chờ xử lý hoặc hoàn thành.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "**Do** giữ ngữ cảnh học phần và tên bài gần thao tác chính.",
+      "**Do** dùng nhãn chữ cho trạng thái và nguồn phản hồi AI.",
+      "**Do** giữ focus bàn phím rõ, form có label và hỗ trợ reduced motion.",
+      "**Do** xếp lại nội dung trên mobile và cho bảng cuộn trong vùng riêng."
+    ],
+    "donts": [
+      "**Don't** đổi màu, cắt mất nội dung hoặc kéo méo logo VJU.",
+      "**Don't** trang trí bằng chuyển động hoặc bóng trên mọi panel.",
+      "**Don't** dùng màu làm tín hiệu trạng thái duy nhất.",
+      "**Don't** trình bày phản hồi mẫu, dữ liệu local hoặc thao tác demo như kết quả máy chủ thật."
+    ]
+  }
+}
