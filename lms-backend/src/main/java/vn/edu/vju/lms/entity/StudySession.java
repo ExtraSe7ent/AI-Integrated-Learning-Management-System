@@ -26,4 +26,8 @@ public class StudySession {
     private Boolean published;
 
     private Boolean late;
+
+    /** The lesson studied in this session; null means the demo lesson. */
+    @Column(name = "lesson_id", length = 100)
+    private String lessonId;
 }

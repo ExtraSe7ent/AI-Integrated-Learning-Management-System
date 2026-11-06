@@ -31,4 +31,9 @@ public class LiveRestImpl implements LiveRest {
     public ResponseEntity<LiveStateWrapper> respond(LiveResponse response) {
         return ResponseEntity.ok(service.respond(response));
     }
+
+    @Override
+    public ResponseEntity<java.util.List<vn.edu.vju.lms.wrapper.LiveWrappers.LiveResultWrapper>> results(String classId) {
+        return ResponseEntity.ok(service.results(classId));
+    }
 }

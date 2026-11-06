@@ -37,4 +37,14 @@ public class Lesson {
 
     @Column(length = 500)
     private String video;
+
+    /** Week of the term the lesson is taught in (1–20). */
+    private Integer week;
+
+    /** Lecture PDF uploaded for this lesson (a Material of the lesson's class) and its file name. */
+    @Column(length = 100)
+    private String materialId;
+
+    @Column(length = 255)
+    private String pdfName;
 }

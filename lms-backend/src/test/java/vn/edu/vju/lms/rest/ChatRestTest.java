@@ -54,7 +54,7 @@ class ChatRestTest extends AbstractApiTest {
     void withProviderUsesRagAndKeepsHistoryPrivateAndEnforcesQuota() throws Exception {
         when(client.chatConfigured()).thenReturn(true);
         when(ragAnswers.candidates(anyList())).thenReturn(List.of());
-        when(ragAnswers.answer(anyString(), anyBoolean(), any())).thenReturn(new AiAnswer("Trả lời [1]", 2, List.of(2), "rag"));
+        when(ragAnswers.answer(anyString(), anyBoolean(), any(), any())).thenReturn(new AiAnswer("Trả lời [1]", 2, List.of(2), "rag"));
 
         String body = mvc.perform(post(ASK).headers(auth(STUDENT)).contentType(JSON).content(question("REST?")))
                 .andExpect(status().isOk())

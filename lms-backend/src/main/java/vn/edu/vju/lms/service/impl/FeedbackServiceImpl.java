@@ -1,5 +1,7 @@
 package vn.edu.vju.lms.service.impl;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.vju.lms.common.dao.IGenericDao;
@@ -15,8 +17,10 @@ import vn.edu.vju.lms.wrapper.FeedbackWrapper;
 public class FeedbackServiceImpl extends AbstractCrudService<Feedback, FeedbackWrapper> implements FeedbackService {
 
     private final IFeedbackDao dao;
+    private final vn.edu.vju.lms.service.FeedbackImageService images;
 
-    public FeedbackServiceImpl(IFeedbackDao dao) {
+    public FeedbackServiceImpl(IFeedbackDao dao, vn.edu.vju.lms.service.FeedbackImageService images) {
+        this.images = images;
         this.dao = dao;
     }
 
@@ -100,15 +104,26 @@ public class FeedbackServiceImpl extends AbstractCrudService<Feedback, FeedbackW
     @Override
     protected void beforeCreate(FeedbackWrapper wrapper, Feedback entity) {
         entity.setOwnerId(UserPrincipal.current().id());
+        if (entity.getImageIds() != null) {
+            if (entity.getImageIds().size() > vn.edu.vju.lms.service.FeedbackImageService.MAX_FILES) {
+                throw new vn.edu.vju.lms.common.exception.BusinessRuleException("Chọn tối đa 5 ảnh.");
+            }
+            images.requireOwned(entity.getImageIds());
+        }
     }
 
     @Override
     @Transactional
     public FeedbackWrapper update(String id, FeedbackWrapper wrapper) {
-        requireOwnerOrStaff(require(id));
+        Feedback current = require(id);
+        requireOwnerOrStaff(current);
         if (UserPrincipal.current().isStudent()) {
             wrapper.setResponse(null);
             wrapper.setResolved(null);
+            if (wrapper.getImageIds() != null) {
+                List<String> known = current.getImageIds() == null ? List.of() : current.getImageIds();
+                images.requireOwned(wrapper.getImageIds().stream().filter(x -> !known.contains(x)).toList());
+            }
         }
         return super.update(id, wrapper);
     }

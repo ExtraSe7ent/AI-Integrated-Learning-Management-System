@@ -3,3 +3,10 @@ data/
 private_media/
 .env
 *.log
+
+# Database và tệp của lần chạy E2E (HUONG_DAN_TEST_PHASE_1_2.md)
+e2e-data/
+e2e-media/
+
+# B?n sao l?u tr??c khi reset d? li?u
+backup-truoc-reset/

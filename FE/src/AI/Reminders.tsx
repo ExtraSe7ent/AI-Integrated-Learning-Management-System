@@ -1,64 +1,63 @@
 import { useState } from "react";
 import { PageHeader, Panel, Field, Button, Empty, Badge } from "../shared/UI";
 import { useDemo } from "../data/DemoProvider";
-import { deadlineCandidates, reminderEmail, reminderRecords } from "./model";
-import type { DeadlineCandidate } from "./model";
+import { reminderEmail } from "./model";
+import type { DeadlineCandidate, ReminderRecord } from "./model";
+import { reminderCandidates, scanReminders } from "../api/learning";
+
 const inputNow = () => {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 16);
 };
+const statusLabel: Record<ReminderRecord["status"], [string, "green" | "amber" | "red"]> = {
+  recorded: ["Đã ghi nhận", "green"],
+  sent: ["Đã gửi email", "green"],
+  skipped: ["Chưa cấu hình SMTP", "amber"],
+  failed: ["Gửi lỗi · Sẽ thử lại", "red"],
+};
 export function AIReminders() {
-  const { data, setData, notify } = useDemo();
+  const { data, notify, reload } = useDemo();
   const [at, setAt] = useState(inputNow),
     [candidates, setCandidates] = useState<DeadlineCandidate[] | null>(null),
     [selected, setSelected] = useState<DeadlineCandidate | null>(null),
     [tab, setTab] = useState("queue"),
     [error, setError] = useState(""),
-    [scannedAt, setScannedAt] = useState<number | null>(null);
-  function scan() {
-    const now = Date.parse(at);
-    if (!Number.isFinite(now)) {
-      setError("Chọn thời điểm kiểm tra hợp lệ.");
-      return;
+    [busy, setBusy] = useState(false);
+  async function scan() {
+    try {
+      const rows = await reminderCandidates(at);
+      setCandidates(rows);
+      setSelected(rows[0] || null);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
     }
-    const rows = deadlineCandidates(data, now);
-    setCandidates(rows);
-    setSelected(rows[0] || null);
-    setScannedAt(now);
-    setError("");
   }
-  function record() {
-    if (!candidates || scannedAt === null) return;
-    const current = deadlineCandidates(data, scannedAt);
-    const next = reminderRecords(data.aiReminders, current, Date.now());
-    const added = next.slice(data.aiReminders.length),
-      notices = added
-        .filter(
-          (r) => r.channel === "in-app" && r.candidate.studentId === "23110149",
-        )
-        .map(
-          (r) =>
-            `${r.candidate.title} · ${r.candidate.className} sắp đến hạn ${new Date(r.candidate.due).toLocaleString("vi-VN")}.`,
-        );
-    setData((d) => ({
-      ...d,
-      aiReminders: next,
-      notices: [...d.notices, ...notices],
-      readNotices: notices.length ? false : d.readNotices,
-    }));
-    notify(
-      added.length
-        ? `Đã ghi ${added.length} bản ghi; email chỉ mô phỏng, chưa gửi.`
-        : "Các mục này đã được ghi nhận; không tạo bản ghi trùng.",
-    );
+  async function send() {
+    setBusy(true);
+    try {
+      const added = await scanReminders(at);
+      const emails = added.filter((r) => r.channel === "email");
+      notify(
+        added.length
+          ? `Đã xử lý ${added.length} nhắc hạn; gửi được ${emails.filter((r) => r.status === "sent").length}/${emails.length} email.`
+          : "Các mục này đã được nhắc; không tạo bản ghi trùng.",
+      );
+      await reload();
+      setTab("history");
+    } catch (e) {
+      notify((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <>
       <PageHeader
         title="Nhắc hạn học tập"
-        description="Kiểm tra công việc đến hạn trong 24 giờ và xem trước nội dung nhắc."
+        description="Máy chủ tự quét mỗi giờ và nhắc công việc đến hạn trong 24 giờ."
       />
       <div className="tabs">
         <button
@@ -91,8 +90,8 @@ export function AIReminders() {
                 />
               </Field>
               <p className="muted">
-                Đang kiểm tra CSE301.01. Mốc thời gian cho phép xem trước hàng
-                đợi; chưa có lịch chạy tự động trên máy chủ.
+                Chọn một mốc để xem trước hàng đợi của mọi lớp. Lịch tự động
+                luôn dùng thời điểm hiện tại.
               </p>
               <Button onClick={scan}>Quét hạn trong 24 giờ</Button>
               {error && (
@@ -142,7 +141,9 @@ export function AIReminders() {
                       </tbody>
                     </table>
                   </div>
-                  <Button onClick={record}>Ghi nhận nhắc mô phỏng</Button>
+                  <Button disabled={busy} onClick={send}>
+                    Gửi nhắc ngay
+                  </Button>
                 </Panel>
                 {selected && (
                   <Panel title="Xem trước email">
@@ -156,7 +157,6 @@ export function AIReminders() {
                     <div className="reminder-preview">
                       {reminderEmail(selected).body}
                     </div>
-                    <Badge tone="amber">Chưa gửi email</Badge>
                   </Panel>
                 )}
               </>
@@ -196,12 +196,9 @@ export function AIReminders() {
                         {r.channel === "email" ? "Email" : "Trong hệ thống"}
                       </td>
                       <td>
-                        <Badge tone={r.channel === "email" ? "amber" : "green"}>
-                          {r.channel === "email"
-                            ? "Mô phỏng · Chưa gửi"
-                            : "Đã ghi nhận"}
+                        <Badge tone={statusLabel[r.status][1]}>
+                          {statusLabel[r.status][0]}
                         </Badge>
-                        <small className="admin-line">Khóa: {r.key}</small>
                       </td>
                     </tr>
                   ))}
@@ -211,15 +208,11 @@ export function AIReminders() {
           ) : (
             <Empty
               title="Chưa có bản ghi nhắc hạn"
-              description="Quét hạn và ghi nhận hàng đợi để tạo nhật ký."
+              description="Quét hạn và gửi nhắc để tạo nhật ký."
             />
           )}
         </Panel>
       )}
-      <p className="ai-safety-note">
-        Thông báo trong hệ thống được lưu trên trình duyệt. Email và tác vụ quét
-        định kỳ cần backend Java.
-      </p>
     </>
   );
 }

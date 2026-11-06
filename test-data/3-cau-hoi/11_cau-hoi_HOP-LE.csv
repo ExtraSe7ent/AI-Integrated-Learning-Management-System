@@ -1,0 +1,3 @@
+﻿Câu hỏi,A,B,C,D,Đáp án (0–3),Trang,Giải thích
+Header Authorization thường gửi token theo dạng nào?,Basic token,Bearer token,Cookie token,Query token,1,1,Authorization: Bearer <token>.
+Token JWT hết hạn thì máy chủ nên trả mã nào?,200 OK,302 Found,401 Unauthorized,500 Internal Server Error,2,2,Token hết hạn coi như chưa xác thực: 401.

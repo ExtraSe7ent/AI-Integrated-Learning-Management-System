@@ -13,7 +13,7 @@ import lombok.Getter;
 import lombok.Setter;
 import vn.edu.vju.lms.common.jpa.JsonConverters;
 
-/** The projected in-class quiz; the frontend runs one session at a time. */
+/** The projected in-class quiz; one session runs at a time and gets a fresh code each time it starts. */
 @Entity
 @Table(name = "live_state")
 @Getter
@@ -34,6 +34,18 @@ public class LiveState {
     private int question;
 
     private boolean revealed;
+
+    /** Class the session runs for; only its students may join (UC-C01 "chọn lớp"). */
+    @Column(name = "class_id", length = 100)
+    private String classId;
+
+    /** The approved question on the board (UC-C01 "chọn câu hỏi"). */
+    @Column(name = "question_id", length = 100)
+    private String questionId;
+
+    /** New for each start; groups the saved results of one class session. */
+    @Column(name = "run_id", length = 64)
+    private String runId;
 
     @Column(name = "expires_at")
     private long expiresAt;

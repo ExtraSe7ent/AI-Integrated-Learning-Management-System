@@ -30,4 +30,10 @@ public class AssessmentDaoImpl extends HibernateGenericDao<String, Assessment> i
     public List<Assessment> findSubmitted() {
         return list("SELECT a FROM Assessment a WHERE a.score IS NOT NULL ORDER BY a.studentId", Map.of());
     }
+
+    @Override
+    public List<Assessment> findByAssignment(String assignmentId) {
+        return list("SELECT a FROM Assessment a WHERE a.assignmentId = :assignmentId ORDER BY a.studentId",
+                Map.of("assignmentId", assignmentId));
+    }
 }

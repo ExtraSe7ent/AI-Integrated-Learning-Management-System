@@ -6,8 +6,12 @@ spring:
     password: ""
 
 lms:
+  # Blank: read typed times in this machine's zone, the same zone the browser uses.
+  time-zone: ${LMS_TIME_ZONE:}
   seed:
     enabled: true
+    demo: ${LMS_SEED_DEMO:true}
+    clear-keep-accounts: ${LMS_CLEAR_KEEP_ACCOUNTS:false}
   security:
     jwt-secret: dev-only-jwt-secret-change-me-dev-only-jwt-secret
   crypto:

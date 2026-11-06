@@ -1,7 +1,16 @@
 package vn.edu.vju.lms.rest.impl;
 
 import java.util.List;
+import java.nio.charset.StandardCharsets;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.vju.lms.common.web.PageResponse;
@@ -52,5 +61,30 @@ public class ResourceItemRestImpl implements ResourceItemRest {
     @Override
     public ResponseEntity<Long> count() {
         return ResponseEntity.ok(service.count());
+    }
+
+    @Override
+    public ResponseEntity<ResourceItemWrapper> upload(String title, String description, MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.upload(title, description, file));
+    }
+
+    @Override
+    public ResponseEntity<StreamingResponseBody> file(String id) {
+        String name = service.fileName(id);
+        // The body runs on another thread, which does not inherit the caller's security context.
+        SecurityContext context = SecurityContextHolder.getContext();
+        StreamingResponseBody body = out -> {
+            SecurityContextHolder.setContext(context);
+            try {
+                service.writeFile(id, out);
+            } finally {
+                SecurityContextHolder.clearContext();
+            }
+        };
+        return ResponseEntity.ok()
+                .contentType(MediaTypeFactory.getMediaType(name).orElse(MediaType.APPLICATION_OCTET_STREAM))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(name, StandardCharsets.UTF_8).build().toString())
+                .body(body);
     }
 }

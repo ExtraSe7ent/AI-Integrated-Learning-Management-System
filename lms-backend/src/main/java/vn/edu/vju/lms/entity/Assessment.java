@@ -53,4 +53,9 @@ public class Assessment {
 
     @Column(columnDefinition = "TEXT")
     private String comment;
+
+    /** Per-question feedback from the AI grader; empty strings for questions it did not grade. */
+    @Convert(converter = JsonConverters.StringList.class)
+    @Column(name = "ai_feedback", columnDefinition = "TEXT")
+    private List<String> aiFeedback;
 }

@@ -5,7 +5,7 @@ import type { MaterialKind } from "./model";
 import { CourseFilter, MissingScope, useLeaderScope } from "./UI";
 import { MaterialContent } from "./Review";
 export function LeaderCompare() {
-  const { state, courseId, course, classrooms, params, setParams, link } =
+  const { state, courseId, course, classrooms, params, setParams, link, scope } =
     useLeaderScope();
   const left = params.get("a") || classrooms[0]?.id || "",
     right = params.get("b") || classrooms.find((c) => c.id !== left)?.id || "";
@@ -17,8 +17,8 @@ export function LeaderCompare() {
   }
   const valid =
     left !== right &&
-    classFor(courseId, left) &&
-    classFor(courseId, right) &&
+    classFor(courseId, left, scope) &&
+    classFor(courseId, right, scope) &&
     Object.hasOwn(kinds, kind);
   return (
     <>
@@ -49,7 +49,7 @@ export function LeaderCompare() {
                 >
                   {classrooms.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.id}
+                      {c.name || c.id}
                     </option>
                   ))}
                 </select>
@@ -83,7 +83,7 @@ export function LeaderCompare() {
             <div className="leader-compare-grid">
               {[left, right].map((id) => (
                 <Panel title={id} key={id}>
-                  {classItems(state, courseId, id)
+                  {classItems(state, courseId, id, scope)
                     .filter((i) => i.kind === kind)
                     .map((i) => (
                       <article className="leader-comparison-item" key={i.id}>
@@ -97,7 +97,7 @@ export function LeaderCompare() {
                         </Link>
                       </article>
                     ))}
-                  {!classItems(state, courseId, id).some(
+                  {!classItems(state, courseId, id, scope).some(
                     (i) => i.kind === kind,
                   ) && (
                     <p>Chưa có {kinds[kind].toLowerCase()} trong lớp này.</p>

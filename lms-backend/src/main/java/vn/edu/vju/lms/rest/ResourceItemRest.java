@@ -42,17 +42,29 @@ public interface ResourceItemRest {
             @Parameter(description = "Ví dụ: title,asc;id,desc") @RequestParam(required = false) String sort);
 
     @Operation(summary = "Tạo tài liệu")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PostMapping
     ResponseEntity<ResourceItemWrapper> create(@Valid @RequestBody ResourceItemWrapper wrapper);
 
     @Operation(summary = "Cập nhật tài liệu, chỉ các trường khác null")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PutMapping("/{id}")
     ResponseEntity<ResourceItemWrapper> update(@PathVariable String id, @RequestBody ResourceItemWrapper wrapper);
 
+    @Operation(summary = "Upload tệp tài liệu tham khảo (PDF, Word, PowerPoint, Excel, ảnh, zip); tệp được mã hóa khi lưu")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
+    @PostMapping(value = "/upload", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<ResourceItemWrapper> upload(@org.springframework.web.bind.annotation.RequestParam(required = false) String title,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String description,
+            @org.springframework.web.bind.annotation.RequestPart org.springframework.web.multipart.MultipartFile file);
+
+    @Operation(summary = "Tải tệp tài liệu tham khảo đã upload")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/file")
+    ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> file(@PathVariable String id);
+
     @Operation(summary = "Xóa tài liệu")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable String id);
 

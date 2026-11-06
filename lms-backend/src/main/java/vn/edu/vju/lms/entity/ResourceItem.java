@@ -26,4 +26,17 @@ public class ResourceItem {
     private String url;
 
     private String kind;
+
+    /** Display order chosen by the lecturer; smaller first. */
+    private Integer position;
+
+    /** Uploaded files only: encrypted copy under the storage root, and the original name for download. */
+    @Column(name = "stored_path", length = 300)
+    private String storedPath;
+
+    @Column(name = "file_name")
+    private String fileName;
+
+    @Column(name = "file_size")
+    private Long fileSize;
 }

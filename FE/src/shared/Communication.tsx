@@ -5,14 +5,10 @@ import {
   Send,
   Paperclip,
   CheckCircle2,
-  ArrowUpRight,
-  FileText,
   Plus,
-  Trash2,
-  Download,
 } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
-import { courses } from "../data/fixtures";
+import { useScope } from "./useScope";
 import { validateImages } from "../data/rules";
 import {
   PageHeader,
@@ -22,13 +18,18 @@ import {
   Field,
   Dialog,
   Empty,
-  SearchField,
 } from "./UI";
 export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
   const { data, setData, notify } = useDemo();
+  const { courses, classes, lessons } = useScope();
+  // Lessons of the student's classes in the chosen course, instead of the CSE301 demo only.
+  const lessonsOfCourse = (courseId: string) => {
+    const mine = classes.filter((c) => c.courseId === courseId).map((c) => c.id);
+    return lessons.filter((l) => l.published && mine.includes(l.classId || "CSE301.01"));
+  };
   const [compose, setCompose] = useState(false),
     [category, setCategory] = useState("Bài giảng"),
-    [course, setCourse] = useState("cs301"),
+    [course, setCourse] = useState(courses[0]?.id ?? "cs301"),
     [body, setBody] = useState(""),
     [lessonId, setLessonId] = useState("l2"),
     [saving, setSaving] = useState(false),
@@ -91,7 +92,7 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
             <div className="inline-meta">
               <Badge>{f.category}</Badge>
               <span>
-                {courses.find((c) => c.id === f.course)?.code} · {f.lesson}
+                {data.admin.courses.find((c) => c.id === f.course)?.code ?? f.course} · {f.lesson}
               </span>
             </div>
             <h2>{f.body}</h2>
@@ -210,7 +211,7 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
               const selectedLesson = data.lessons.find(
                 (l) => l.id === lessonId,
               );
-              if (!selectedLesson || course !== "cs301") {
+              if (!selectedLesson || !lessonsOfCourse(course).some((l) => l.id === lessonId)) {
                 setError("Chọn bài học có trong lớp trước khi gửi.");
                 return;
               }
@@ -283,18 +284,15 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
             <Field label="Bài học">
               <select
                 aria-label="Bài học"
-                value={course === "cs301" ? lessonId : ""}
+                value={lessonsOfCourse(course).some((l) => l.id === lessonId) ? lessonId : ""}
                 onChange={(e) => setLessonId(e.target.value)}
               >
                 <option value="">Chọn bài học</option>
-                {course === "cs301" &&
-                  data.lessons
-                    .filter((l) => l.published)
-                    .map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.title}
-                      </option>
-                    ))}
+                {lessonsOfCourse(course).map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.title}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Nội dung phản hồi">
@@ -333,159 +331,5 @@ export function PhanHoi({ teacher = false }: { teacher?: boolean }) {
     </>
   );
 }
-export function TaiLieu({ teacher = false }: { teacher?: boolean }) {
-  const { data, setData, notify } = useDemo();
-  const [search, setSearch] = useState(""),
-    [add, setAdd] = useState(false);
-  const items = data.resources.filter((r) =>
-    r.title.toLowerCase().includes(search.toLowerCase()),
-  );
-  return (
-    <>
-      <PageHeader
-        title="Tài liệu tham khảo"
-        description="Nguồn học liệu bổ sung, tập trung theo học phần."
-        action={
-          teacher && (
-            <Button onClick={() => setAdd(true)}>
-              <Plus size={17} />
-              Thêm tài liệu
-            </Button>
-          )
-        }
-      />
-      <div className="toolbar">
-        <Badge>CSE301 · Tất cả tài liệu</Badge>
-        <SearchField
-          value={search}
-          onChange={setSearch}
-          placeholder="Tìm tài liệu…"
-        />
-      </div>
-      <Panel>
-        {items.length ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tài liệu</th>
-                  <th>Loại</th>
-                  <th>Nguồn</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <div className="table-title">
-                        <span className="task-icon">
-                          <FileText size={20} />
-                        </span>
-                        <div>
-                          <strong>{r.title}</strong>
-                          <p>{r.description}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <Badge>{r.kind.toUpperCase()}</Badge>
-                    </td>
-                    <td>CSE301</td>
-                    <td>
-                      <div className="row-actions">
-                        <a
-                          className="button secondary small"
-                          href={r.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Mở
-                          <ArrowUpRight size={15} />
-                        </a>
-                        {r.kind === "pdf" && (
-                          <a
-                            className="icon-button"
-                            href={r.url}
-                            download
-                            aria-label={`Tải ${r.title}`}
-                          >
-                            <Download size={16} />
-                          </a>
-                        )}
-                        {teacher && (
-                          <button
-                            className="icon-button danger"
-                            aria-label={`Xóa ${r.title}`}
-                            onClick={() =>
-                              setData((d) => ({
-                                ...d,
-                                resources: d.resources.filter(
-                                  (x) => x.id !== r.id,
-                                ),
-                              }))
-                            }
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty
-            title="Không tìm thấy tài liệu"
-            description="Hãy thử từ khóa khác."
-          />
-        )}
-      </Panel>
-      {add && (
-        <Dialog title="Thêm tài liệu tham khảo" onClose={() => setAdd(false)}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              const url = String(f.get("url"));
-              if (!/^https?:\/\//.test(url)) {
-                notify(
-                  "Vui lòng nhập liên kết bắt đầu bằng https:// hoặc http://.",
-                );
-                return;
-              }
-              setData((d) => ({
-                ...d,
-                resources: [
-                  ...d.resources,
-                  {
-                    id: crypto.randomUUID(),
-                    title: String(f.get("title")),
-                    description: String(f.get("description")),
-                    url,
-                    kind: "link",
-                  },
-                ],
-              }));
-              setAdd(false);
-            }}
-          >
-            <Field label="Tên tài liệu">
-              <input name="title" required />
-            </Field>
-            <Field label="Mô tả ngắn">
-              <input name="description" />
-            </Field>
-            <Field label="Liên kết tài liệu hoặc video YouTube">
-              <input name="url" type="url" required placeholder="https://…" />
-            </Field>
-            <Button>Thêm tài liệu</Button>
-          </form>
-        </Dialog>
-      )}
-    </>
-  );
-}
+export { TaiLieu } from "./References";
 export { Assistant as TroLyAI } from "../AI/Assistant";

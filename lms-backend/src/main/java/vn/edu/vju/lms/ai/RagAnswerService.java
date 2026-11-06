@@ -66,6 +66,10 @@ public class RagAnswerService {
     }
 
     public AiAnswer answer(String question, boolean teacher, List<RagChunk> chunks) {
+        return answer(question, teacher, chunks, null);
+    }
+
+    public AiAnswer answer(String question, boolean teacher, List<RagChunk> chunks, Integer page) {
         GuardrailService.Decision decision;
         try {
             decision = guardrails.assess(question, teacher);
@@ -77,7 +81,7 @@ public class RagAnswerService {
         }
         String task = ANSWER_LIMITS.containsKey(String.valueOf(decision.task())) ? decision.task() : RagAlgorithms.guessTask(decision.standalone());
         try {
-            List<RagChunk> sources = retrieve(decision.queries(), chunks, task);
+            List<RagChunk> sources = withPage(retrieve(decision.queries(), chunks, task), chunks, page);
             if (sources.isEmpty()) {
                 return AiAnswer.withoutSources(LocalTutor.UNAVAILABLE, "unavailable");
             }
@@ -99,8 +103,34 @@ public class RagAnswerService {
         }
     }
 
+    /** Hybrid retrieval for one query; keyword ranking alone when the embedding provider fails. */
+    public List<RagChunk> search(String query, List<RagChunk> chunks, int limit) {
+        if (chunks.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return retrieve(List.of(query), chunks, "lookup").stream().limit(limit).toList();
+        } catch (AiProviderException e) {
+            return RagAlgorithms.keywordRanking(chunks, query).stream().limit(limit).toList();
+        }
+    }
+
     private AiAnswer refusal(String action) {
         return AiAnswer.withoutSources("hint".equals(action) ? GuardrailService.HINT : GuardrailService.REFUSAL, "guardrail_" + action);
+    }
+
+    /** The slide being read is context even when retrieval ranks it low ("giải thích trang này"). */
+    static List<RagChunk> withPage(List<RagChunk> sources, List<RagChunk> chunks, Integer page) {
+        if (page == null || page < 1) {
+            return sources;
+        }
+        List<RagChunk> onPage = chunks.stream().filter(c -> c.getPage() == page && !sources.contains(c)).limit(2).toList();
+        if (onPage.isEmpty()) {
+            return sources;
+        }
+        List<RagChunk> merged = new ArrayList<>(onPage);
+        merged.addAll(sources);
+        return merged;
     }
 
     private List<RagChunk> retrieve(List<String> queries, List<RagChunk> chunks, String task) {

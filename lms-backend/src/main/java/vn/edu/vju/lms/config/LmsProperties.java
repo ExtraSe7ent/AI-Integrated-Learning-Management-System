@@ -9,6 +9,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class LmsProperties {
 
     private String timeZone = "Asia/Ho_Chi_Minh";
+
+    /**
+     * Opening and due times are typed in the browser without a zone, so the server must read them in the zone the
+     * users' clocks show. A blank value means this machine's zone (development: browser and server share it).
+     */
+    public String getTimeZone() {
+        return timeZone == null || timeZone.isBlank() ? java.time.ZoneId.systemDefault().getId() : timeZone;
+    }
     private String defaultPassword = "12345678";
     private Cors cors = new Cors();
     private Security security = new Security();
@@ -16,6 +24,7 @@ public class LmsProperties {
     private Storage storage = new Storage();
     private Ai ai = new Ai();
     private Seed seed = new Seed();
+    private Reminder reminder = new Reminder();
 
     @Data
     public static class Cors {
@@ -45,6 +54,17 @@ public class LmsProperties {
     @Data
     public static class Seed {
         private boolean enabled;
+        /** On an empty database: false loads only the accounts, without demo courses, lessons or results. */
+        private boolean demo = true;
+        /** At startup: delete all learning data and uploaded files but keep every account as it is. */
+        private boolean clearKeepAccounts;
+    }
+
+    @Data
+    public static class Reminder {
+        private String cron = "0 0 * * * *";
+        private String smtpHost = "";
+        private String mailFrom = "no-reply@vju-learning.local";
     }
 
     @Data

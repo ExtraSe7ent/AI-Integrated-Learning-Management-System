@@ -25,4 +25,13 @@ public interface StudyProgressRest {
     @PreAuthorize("hasRole('STUDENT')")
     @PutMapping("/{sessionId}")
     ResponseEntity<StudyProgressWrapper> save(@PathVariable String sessionId, @RequestBody StudyProgressWrapper wrapper);
+
+    @Operation(summary = "Trả lời câu hỏi kiểm tra của một trang; máy chủ chấm và trả kết quả kèm giải thích")
+    @PreAuthorize("hasRole('STUDENT')")
+    @org.springframework.web.bind.annotation.PostMapping("/{sessionId}/answers")
+    ResponseEntity<vn.edu.vju.lms.service.StudyProgressService.QuizResult> answer(@PathVariable String sessionId,
+            @RequestBody AnswerRequest request);
+
+    record AnswerRequest(String questionId, Integer choice) {
+    }
 }

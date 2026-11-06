@@ -117,6 +117,10 @@ public class UserAccountServiceImpl extends AbstractCrudService<UserAccount, Use
         if (!student && !"teacher".equals(wrapper.getKind())) {
             throw new BusinessRuleException("Loại tài khoản không hợp lệ.");
         }
+        // UC-G05: a lecturer list carries Mã GV, Họ tên, Email and Khoa.
+        if (!student && !StringUtils.hasText(wrapper.getFaculty())) {
+            throw new BusinessRuleException("Thiếu khoa của giảng viên: " + wrapper.getId());
+        }
         entity.setName(wrapper.getName().trim());
         entity.setEmail(wrapper.getEmail().trim());
         entity.setEmailHash(hash);

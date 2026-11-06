@@ -34,6 +34,11 @@ public class QuestionRestImpl implements QuestionRest {
     }
 
     @Override
+    public ResponseEntity<List<QuestionWrapper>> importQuestions(List<QuestionWrapper> rows) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.importQuestions(rows));
+    }
+
+    @Override
     public ResponseEntity<QuestionWrapper> create(QuestionWrapper wrapper) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(wrapper));
     }

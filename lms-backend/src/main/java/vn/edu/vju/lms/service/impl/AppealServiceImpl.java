@@ -9,15 +9,26 @@ import vn.edu.vju.lms.dao.IAppealDao;
 import vn.edu.vju.lms.entity.Appeal;
 import vn.edu.vju.lms.security.UserPrincipal;
 import vn.edu.vju.lms.service.AppealService;
+import vn.edu.vju.lms.service.AssessmentService;
 import vn.edu.vju.lms.wrapper.AppealWrapper;
 
 @Service
 public class AppealServiceImpl extends AbstractCrudService<Appeal, AppealWrapper> implements AppealService {
 
     private final IAppealDao dao;
+    private final AssessmentService assessments;
+    private final vn.edu.vju.lms.dao.IAssignmentDao assignmentDao;
 
-    public AppealServiceImpl(IAppealDao dao) {
+    public AppealServiceImpl(IAppealDao dao, AssessmentService assessments, vn.edu.vju.lms.dao.IAssignmentDao assignmentDao) {
         this.dao = dao;
+        this.assessments = assessments;
+        this.assignmentDao = assignmentDao;
+    }
+
+    /** A student refers to questions in their own (possibly shuffled) order; appeals store the original index. */
+    private int[] studentOrder(String assignmentId, String studentId) {
+        return assignmentDao.findById(String.valueOf(assignmentId))
+                .map(assignment -> vn.edu.vju.lms.service.ExamOrder.of(assignment, studentId)).orElse(new int[0]);
     }
 
     @Override
@@ -41,7 +52,10 @@ public class AppealServiceImpl extends AbstractCrudService<Appeal, AppealWrapper
         wrapper.setResponse(entity.getResponse());
         wrapper.setGrade(entity.getGrade());
         wrapper.setStatus(entity.getStatus());
-        wrapper.setQuestionIndex(entity.getQuestionIndex());
+        wrapper.setQuestionIndex(entity.getQuestionIndex() != null && UserPrincipal.callerIsStudent()
+                ? (Integer) vn.edu.vju.lms.service.ExamOrder.shownIndex(entity.getQuestionIndex(),
+                        studentOrder(entity.getAssignmentId(), entity.getOwnerId()))
+                : entity.getQuestionIndex());
         wrapper.setAnswer(entity.getAnswer());
         wrapper.setPreviousPoints(entity.getPreviousPoints());
         wrapper.setMaxPoints(entity.getMaxPoints());
@@ -69,7 +83,10 @@ public class AppealServiceImpl extends AbstractCrudService<Appeal, AppealWrapper
             entity.setStatus(wrapper.getStatus());
         }
         if (wrapper.getQuestionIndex() != null) {
-            entity.setQuestionIndex(wrapper.getQuestionIndex());
+            entity.setQuestionIndex(UserPrincipal.callerIsStudent()
+                    ? (Integer) vn.edu.vju.lms.service.ExamOrder.originalIndex(wrapper.getQuestionIndex(),
+                            studentOrder(entity.getAssignmentId(), UserPrincipal.current().id()))
+                    : wrapper.getQuestionIndex());
         }
         if (wrapper.getAnswer() != null) {
             entity.setAnswer(wrapper.getAnswer());
@@ -111,11 +128,15 @@ public class AppealServiceImpl extends AbstractCrudService<Appeal, AppealWrapper
     @Override
     @Transactional
     public AppealWrapper update(String id, AppealWrapper wrapper) {
-        requireOwnerOrStaff(require(id));
+        Appeal appeal = require(id);
+        requireOwnerOrStaff(appeal);
         if (UserPrincipal.current().isStudent()) {
             wrapper.setResponse(null);
             wrapper.setGrade(null);
             wrapper.setStatus(null);
+        } else if ("accepted".equals(wrapper.getStatus()) && "pending".equals(appeal.getStatus())
+                && wrapper.getGrade() != null && appeal.getQuestionIndex() != null) {
+            assessments.regrade(appeal.getOwnerId(), appeal.getAssignmentId(), appeal.getQuestionIndex(), wrapper.getGrade());
         }
         return super.update(id, wrapper);
     }

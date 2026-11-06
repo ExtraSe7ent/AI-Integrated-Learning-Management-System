@@ -134,3 +134,72 @@
   border: 1px solid var(--line);
   border-radius: 7px;
 }
+
+/* Học liệu AI, ôn tập và gợi ý buổi học */
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.panel-heading .inline-actions {
+  margin-top: 0;
+}
+.ai-explanation h3 {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  color: var(--red);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ai-explanation div:first-child h3 {
+  margin-top: 8px;
+}
+.ai-explanation p {
+  line-height: 1.65;
+}
+.review-card {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--sand);
+}
+.review-card h3 {
+  font-size: 18px;
+}
+.faq-item {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.faq-item p {
+  margin-top: 8px;
+  color: var(--muted);
+}
+.ai-insights h3 {
+  margin: 16px 0 6px;
+  font-size: 15px;
+}
+.ai-insights ul,
+.ai-insights ol {
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+/* Hỏi trên lớp: chọn lớp và câu hỏi */
+.live-controls {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.live-controls .field select {
+  max-width: 100%;
+}

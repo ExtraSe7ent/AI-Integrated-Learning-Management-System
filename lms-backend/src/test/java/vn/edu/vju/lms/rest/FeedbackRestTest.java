@@ -27,7 +27,7 @@ class FeedbackRestTest extends AbstractApiTest {
         wrapper.setCategory("Bài giảng");
         wrapper.setBody("Nội dung");
         wrapper.setImages(List.of("A", "B", "C"));
-        wrapper.setImageIds(List.of("A", "B", "C"));
+        wrapper.setImageIds(List.of());
         wrapper.setResponse("");
         wrapper.setResolved(false);
         wrapper.setDate("15/10/2026");

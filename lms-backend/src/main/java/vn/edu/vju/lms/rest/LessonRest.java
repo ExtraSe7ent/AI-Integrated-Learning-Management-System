@@ -42,17 +42,17 @@ public interface LessonRest {
             @Parameter(description = "Ví dụ: title,asc;id,desc") @RequestParam(required = false) String sort);
 
     @Operation(summary = "Tạo bài học")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PostMapping
     ResponseEntity<LessonWrapper> create(@Valid @RequestBody LessonWrapper wrapper);
 
     @Operation(summary = "Cập nhật bài học, chỉ các trường khác null")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PutMapping("/{id}")
     ResponseEntity<LessonWrapper> update(@PathVariable String id, @RequestBody LessonWrapper wrapper);
 
     @Operation(summary = "Xóa bài học")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable String id);
 

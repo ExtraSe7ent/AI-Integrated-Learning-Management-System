@@ -14,6 +14,15 @@ spring:
       max-file-size: ${MATERIAL_VIDEO_MAX_MB:500}MB
       max-request-size: ${MATERIAL_VIDEO_MAX_MB:500}MB
 
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+
 server:
   port: ${PORT:8080}
 
@@ -24,7 +33,7 @@ springdoc:
     path: /v3/api-docs
 
 lms:
-  time-zone: Asia/Ho_Chi_Minh
+  time-zone: ${LMS_TIME_ZONE:Asia/Ho_Chi_Minh}
   default-password: ${LMS_DEFAULT_PASSWORD:12345678}
   cors:
     allowed-origins: ${LMS_CORS_ORIGINS:http://127.0.0.1:5173,http://localhost:5173}
@@ -35,6 +44,10 @@ lms:
     passphrase: ${LMS_AES_PASSPHRASE:}
     salt: ${LMS_AES_SALT:}
     iterations: 310000
+  reminder:
+    cron: ${LMS_REMINDER_CRON:0 0 * * * *}
+    smtp-host: ${SMTP_HOST:}
+    mail-from: ${LMS_MAIL_FROM:no-reply@vju-learning.local}
   storage:
     root: ${LMS_STORAGE_ROOT:./private_media}
     pdf-max-mb: ${MATERIAL_PDF_MAX_MB:50}

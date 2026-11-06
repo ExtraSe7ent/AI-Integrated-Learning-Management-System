@@ -78,9 +78,53 @@ public class DataSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws IOException {
-        if (userDao.count() == 0) {
-            seedAll();
+        if (properties.getSeed().isClearKeepAccounts()) {
+            clearKeepAccounts();
+        } else if (userDao.count() == 0) {
+            if (properties.getSeed().isDemo()) {
+                seedAll();
+            } else {
+                seedAccounts();
+            }
         }
+    }
+
+    /** Only the demo accounts, for testing every feature from an empty system. */
+    void seedAccounts() throws IOException {
+        JsonNode data;
+        try (InputStream in = new ClassPathResource("seed/demo-data.json").getInputStream()) {
+            data = mapper.readTree(in);
+        }
+        transaction.executeWithoutResult(s -> data.path("admin").path("users").forEach(this::seedUser));
+        log.info("Seeded demo accounts only; default password applies");
+    }
+
+    /**
+     * Removes every course, class, lesson, quiz, session, assignment, result, feedback, coordination item, notice,
+     * chat and uploaded file. Accounts keep their id, name, e-mail, role, password and status; only their study
+     * notes are cleared. The seeder never re-adds demo data afterwards, because accounts still exist.
+     */
+    public void clearKeepAccounts() throws IOException {
+        transaction.executeWithoutResult(s -> {
+            entityManager.getMetamodel().getEntities().stream()
+                    .filter(type -> type.getJavaType() != UserAccount.class)
+                    .forEach(type -> entityManager.createQuery("SELECT e FROM " + type.getName() + " e").getResultList()
+                            .forEach(entityManager::remove));
+            userDao.findAll().forEach(user -> {
+                user.setNotes(null);
+                user.setNoticesRead(false);
+            });
+        });
+        java.nio.file.Path root = java.nio.file.Path.of(properties.getStorage().getRoot());
+        for (String folder : List.of("materials", "resources", "feedback")) {
+            java.nio.file.Path dir = root.resolve(folder);
+            if (java.nio.file.Files.exists(dir)) {
+                try (var files = java.nio.file.Files.walk(dir)) {
+                    files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+                }
+            }
+        }
+        log.info("Cleared all learning data and uploaded files; kept {} accounts", userDao.count());
     }
 
     /** Deletes every row and loads the demo data again. */

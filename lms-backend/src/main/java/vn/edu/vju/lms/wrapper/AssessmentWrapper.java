@@ -11,6 +11,8 @@ public class AssessmentWrapper {
 
     private String studentId;
 
+    private String studentName;
+
     private int attempts;
 
     private Draft draft;
@@ -32,5 +34,6 @@ public class AssessmentWrapper {
         private String submitted;
         private Boolean approved;
         private String comment;
+        private List<String> aiFeedback;
     }
 }

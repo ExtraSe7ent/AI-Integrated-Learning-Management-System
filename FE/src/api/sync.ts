@@ -20,6 +20,15 @@ async function syncList<T extends Item>(base: string, before: T[], after: T[]) {
   for (const x of after)
     if (!old.has(x.id)) await api(base, { method: "POST", body: x });
 }
+/** New questions go in one import call: the server saves all of them or none (UC-A01 AF-1). */
+async function syncQuestions(before: DemoData["questions"], after: DemoData["questions"]) {
+  const old = new Map(before.map((x) => [x.id, x]));
+  const kept = after.filter((x) => old.has(x.id));
+  await syncList("/api/questions", before, kept);
+  const added = after.filter((x) => !old.has(x.id));
+  if (added.length)
+    await api("/api/questions/import", { method: "POST", body: added });
+}
 async function syncUsers(before: DemoData, after: DemoData) {
   const old = new Map(before.admin.users.map((u) => [u.id, u]));
   const added = after.admin.users.filter((u) => !old.has(u.id));
@@ -71,30 +80,6 @@ async function syncNotices(before: string[], after: string[], audience: string) 
   for (const message of after.slice(before.length))
     await api("/api/notices", { method: "POST", body: { audience, message } });
 }
-async function syncLive(before: DemoData, after: DemoData, accountId: string, student: boolean) {
-  const a = before.live,
-    b = after.live;
-  if (student) {
-    const join =
-      !(a.participants || []).includes(accountId) &&
-      (b.participants || []).includes(accountId);
-    const answer =
-      a.answers[accountId] === undefined ? b.answers[accountId] : undefined;
-    if (join || answer !== undefined)
-      await api("/api/live/me", { method: "PUT", body: { join, answer } });
-    return;
-  }
-  await api("/api/live", {
-    method: "PUT",
-    body: {
-      active: b.active,
-      question: b.question,
-      revealed: b.revealed,
-      expiresAt: b.expiresAt,
-      reset: Object.keys(b.answers).length === 0,
-    },
-  });
-}
 
 /** Results computed by the server replace the optimistic local value. */
 export type ServerPatch = (d: DemoData) => DemoData;
@@ -145,9 +130,8 @@ function changedProfile(before: DemoData, after: DemoData) {
 export async function pushChanges(
   before: DemoData,
   after: DemoData,
-  account: { id: string; role: string },
+  _account: { id: string; role: string },
 ): Promise<ServerPatch[]> {
-  const student = account.role === "sinh-vien";
   if (before.admin.users !== after.admin.users) await syncUsers(before, after);
   if (before.admin.courses !== after.admin.courses)
     await syncList("/api/courses", before.admin.courses, after.admin.courses);
@@ -156,7 +140,7 @@ export async function pushChanges(
   if (before.lessons !== after.lessons)
     await syncList("/api/lessons", before.lessons, after.lessons);
   if (before.questions !== after.questions)
-    await syncList("/api/questions", before.questions, after.questions);
+    await syncQuestions(before.questions, after.questions);
   if (before.sessions !== after.sessions)
     await syncList("/api/sessions", before.sessions, after.sessions);
   if (before.assignments !== after.assignments)
@@ -181,8 +165,7 @@ export async function pushChanges(
     await syncNotices(before.notices, after.notices, "student");
   if (before.teacherNotices !== after.teacherNotices)
     await syncNotices(before.teacherNotices, after.teacherNotices, "teacher");
-  if (before.live !== after.live)
-    await syncLive(before, after, account.id, student);
+  // The live classroom talks to /api/live directly (api/live.ts): the server owns code, timing and answers.
   if (before.studySessions !== after.studySessions)
     await syncProgress(before, after);
   if (before.chat !== after.chat) await syncChatRatings(before, after);

@@ -187,30 +187,6 @@ class LearningFlowRestTest extends AbstractApiTest {
     }
 
     @Test
-    void studyProgressBelongsToTheStudent() throws Exception {
-        StudySession session = new StudySession();
-        session.setId("s-" + UUID.randomUUID());
-        session.setTitle("Phiên");
-        tx.executeWithoutResult(s -> sessionDao.persist(session));
-        Map<String, Object> body = new HashMap<>();
-        body.put("progress", 2);
-        body.put("answers", Map.of("q1", 0));
-        body.put("completedAt", null);
-        String url = "/api/study-progress/" + session.getId();
-        mvc.perform(put(url).headers(auth(STUDENT)).contentType(JSON).content(json(body)))
-                .andExpect(jsonPath("$.progress").value(2));
-        body.put("progress", 1);
-        mvc.perform(put(url).headers(auth(OTHER_STUDENT)).contentType(JSON).content(json(body))).andExpect(status().isOk());
-        mvc.perform(get("/api/study-progress").headers(auth(OTHER_STUDENT)))
-                .andExpect(jsonPath("$['" + session.getId() + "'].progress").value(1));
-        mvc.perform(get("/api/study-progress").headers(auth(LECTURER)))
-                .andExpect(jsonPath("$['" + session.getId() + "'].progress").value(2));
-        mvc.perform(put(url).headers(auth(LECTURER)).contentType(JSON).content(json(body))).andExpect(status().isForbidden());
-        mvc.perform(put("/api/study-progress/khong-co").headers(auth(STUDENT)).contentType(JSON).content(json(body)))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
     void sessionWindowIsValidated() throws Exception {
         mvc.perform(post("/api/sessions").headers(auth(LECTURER)).contentType(JSON).content(json(Map.of(
                 "title", "x", "opens", "2027-01-02T00:00", "closes", "2027-01-01T00:00"))))

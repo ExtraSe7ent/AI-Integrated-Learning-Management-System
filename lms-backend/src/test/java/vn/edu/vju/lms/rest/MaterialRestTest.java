@@ -42,9 +42,6 @@ class MaterialRestTest extends AbstractApiTest {
     private static final String URL = "/api/materials";
 
     @Autowired
-    private IClassInfoDao classDao;
-
-    @Autowired
     private IMaterialVersionDao versionDao;
 
     private String classId;

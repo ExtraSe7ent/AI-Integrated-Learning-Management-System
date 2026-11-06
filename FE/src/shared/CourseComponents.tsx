@@ -7,7 +7,7 @@ import {
   BookOpen,
   ArrowRight,
 } from "lucide-react";
-import { courses } from "../data/fixtures";
+import { useScope } from "./useScope";
 import type { Course } from "../data/fixtures";
 import { Badge, Progress } from "./UI";
 export function CourseCard({
@@ -58,20 +58,25 @@ export function CourseCard({
 }
 export function CourseContext({ teacher: requested }: { teacher?: boolean }) {
   const { account } = useAccount();
+  const { courses, classes } = useScope();
   const teacher = requested ?? account?.role === "giang-vien";
+  const course = courses[0];
+  if (!course) return null;
+  const cls = classes.find((c) => c.courseId === course.id);
   return (
     <div className="course-context">
-      <Link
-        to={`/${teacher ? "giang-vien/lop-hoc" : "sinh-vien/khoa-hoc"}/cs301`}
-      >
-        CSE301
-      </Link>
-      <span>Phát triển ứng dụng nâng cao</span>
-      <Badge>HK I · 2026–2027</Badge>
+      <Link to={`/${teacher ? "giang-vien/lop-hoc" : "sinh-vien/khoa-hoc"}/${course.id}`}>{course.code}</Link>
+      <span>{course.title}</span>
+      {cls && (
+        <Badge>
+          HK {cls.term} · {cls.year}
+        </Badge>
+      )}
     </div>
   );
 }
 export function Schedule() {
+  const { courses } = useScope();
   return (
     <div className="schedule-list">
       {courses.slice(0, 2).map((c, i) => (

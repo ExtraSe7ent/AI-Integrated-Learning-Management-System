@@ -12,4 +12,6 @@ public interface IAssessmentDao extends IGenericDao<String, Assessment> {
     List<Assessment> findByStudent(String studentId);
 
     List<Assessment> findSubmitted();
+
+    List<Assessment> findByAssignment(String assignmentId);
 }

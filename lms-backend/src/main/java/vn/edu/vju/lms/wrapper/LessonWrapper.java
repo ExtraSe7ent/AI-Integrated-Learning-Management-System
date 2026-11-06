@@ -23,4 +23,10 @@ public class LessonWrapper {
     private List<String> slides;
 
     private String video;
+
+    private Integer week;
+
+    private String materialId;
+
+    private String pdfName;
 }

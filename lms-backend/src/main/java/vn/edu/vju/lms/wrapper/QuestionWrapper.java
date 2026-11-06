@@ -23,4 +23,6 @@ public class QuestionWrapper {
     private Integer page;
 
     private Boolean approved;
+
+    private String lessonId;
 }

@@ -171,6 +171,21 @@ public final class RagAlgorithms {
         return new ValidatedAnswer(String.join("\n\n", paragraphs), used.stream().map(i -> sources.get(i - 1)).toList());
     }
 
+    /** The text of each page, chunks joined in their stored order; what lesson_ai.page_contents returns. */
+    public static Map<Integer, String> pageTexts(List<RagChunk> chunks) {
+        Map<Integer, StringBuilder> pages = new java.util.TreeMap<>();
+        for (RagChunk chunk : chunks) {
+            StringBuilder text = pages.computeIfAbsent(chunk.getPage(), k -> new StringBuilder());
+            if (!text.isEmpty()) {
+                text.append('\n');
+            }
+            text.append(chunk.getText());
+        }
+        Map<Integer, String> result = new LinkedHashMap<>();
+        pages.forEach((page, text) -> result.put(page, text.toString()));
+        return result;
+    }
+
     public static List<Map<String, Object>> evidence(List<RagChunk> sources) {
         List<Map<String, Object>> evidence = new ArrayList<>();
         for (int i = 0; i < sources.size(); i++) {

@@ -1,5 +1,6 @@
 import {AIReminders} from "./AI/Reminders";
 import {AIPractice} from "./AI/Practice";
+import { StudentReview, TeacherStudyTools } from "./AI/StudyTools";
 import {AdminLayout} from "./Admin/Layout";
 import {AdminAccounts,AdminImportAccounts,AdminAccountDetail} from "./Admin/Accounts";
 import {AdminCourses,AdminCourseEditor,AdminClassEditor,AdminEnrollment} from "./Admin/Courses";
@@ -123,6 +124,7 @@ export default function App() {
               <Route path="lam-bai" element={<LamBai />} />
               <Route path="ket-qua" element={<KetQua />} />
               <Route path="luyen-tap" element={<AIPractice />} />
+              <Route path="on-tap" element={<StudentReview />} />
               <Route path="tren-lop" element={<LopTrucTiep />} />
               <Route path="diem-so" element={<DiemSo />} />
               <Route path="tro-ly-ai" element={<TroLyAI />} />
@@ -151,6 +153,7 @@ export default function App() {
               <Route path="bai-hoc" element={<BaiHoc />} />
               <Route path="soan-bai" element={<SoanBai />} />
               <Route path="phien-tu-hoc" element={<PhienTuHoc />} />
+              <Route path="hoc-lieu-ai" element={<TeacherStudyTools />} />
               <Route path="ngan-hang-cau-hoi" element={<CauHoi />} />
               <Route path="bai-tap" element={<BaiTapGiangVien />} />
               <Route path="tao-bai-tap" element={<TaoBaiTap />} />

@@ -50,8 +50,15 @@ export const courses: Course[] = [
   },
 ];
 export interface Lesson {
+  /** Class the lesson belongs to; the server fills in CSE301.01 for older rows. */
+  classId?: string;
   slides?: string[];
   video?: string;
+  /** Week of the term (1–20) the lesson is taught in. */
+  week?: number;
+  /** Lecture PDF stored on the server for this lesson, and its file name. */
+  materialId?: string;
+  pdfName?: string;
   id: string;
   title: string;
   order: number;
@@ -66,6 +73,8 @@ export interface Question {
   explanation: string;
   page: number;
   approved: boolean;
+  /** Lesson the slide belongs to; absent on rows from before lessons were tracked (= "l2"). */
+  lessonId?: string;
 }
 export const initialQuestions: Question[] = [
   {
@@ -182,6 +191,7 @@ export interface Gap {
   response: string;
 }
 export interface Appeal {
+  ownerId?: string;
   questionIndex?: number;
   answer?: string;
   previousPoints?: number;
@@ -204,6 +214,7 @@ export interface Assessment {
     submitted: string;
     approved?: boolean;
     comment?: string;
+    aiFeedback?: string[];
   };
 }
 export interface StudyProgress {
@@ -218,8 +229,54 @@ export interface Session {
   closes: string;
   published: boolean;
   late: boolean;
+  lessonId?: string;
+}
+/** correct and explanation are absent for a student who has not submitted yet. */
+export interface ExamQuestion {
+  type: "choice" | "blank" | "essay";
+  text: string;
+  options?: string[];
+  correct?: string;
+  points: number;
+  explanation?: string;
+}
+export interface StudentReport {
+  id: string;
+  name: string;
+  email: string;
+  progress: number;
+  selfStudy: number;
+  average: number;
+  submitted: number;
+  chats: number;
+  /** Share of choice and fill-in answers that were right; absent before any submission. */
+  correctRate?: number;
+  lastSubmitted?: string;
+  feedback?: number;
+}
+export interface ClassReport {
+  id: string;
+  name: string;
+  courseId: string;
+  courseCode: string;
+  courseTitle: string;
+  teacher: string;
+  term: string;
+  year: string;
+  students: StudentReport[];
+}
+export interface PageReport {
+  page: number;
+  answered: number;
+  wrong: number;
+  gaps: number;
+}
+export interface Analytics {
+  classes: ClassReport[];
+  pages: PageReport[];
 }
 export interface Assignment {
+  questions?: ExamQuestion[];
   id: string;
   title: string;
   minutes: number;
@@ -235,12 +292,17 @@ export interface Resource {
   title: string;
   description: string;
   url: string;
-  kind: "pdf" | "link" | "video";
+  /** "file" and uploaded "pdf" rows are served by /api/resources/{id}/file and need the login token. */
+  kind: "pdf" | "link" | "video" | "file";
+  position?: number;
+  fileName?: string;
+  fileSize?: number;
 }
 export const demoDate = "16 tháng 10, 2026";
 export const initialData = {
   admin: initialAdmin,
   aiReminders: [] as ReminderRecord[],
+  analytics: { classes: [], pages: [] } as Analytics,
   gradeHistory: [
     {
       id: "history-model",
@@ -362,12 +424,20 @@ export const initialData = {
   assessments: {} as Record<string, Assessment>,
   live: {
     active: false,
-    code: "261016",
+    code: "" as string | undefined,
     question: 0,
     revealed: false,
     expiresAt: 0,
     answers: {} as Record<string, number>,
     participants: [] as string[],
+    // Filled by GET /api/live. code is only sent to staff; correct, explanation and distribution after the reveal.
+    classId: undefined as string | undefined,
+    questionId: undefined as string | undefined,
+    current: undefined as { id: string; text: string; options: string[] } | undefined,
+    correct: undefined as number | undefined,
+    explanation: undefined as string | undefined,
+    distribution: [] as number[],
+    answered: 0,
   },
   profile: {
     name: "Nguyễn Quang Anh",

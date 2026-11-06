@@ -13,7 +13,7 @@ const navigation = [
 ] as const;
 type Popup = "navigation" | "notifications" | "account" | null;
 export function LeaderLayout() {
-  const { data, state, setData, link } = useLeaderScope();
+  const { data, state, setData, link, label } = useLeaderScope();
   const { signOut } = useAccount();
   const location = useLocation();
   const [open, setOpen] = useState(false),
@@ -229,7 +229,7 @@ export function LeaderLayout() {
                       >
                         <span>
                           <strong>
-                            {i!.classId} ·{" "}
+                            {label(i!.classId)} ·{" "}
                             {r.reply ? "Đã có phản hồi" : "Đang chờ điều chỉnh"}
                           </strong>
                           <small>{r.body}</small>

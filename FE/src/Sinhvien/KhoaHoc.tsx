@@ -9,7 +9,8 @@ import {
   ArrowRight,
   Download,
 } from "lucide-react";
-import { courses } from "../data/fixtures";
+import { useScope } from "../shared/useScope";
+import { classOfLesson } from "../data/scope";
 import { useDemo } from "../data/DemoProvider";
 import { CourseCard } from "../shared/CourseComponents";
 import {
@@ -24,6 +25,7 @@ import {
 export function KhoaHoc({ teacher = false }: { teacher?: boolean }) {
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
+  const { courses } = useScope();
   const filtered = courses.filter((c) =>
     (c.title + c.code).toLowerCase().includes(query.toLowerCase()),
   );
@@ -40,7 +42,7 @@ export function KhoaHoc({ teacher = false }: { teacher?: boolean }) {
       <div className="toolbar">
         <div className="tabs">
           <button className="selected">
-            Đang diễn ra <span>3</span>
+            Đang diễn ra <span>{courses.length}</span>
           </button>
         </div>
         <SearchField
@@ -57,8 +59,14 @@ export function KhoaHoc({ teacher = false }: { teacher?: boolean }) {
         </div>
       ) : (
         <Empty
-          title="Không tìm thấy khóa học"
-          description="Thử mã học phần hoặc một từ khóa khác."
+          title={courses.length ? "Không tìm thấy khóa học" : "Chưa có học phần"}
+          description={
+            courses.length
+              ? "Thử mã học phần hoặc một từ khóa khác."
+              : teacher
+                ? "Bạn chưa được Admin phân công phụ trách lớp nào."
+                : "Bạn chưa được ghi danh vào lớp nào."
+          }
           action={
             <button className="button secondary" onClick={() => setQuery("")}>
               Xóa bộ lọc
@@ -75,10 +83,29 @@ export function KhoaHoc({ teacher = false }: { teacher?: boolean }) {
 }
 export function ChiTietKhoaHoc({ teacher = false }: { teacher?: boolean }) {
   const { id } = useParams();
-  const course = courses.find((c) => c.id === id) || courses[0];
+  const { courses, classes, lessons } = useScope();
+  const course = courses.find((c) => c.id === id);
   const { data } = useDemo();
   const role = teacher ? "giang-vien" : "sinh-vien";
   const [week, setWeek] = useState(7);
+  if (!course)
+    return (
+      <Empty
+        title="Không tìm thấy học phần"
+        description={`Học phần này không thuộc các lớp bạn ${teacher ? "phụ trách" : "đã được ghi danh"}.`}
+        action={
+          <Link className="button secondary" to={`/${role}/${teacher ? "lop-hoc" : "khoa-hoc"}`}>
+            Về danh sách
+          </Link>
+        }
+      />
+    );
+  const courseClasses = classes.filter((c) => c.courseId === course.id);
+  const courseLessons = lessons.filter((l) =>
+    courseClasses.some((c) => c.id === classOfLesson(l)),
+  );
+  // The weekly outline below is the CSE301 demo; any other course lists its own lessons.
+  const demo = course.id === "cs301";
   return (
     <>
       <div className="back-link">
@@ -123,7 +150,45 @@ export function ChiTietKhoaHoc({ teacher = false }: { teacher?: boolean }) {
               )
             }
           >
-            {[5, 6, 7, 8].map((w) => (
+            {!demo &&
+              (courseLessons.length ? (
+                [...courseLessons]
+                  .sort((a, b) => (a.week ?? 99) - (b.week ?? 99) || a.order - b.order)
+                  .map((l, i) => (
+                  <Link
+                    className="activity-row"
+                    key={l.id}
+                    to={teacher ? `/giang-vien/soan-bai?bai=${l.id}` : `/${role}/tu-hoc`}
+                  >
+                    <span className="week-number">{String(i + 1).padStart(2, "0")}</span>
+                    <div>
+                      <strong>{l.week ? `Tuần ${l.week} · ` : ""}{l.title}</strong>
+                      <p>{l.slides?.length ?? 0} trang</p>
+                    </div>
+                    <Badge tone={l.published ? "green" : "neutral"}>
+                      {l.published ? "Đã công bố" : "Bản nháp"}
+                    </Badge>
+                    <ArrowRight size={17} />
+                  </Link>
+                ))
+              ) : (
+                <Empty
+                  title="Chưa có bài học"
+                  description={
+                    teacher
+                      ? "Vào “Bài học & học liệu” để tạo bài học cho lớp của học phần này."
+                      : "Giảng viên chưa công bố bài học."
+                  }
+                  action={
+                    teacher ? (
+                      <Link className="button secondary" to="/giang-vien/bai-hoc">
+                        Tạo bài học
+                      </Link>
+                    ) : undefined
+                  }
+                />
+              ))}
+            {demo && [5, 6, 7, 8].map((w) => (
               <div className="week-section" key={w}>
                 <button
                   className={`week-header ${week === w ? "expanded" : ""}`}
@@ -218,6 +283,17 @@ export function ChiTietKhoaHoc({ teacher = false }: { teacher?: boolean }) {
                 <dd>3 tín chỉ</dd>
               </div>
             </dl>
+          </Panel>
+          <Panel title="Lớp học phần">
+            {courseClasses.map((c) => (
+              <div className="resource-mini" key={c.id}>
+                <BookOpen size={18} />
+                <span>
+                  {c.name} · HK {c.term} · {c.year}
+                  {teacher && ` · ${c.studentIds.length} sinh viên`}
+                </span>
+              </div>
+            ))}
           </Panel>
           <Panel title="Tài liệu của lớp">
             {data.resources.map((r) => (

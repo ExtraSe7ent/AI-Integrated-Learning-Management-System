@@ -7,6 +7,7 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.util.List;
 import java.util.Map;
+import vn.edu.vju.lms.entity.ExamQuestion;
 
 /** JSON-in-TEXT columns, the same way the Django models used JSONField (and portable to H2). */
 public final class JsonConverters {
@@ -60,6 +61,13 @@ public final class JsonConverters {
     @Converter
     public static class DoubleList extends Base<List<Double>> {
         public DoubleList() {
+            super(new TypeReference<>() { });
+        }
+    }
+
+    @Converter
+    public static class ExamQuestionList extends Base<List<ExamQuestion>> {
+        public ExamQuestionList() {
             super(new TypeReference<>() { });
         }
     }

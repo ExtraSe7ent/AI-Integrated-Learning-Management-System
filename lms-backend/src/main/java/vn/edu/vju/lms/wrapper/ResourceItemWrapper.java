@@ -16,4 +16,11 @@ public class ResourceItemWrapper {
     private String url;
 
     private String kind;
+
+    private Integer position;
+
+    /** Set by the server for uploaded files; ignored on input. */
+    private String fileName;
+
+    private Long fileSize;
 }

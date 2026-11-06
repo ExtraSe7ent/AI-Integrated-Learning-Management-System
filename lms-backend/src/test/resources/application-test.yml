@@ -16,5 +16,7 @@ lms:
     passphrase: test-passphrase
     salt: test-salt
     iterations: 1000
+  reminder:
+    cron: "-"
   storage:
     root: ./target/test-storage

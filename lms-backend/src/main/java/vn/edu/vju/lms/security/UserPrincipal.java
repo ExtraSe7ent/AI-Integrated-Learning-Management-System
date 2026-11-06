@@ -18,6 +18,12 @@ public record UserPrincipal(String id, Role role, boolean mustChange) {
         return role == Role.STUDENT;
     }
 
+    /** True only for a logged-in student; background jobs and the seeder have no caller. */
+    public static boolean callerIsStudent() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal && principal.isStudent();
+    }
+
     public static UserPrincipal current() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {

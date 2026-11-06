@@ -33,6 +33,8 @@ export interface ManagedClass {
   teacherId: string;
   leaderId: string;
   studentIds: string[];
+  /** Class size from the server; a student's roster only lists themself. */
+  studentCount?: number;
 }
 export interface Administration {
   users: ManagedUser[];

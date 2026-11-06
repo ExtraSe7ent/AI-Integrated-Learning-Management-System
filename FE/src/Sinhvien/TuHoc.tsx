@@ -10,12 +10,26 @@ import {
 } from "../shared/UI";
 import { CourseContext } from "../shared/CourseComponents";
 import { studyFor } from "../data/study";
+import { lessonOf, questionsOf } from "../data/content";
+import { useScope } from "../shared/useScope";
 import { useDemo } from "../data/DemoProvider";
 import { sessionState } from "../data/rules";
 export function TuHoc() {
   const { data } = useDemo();
-  const total = data.lessons.find((l) => l.id === "l2")?.slides?.length || 4;
-  const sessions = data.sessions.filter((s) => s.published);
+  const { lessons } = useScope();
+  // Only sessions of published lessons in the student's own classes.
+  const sessions = data.sessions.filter(
+    (s) => s.published && lessons.some((l) => l.id === lessonOf(s)),
+  );
+  const lessonFor = (s: (typeof sessions)[number]) => lessons.find((l) => l.id === lessonOf(s));
+  const pages = (s: (typeof sessions)[number]) => {
+    const l = lessonFor(s);
+    return l?.slides?.length || 4;
+  };
+  const courseCode = (s: (typeof sessions)[number]) => {
+    const cls = data.admin.classes.find((c) => c.id === (lessonFor(s)?.classId || "CSE301.01"));
+    return data.admin.courses.find((c) => c.id === cls?.courseId)?.code ?? "CSE301";
+  };
   return (
     <>
       <PageHeader
@@ -35,6 +49,7 @@ export function TuHoc() {
             Date.parse(s.closes),
           );
           const complete = Boolean(studyFor(data, s.id).completedAt);
+          const total = pages(s);
           return (
             <Panel key={s.id} className="session-card">
               <div className="session-symbol">
@@ -55,12 +70,12 @@ export function TuHoc() {
                           ? "Chưa mở"
                           : "Đã hết hạn"}
                   </Badge>
-                  <span>CSE301 · Tuần 07</span>
+                  <span>{courseCode(s)}</span>
                 </div>
                 <h2>{s.title}</h2>
                 <p>
-                  Phát triển ứng dụng nâng cao · {total} trang ·{" "}
-                  {data.questions.filter((q) => q.approved).length} câu hỏi
+                  {lessonFor(s)?.title} · {total} trang ·{" "}
+                  {questionsOf(data.questions, lessonOf(s)).filter((q) => q.approved).length} câu hỏi
                 </p>
                 <div className="session-facts">
                   <span>
@@ -69,8 +84,10 @@ export function TuHoc() {
                   </span>
                   <span>
                     <CheckCircle2 size={15} />
-                    {s.late
-                      ? "Cho phép xem lại và học muộn"
+                    {status === "closed" && !complete
+                      ? s.late
+                        ? "Đã hết hạn · Vẫn học được nhưng không tính điểm tự học"
+                        : "Đã hết hạn · Chỉ xem lại, không ghi nhận tiến độ"
                       : "Hoàn thành đúng hạn để tính điểm"}
                   </span>
                 </div>
@@ -84,7 +101,7 @@ export function TuHoc() {
               </div>
               <Link
                 className="button"
-                to={`/sinh-vien/hoc/cs301?phien=${s.id}`}
+                to={`/sinh-vien/hoc/${lessonOf(s)}?phien=${s.id}`}
               >
                 {complete
                   ? "Xem lại"

@@ -18,11 +18,31 @@ import {
   TextLink,
   Progress,
 } from "../shared/UI";
-import { Schedule } from "../shared/CourseComponents";
-import { courses, students, demoDate } from "../data/fixtures";
 import { useDemo } from "../data/DemoProvider";
+import { useScope } from "../shared/useScope";
+import { lessonOf } from "../data/content";
+import { sessionState } from "../data/rules";
+import { Empty } from "../shared/UI";
 export function TongQuanGiangVien() {
   const { data } = useDemo();
+  const { classes: mine, lessons } = useScope();
+  const classes = data.analytics.classes;
+  // The first assigned class leads the page; nothing is shown from the demo when nothing is assigned.
+  const first = mine[0];
+  const firstCourse = data.admin.courses.find((c) => c.id === first?.courseId);
+  const openSessions = data.sessions.filter(
+    (x) =>
+      x.published &&
+      lessons.some((l) => l.id === lessonOf(x)) &&
+      sessionState(Date.parse(x.opens), Date.parse(x.closes)) === "open",
+  );
+  const roster = classes.flatMap((c) =>
+    c.students.map((s) => ({ ...s, classId: c.id, code: c.courseCode })),
+  );
+  const average = (values: number[]) =>
+    values.length
+      ? Math.round(values.reduce((n, v) => n + v, 0) / values.length)
+      : 0;
   const pending =
     data.feedback.filter((f) => !f.resolved).length +
     data.appeals.filter((a) => a.status === "pending").length;
@@ -30,9 +50,9 @@ export function TongQuanGiangVien() {
     <>
       <PageHeader
         title="Không gian giảng dạy"
-        description={`Thứ Sáu, ${demoDate} · Chào thầy Minh Anh`}
+        description={`${new Date().toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · Chào ${data.teacherProfile.name}`}
         action={
-          <Link className="button" to="/giang-vien/soan-bai">
+          <Link className="button" to="/giang-vien/bai-hoc">
             <Plus size={17} />
             Chuẩn bị bài học
           </Link>
@@ -40,50 +60,61 @@ export function TongQuanGiangVien() {
       />
       <div className="dashboard-grid">
         <div className="dashboard-primary">
-          <section className="teaching-agenda">
-            <div className="agenda-head">
-              <span className="live-dot" />
-              Lớp học tiếp theo<span>Hôm nay · 13:00</span>
-            </div>
-            <div className="agenda-body">
-              <div className="course-stamp">
-                CSE
-                <br />
-                <strong>301</strong>
+          {first ? (
+            <section className="teaching-agenda">
+              <div className="agenda-head">
+                <span className="live-dot" />
+                Lớp phụ trách<span>HK {first.term} · {first.year}</span>
               </div>
-              <div>
-                <h2>Phát triển ứng dụng nâng cao</h2>
-                <p>Tuần 07 · Thiết kế RESTful API</p>
-                <div className="inline-meta">
-                  <span>
-                    <Users size={15} />
-                    36 sinh viên
-                  </span>
-                  <span>P.402 · Mỹ Đình</span>
+              <div className="agenda-body">
+                <div className="course-stamp">
+                  {firstCourse?.code.replace(/\d+$/, "") ?? ""}
+                  <br />
+                  <strong>{firstCourse?.code.match(/\d+$/)?.[0] ?? ""}</strong>
+                </div>
+                <div>
+                  <h2>{firstCourse?.title ?? first.courseId}</h2>
+                  <p>
+                    Lớp {first.name}
+                    {mine.length > 1 && ` · cùng ${mine.length - 1} lớp khác`}
+                  </p>
+                  <div className="inline-meta">
+                    <span>
+                      <Users size={15} />
+                      {first.studentIds.length} sinh viên
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="agenda-footer">
-              <Link to="/giang-vien/soan-bai">
-                <FileText size={17} />
-                Xem học liệu
-              </Link>
-              <Link className="button" to="/giang-vien/tren-lop">
-                <Radio size={17} />
-                Bắt đầu hỏi trên lớp
-              </Link>
-            </div>
-          </section>
+              <div className="agenda-footer">
+                <Link to="/giang-vien/bai-hoc">
+                  <FileText size={17} />
+                  Bài học & học liệu
+                </Link>
+                <Link className="button" to="/giang-vien/tren-lop">
+                  <Radio size={17} />
+                  Bắt đầu hỏi trên lớp
+                </Link>
+              </div>
+            </section>
+          ) : (
+            <Panel>
+              <Empty
+                title="Chưa được phân công lớp"
+                description="Lớp Admin phân công cho bạn sẽ hiện ở đây."
+              />
+            </Panel>
+          )}
           <MetricStrip
             items={[
               {
                 label: "Lớp phụ trách",
-                value: "03",
+                value: String(classes.length).padStart(2, "0"),
                 note: "Học kỳ I · 2026–2027",
               },
               {
                 label: "Sinh viên",
-                value: "110",
+                value: String(new Set(roster.map((s) => s.id)).size),
                 note: "Trên các lớp phụ trách",
               },
               {
@@ -100,24 +131,27 @@ export function TongQuanGiangVien() {
             }
           >
             <div className="class-table">
-              {courses.map((c) => (
+              {classes.map((c) => (
                 <Link
                   key={c.id}
-                  to={`/giang-vien/lop-hoc/${c.id}`}
+                  to={`/giang-vien/lop-hoc/${c.courseId}`}
                   className="class-row"
                 >
-                  <span className={`course-initial ${c.color}`}>
-                    {c.code.slice(-3)}
+                  <span className="course-initial rose">
+                    {c.courseCode.slice(-3)}
                   </span>
                   <div>
-                    <strong>{c.title}</strong>
+                    <strong>{c.courseTitle}</strong>
                     <p>
-                      {c.code} · {c.students} sinh viên
+                      {c.name} · {c.students.length} sinh viên
                     </p>
                   </div>
                   <div className="class-progress">
                     <span>Tiến độ tự học</span>
-                    <Progress value={c.progress} label />
+                    <Progress
+                      value={average(c.students.map((s) => s.progress))}
+                      label
+                    />
                   </div>
                   <ChevronRight size={19} />
                 </Link>
@@ -139,15 +173,15 @@ export function TongQuanGiangVien() {
                   </tr>
                 </thead>
                 <tbody>
-                  {students
-                    .filter((s) => s.progress < 50)
+                  {roster
+                    .filter((s) => s.progress < 50 || s.average < 5)
                     .map((s) => (
-                      <tr key={s.id}>
+                      <tr key={s.classId + s.id}>
                         <td>
                           <strong>{s.name}</strong>
-                          <p>{s.code}</p>
+                          <p>{s.id}</p>
                         </td>
-                        <td>CSE301</td>
+                        <td>{s.code}</td>
                         <td>
                           <Progress value={s.progress} label />
                         </td>
@@ -162,8 +196,23 @@ export function TongQuanGiangVien() {
           </Panel>
         </div>
         <aside className="dashboard-secondary">
-          <Panel title="Lịch dạy hôm nay" action={<CalendarDays size={18} />}>
-            <Schedule />
+          <Panel title="Phiên tự học đang mở" action={<CalendarDays size={18} />}>
+            {openSessions.length ? (
+              openSessions.map((x) => (
+                <Link className="action-row" to="/giang-vien/phien-tu-hoc" key={x.id}>
+                  <span className="task-icon sage">
+                    <Clock3 size={18} />
+                  </span>
+                  <div>
+                    <strong>{x.title}</strong>
+                    <p>Hạn {new Date(x.closes).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}</p>
+                  </div>
+                  <ChevronRight size={16} />
+                </Link>
+              ))
+            ) : (
+              <p className="muted">Không có phiên tự học nào đang mở.</p>
+            )}
           </Panel>
           <Panel title="Đang chờ xử lý">
             <Link className="action-row" to="/giang-vien/cham-bai">
@@ -173,8 +222,10 @@ export function TongQuanGiangVien() {
               <div>
                 <strong>Bài nộp cần chấm</strong>
                 <p>
-                  {data.assessments.a1?.result
-                    ? "Có bài tự luận mới"
+                  {Object.values(data.assessments).some(
+                    (a) => a.result && !a.result.approved,
+                  )
+                    ? "Có bài chờ duyệt"
                     : "Xem bài nộp"}
                 </p>
               </div>

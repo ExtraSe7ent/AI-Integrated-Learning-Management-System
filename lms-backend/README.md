@@ -120,12 +120,17 @@ Profile `prod` dùng PostgreSQL và bắt buộc có `LMS_JWT_SECRET`, `LMS_AES_
 | --- | --- |
 | Tài khoản, lớp, bài tập, chấm bài, phúc khảo, phản hồi, tự học, kiến thức mờ, hỏi trên lớp, lịch, điểm danh, học liệu có phiên bản | |
 | RAG cho PDF chữ | Chunking, embedding, hybrid retrieval, RRF, mở rộng ngữ cảnh, trích dẫn do backend gắn, guardrail, quota |
+| Sinh câu hỏi luyện tập/gợi ý câu hỏi, chấm nháp AI tự luận | `/api/ai/practice`, `/api/ai/question-suggestions`, chấm nền sau khi nộp |
+| Bài giảng AI theo trang (Ý chính / Ví dụ / Tóm tắt) | `/api/ai/lessons/{courseId}/explanations`; GV duyệt và công bố, soạn lại giữ trang GV đã sửa |
+| Gợi ý buổi học trên lớp | `POST /api/ai/insights`; kiến thức mờ được ẩn danh trước khi gửi model; không có khóa thì theo thống kê |
+| Giải thích câu sai | `POST /api/ai/mistake-explanation`; có dẫn nguồn, lưu cache theo lượt làm; không có khóa thì trích đoạn học liệu |
+| Thẻ ôn, FAQ lớp | `/api/ai/aids`; mỗi mục AI soạn phải trích nguyên văn nguồn; SV ôn theo lịch 1/3/7/14/30 ngày |
 
 | Chưa port | Ghi chú |
 | --- | --- |
 | Video transcript, mô tả ảnh PDF bằng vision | Video upload được nhưng không lập chỉ mục |
 | LLM rerank, streaming SSE, hồ sơ cá nhân hóa | Trả lời dạng một lần |
-| Thẻ ôn, FAQ, kế hoạch tuần, Bài giảng AI, sinh câu hỏi AI, chấm nháp AI tự luận | Frontend hiện có bản mô phỏng cục bộ |
+| Kế hoạch học tuần, kiểm định câu hỏi sinh ra bằng model thứ hai | |
 | Thông báo sự kiện tự động, gửi email, OTP quên mật khẩu | Frontend hướng dẫn liên hệ Admin |
 | Phoenix tracing, lệnh đánh giá RAG | |
 | Dữ liệu Django cũ | Chưa có script chuyển từ database cũ |

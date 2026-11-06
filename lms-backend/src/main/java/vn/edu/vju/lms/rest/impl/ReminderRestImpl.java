@@ -1,6 +1,7 @@
 package vn.edu.vju.lms.rest.impl;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,5 +53,15 @@ public class ReminderRestImpl implements ReminderRest {
     @Override
     public ResponseEntity<Long> count() {
         return ResponseEntity.ok(service.count());
+    }
+
+    @Override
+    public ResponseEntity<List<Map<String, Object>>> candidates(String at) {
+        return ResponseEntity.ok(service.candidates(at));
+    }
+
+    @Override
+    public ResponseEntity<List<ReminderWrapper>> scan(String at) {
+        return ResponseEntity.ok(service.scan(at));
     }
 }

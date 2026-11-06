@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -60,4 +61,14 @@ public interface ReminderRest {
     @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER','DEAN')")
     @GetMapping("/count")
     ResponseEntity<Long> count();
+
+    @Operation(summary = "Sinh viên chưa hoàn thành công việc đến hạn trong 24 giờ")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @GetMapping("/candidates")
+    ResponseEntity<List<Map<String, Object>>> candidates(@RequestParam(required = false) String at);
+
+    @Operation(summary = "Quét hạn ngay: gửi email, ghi nhận và bỏ qua mục đã gửi")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PostMapping("/scan")
+    ResponseEntity<List<ReminderWrapper>> scan(@RequestParam(required = false) String at);
 }

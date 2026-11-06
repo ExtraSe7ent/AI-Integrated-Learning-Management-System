@@ -18,4 +18,6 @@ public class StudySessionWrapper {
     private Boolean published;
 
     private Boolean late;
+
+    private String lessonId;
 }

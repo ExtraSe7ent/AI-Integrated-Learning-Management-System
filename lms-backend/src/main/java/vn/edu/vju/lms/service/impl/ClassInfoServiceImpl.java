@@ -54,6 +54,7 @@ public class ClassInfoServiceImpl extends AbstractCrudService<ClassInfo, ClassIn
         wrapper.setTeacherId(entity.getTeacherId());
         wrapper.setLeaderId(entity.getLeaderId());
         wrapper.setStudentIds(new ArrayList<>(entity.getStudentIds()));
+        wrapper.setStudentCount(entity.getStudentIds().size());
         return wrapper;
     }
 

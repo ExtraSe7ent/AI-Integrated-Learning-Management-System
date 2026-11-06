@@ -30,4 +30,10 @@ public interface LiveRest {
     @PreAuthorize("hasRole('STUDENT')")
     @PutMapping("/me")
     ResponseEntity<LiveStateWrapper> respond(@RequestBody LiveResponse response);
+
+    @Operation(summary = "Kết quả các câu hỏi đã chiếu trên lớp, mới nhất trước")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER','DEAN')")
+    @GetMapping("/results")
+    ResponseEntity<java.util.List<vn.edu.vju.lms.wrapper.LiveWrappers.LiveResultWrapper>> results(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String classId);
 }

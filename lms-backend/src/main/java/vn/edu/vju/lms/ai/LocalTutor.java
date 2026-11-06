@@ -5,6 +5,7 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 import vn.edu.vju.lms.dao.ILessonDao;
 import vn.edu.vju.lms.entity.RagChunk;
+import vn.edu.vju.lms.service.TextNormalizer;
 
 /** Answers with no AI provider: the frontend's rule-based CSE301 tutor, then an extractive passage search. */
 @Component
@@ -21,6 +22,13 @@ public class LocalTutor {
     private static final Pattern METHODS = Pattern.compile("put|patch|method|post|get", Pattern.CASE_INSENSITIVE);
     private static final Pattern STATUS = Pattern.compile("mã|status|201|404|lỗi", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
+    /** Common Vietnamese and English words, accent-folded like the search tokens. */
+    static final java.util.Set<String> STOP_WORDS = java.util.Set.of(
+            "la", "gi", "nao", "the", "nhu", "co", "khong", "cua", "va", "cho", "toi", "em", "ban", "minh", "hay",
+            "duoc", "nay", "hom", "do", "thi", "sao", "vay", "a", "an", "is", "are", "what", "how", "why", "of", "to",
+            "in", "on", "and", "or", "be", "it", "this", "that", "may", "mot", "nhung", "cac", "voi", "trong",
+            "vi", "khi", "ve", "di", "lam", "giup", "hoi", "oi", "nhe", "day", "kia", "ay");
+
     private final ILessonDao lessonDao;
 
     public LocalTutor(ILessonDao lessonDao) {
@@ -28,15 +36,31 @@ public class LocalTutor {
     }
 
     public AiAnswer answer(String courseId, String question, List<RagChunk> chunks) {
+        return answer(courseId, question, chunks, null);
+    }
+
+    public AiAnswer answer(String courseId, String question, List<RagChunk> chunks, Integer page) {
         boolean demoTopic = DEMO_COURSE.equals(courseId) && demoMaterialAvailable() && TOPIC.matcher(question).find();
         if (demoTopic) {
             return ruleAnswer(question);
         }
-        List<RagChunk> ranked = RagAlgorithms.keywordRanking(chunks, question);
+        // UC-B04 EX-1: only content words count, and a passage must share at least half of them; otherwise
+        // a folded "thế" would match the English "the" and an off-topic question would get a random passage.
+        java.util.Set<String> terms = new java.util.LinkedHashSet<>(TextNormalizer.tokens(question));
+        terms.removeAll(STOP_WORDS);
+        if (terms.isEmpty()) {
+            return AiAnswer.withoutSources(UNAVAILABLE, "unavailable");
+        }
+        // Short questions must match every content word ("thời tiết" is not "thời hạn"); longer ones at least half.
+        int needed = terms.size() <= 2 ? terms.size() : (terms.size() + 1) / 2;
+        List<RagChunk> ranked = RagAlgorithms.keywordRanking(chunks, String.join(" ", terms)).stream()
+                .filter(c -> terms.stream().filter(TextNormalizer.tokens(c.getText())::contains).count() >= needed)
+                .toList();
         if (ranked.isEmpty()) {
             return AiAnswer.withoutSources(UNAVAILABLE, "unavailable");
         }
-        RagChunk best = ranked.get(0);
+        // Among matching passages, prefer the slide the student is reading.
+        RagChunk best = ranked.stream().filter(c -> page != null && c.getPage() == page).findFirst().orElse(ranked.get(0));
         return new AiAnswer("Đoạn liên quan trong \"" + best.getMaterialTitle() + "\": " + best.getText(),
                 best.getPage(), List.of(best.getPage()), "extractive");
     }

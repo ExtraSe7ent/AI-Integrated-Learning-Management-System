@@ -129,30 +129,32 @@ test("student feedback is answered by the lecturer", async ({ page }) => {
     page.getByText("Thầy sẽ bổ sung ví dụ phân trang vào bài tiếp theo."),
   ).toBeVisible();
 });
-test("local live class rejects invalid code and accepts a student answer", async ({
+test("live class: a fresh code, a wrong code is refused, answers reveal for the whole class", async ({
   page,
   context,
 }) => {
   await openRolePage(page, "/giang-vien/tren-lop");
-  await page
-    .getByRole("button", { name: "Bắt đầu phiên", exact: true })
-    .click();
+  await page.getByLabel("Lớp chiếu câu hỏi").selectOption("CSE301.01");
+  await page.getByRole("button", { name: "Bắt đầu phiên", exact: true }).click();
+  const code = (await page.locator(".large-session-code").textContent())!.trim();
+  expect(code).toMatch(/^\d{6}$/);
   const student = await context.newPage();
   await openRolePage(student, "/sinh-vien/tren-lop");
-  await student.getByLabel("Mã phiên gồm 6 chữ số").fill("111111");
+  await student.getByLabel("Mã phiên gồm 6 chữ số").fill(code === "111111" ? "222222" : "111111");
   await student.getByRole("button", { name: "Tham gia phiên" }).click();
   await expect(student.getByRole("alert")).toContainText("Mã phiên không đúng");
-  await student.getByLabel("Mã phiên gồm 6 chữ số").fill("261016");
+  await student.getByLabel("Mã phiên gồm 6 chữ số").fill(code);
   await student.getByRole("button", { name: "Tham gia phiên" }).click();
   await student.bringToFront();
   await student.locator(".live-options button").first().click();
-  await student.getByRole("button", { name: "Xác nhận câu trả lời" }).click();
-  await expect(
-    student.getByText("Đã gửi câu trả lời", { exact: true }),
-  ).toBeVisible();
-  await page.bringToFront();
-  await page.getByRole("button", { name: "Hiện đáp án" }).click();
+  await student.getByRole("button", { name: "Xác nhận", exact: true }).click();
+  await expect(student.getByText("Đã gửi", { exact: true })).toBeVisible();
+  // Everyone who joined has answered, so the server reveals the key and the distribution.
   await expect(student.locator(".correct-option")).toHaveCount(1);
+  await page.bringToFront();
+  await expect(page.getByText(/Tỷ lệ đúng/)).toBeVisible();
+  await page.getByRole("button", { name: "Kết thúc phiên" }).click();
+  await expect(page.getByText("Chưa bắt đầu")).toBeVisible();
 });
 const routes = [
   "sinh-vien/tong-quan",

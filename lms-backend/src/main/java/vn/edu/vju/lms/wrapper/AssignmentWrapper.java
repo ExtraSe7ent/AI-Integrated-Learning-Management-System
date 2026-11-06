@@ -1,7 +1,9 @@
 package vn.edu.vju.lms.wrapper;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.Data;
+import vn.edu.vju.lms.entity.ExamQuestion;
 
 @Data
 public class AssignmentWrapper {
@@ -24,4 +26,6 @@ public class AssignmentWrapper {
     private Integer attempts;
 
     private Boolean random;
+
+    private List<ExamQuestion> questions;
 }

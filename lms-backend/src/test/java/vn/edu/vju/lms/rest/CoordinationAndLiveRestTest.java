@@ -21,6 +21,10 @@ import vn.edu.vju.lms.dao.IClassInfoDao;
 import vn.edu.vju.lms.dao.ILiveStateDao;
 import vn.edu.vju.lms.entity.ClassInfo;
 import vn.edu.vju.lms.entity.LiveState;
+import java.util.ArrayList;
+import java.util.List;
+import vn.edu.vju.lms.entity.Question;
+import vn.edu.vju.lms.dao.IQuestionDao;
 
 class CoordinationAndLiveRestTest extends AbstractApiTest {
 
@@ -28,10 +32,10 @@ class CoordinationAndLiveRestTest extends AbstractApiTest {
     private static final String REQUESTS = "/api/coordination/requests";
 
     @Autowired
-    private IClassInfoDao classDao;
+    private ILiveStateDao liveDao;
 
     @Autowired
-    private ILiveStateDao liveDao;
+    private IQuestionDao questionDao;
 
     private String classId;
 
@@ -170,46 +174,135 @@ class CoordinationAndLiveRestTest extends AbstractApiTest {
         tx.executeWithoutResult(s -> liveDao.findById(LiveState.SINGLETON_ID).ifPresent(liveDao::remove));
     }
 
-    private Map<String, Object> control(boolean active, long expiresAt) {
+    /** A class of LECTURER with the given students and an approved question on page 1 of the demo lesson. */
+    private String[] liveFixture(String... students) {
+        String classId = "LIVE-" + UUID.randomUUID().toString().substring(0, 8);
+        String questionId = "lq-" + UUID.randomUUID();
+        tx.executeWithoutResult(s -> {
+            ClassInfo info = new ClassInfo();
+            info.setId(classId);
+            info.setCourseId("cs301");
+            info.setName(classId);
+            info.setTerm("I");
+            info.setYear("2026–2027");
+            info.setRound("9");
+            info.setTeacherId(LECTURER);
+            info.setStudentIds(new ArrayList<>(List.of(students)));
+            classDao.persist(info);
+            Question question = new Question();
+            question.setId(questionId);
+            question.setText("Mã nào báo tạo mới thành công?");
+            question.setOptions(List.of("200", "201", "404", "500"));
+            question.setCorrect(1);
+            question.setExplanation("201 Created.");
+            question.setPage(1);
+            question.setApproved(true);
+            questionDao.persist(question);
+        });
+        return new String[] {classId, questionId};
+    }
+
+    private Map<String, Object> start(String classId, String questionId, long expiresAt) {
         Map<String, Object> body = new HashMap<>();
-        body.put("active", active);
-        body.put("question", 0);
-        body.put("revealed", false);
+        body.put("active", true);
+        body.put("classId", classId);
+        body.put("questionId", questionId);
         body.put("expiresAt", expiresAt);
-        body.put("reset", true);
         return body;
+    }
+
+    private String code() throws Exception {
+        return mapper.readTree(mvc.perform(get("/api/live").headers(auth(LECTURER))).andReturn().getResponse()
+                .getContentAsString()).path("code").asText();
     }
 
     @Test
     void liveQuestionRevealsWhenEveryoneAnswered() throws Exception {
         resetLive();
-        mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON)
-                .content(json(control(true, System.currentTimeMillis() + 60000))))
-                .andExpect(jsonPath("$.active").value(true));
-        mvc.perform(put("/api/live/me").headers(auth(STUDENT)).contentType(JSON).content(json(Map.of("join", true))))
+        String[] fixture = liveFixture(STUDENT);
+        long later = System.currentTimeMillis() + 60000;
+        mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON).content(json(start(null, fixture[1], later))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON).content(json(start(fixture[0], null, later))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON).content(json(start(fixture[0], fixture[1], later))))
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern("\\d{6}")))
+                .andExpect(jsonPath("$.correct").value(1));
+        String code = code();
+        // A student sees the question but neither the code nor the key before the reveal.
+        mvc.perform(get("/api/live").headers(auth(STUDENT)))
+                .andExpect(jsonPath("$.current.text").value("Mã nào báo tạo mới thành công?"))
+                .andExpect(jsonPath("$.code").doesNotExist())
+                .andExpect(jsonPath("$.correct").doesNotExist());
+        String wrong = "000000".equals(code) ? "111111" : "000000";
+        mvc.perform(put("/api/live/me").headers(auth(STUDENT)).contentType(JSON).content(json(Map.of("join", true, "code", wrong))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/live/me").headers(auth(OTHER_STUDENT)).contentType(JSON).content(json(Map.of("join", true, "code", code))))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/live/me").headers(auth(STUDENT)).contentType(JSON).content(json(Map.of("join", true, "code", code))))
                 .andExpect(jsonPath("$.participants", hasItem(STUDENT)));
-        mvc.perform(put("/api/live/me").headers(auth(STUDENT)).contentType(JSON).content(json(Map.of("join", true, "answer", 2))))
-                .andExpect(jsonPath("$.answers.SV001").value(2))
-                .andExpect(jsonPath("$.participants", hasSize(1)))
-                .andExpect(jsonPath("$.revealed").value(true));
         mvc.perform(put("/api/live/me").headers(auth(STUDENT)).contentType(JSON).content(json(Map.of("join", false, "answer", 1))))
+                .andExpect(jsonPath("$.answers.SV001").value(1))
+                .andExpect(jsonPath("$.participants", hasSize(1)))
+                .andExpect(jsonPath("$.revealed").value(true))
+                .andExpect(jsonPath("$.correct").value(1))
+                .andExpect(jsonPath("$.distribution[1]").value(1))
+                .andExpect(jsonPath("$.answered").value(1));
+        mvc.perform(put("/api/live/me").headers(auth(STUDENT)).contentType(JSON).content(json(Map.of("join", false, "answer", 0))))
                 .andExpect(status().isBadRequest());
         mvc.perform(put("/api/live").headers(auth(STUDENT)).contentType(JSON).content("{}")).andExpect(status().isForbidden());
+
+        // "Đổi câu hỏi": the next question opens with no answers; an unapproved one cannot be shown.
+        String[] second = liveFixture(STUDENT);
+        mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON)
+                        .content(json(Map.of("questionId", second[1], "expiresAt", later))))
+                .andExpect(jsonPath("$.revealed").value(false))
+                .andExpect(jsonPath("$.answered").value(0));
+        mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON).content(json(Map.of("questionId", "khong-co"))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON).content(json(Map.of("active", false))))
+                .andExpect(jsonPath("$.active").value(false));
+
+        // The lecturer still sees how the first question went after moving on and ending the session.
+        // Both questions were shown to the class: the first answered correctly, the second left unanswered.
+        String first = "$[?(@.questionId == '" + fixture[1] + "')]";
+        String next = "$[?(@.questionId == '" + second[1] + "')]";
+        mvc.perform(get("/api/live/results").param("classId", fixture[0]).headers(auth(LECTURER)))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath(first + ".questionText", hasItem("Mã nào báo tạo mới thành công?")))
+                .andExpect(jsonPath(first + ".correctCount", hasItem(1)))
+                .andExpect(jsonPath(first + ".distribution[1]", hasItem(1)))
+                .andExpect(jsonPath(first + ".students[0].studentId", hasItem(STUDENT)))
+                .andExpect(jsonPath(first + ".students[0].correct", hasItem(true)))
+                .andExpect(jsonPath(next + ".answered", hasItem(0)));
+        mvc.perform(get("/api/live/results").headers(auth(STUDENT))).andExpect(status().isForbidden());
     }
 
     @Test
     void expiredQuestionMarksSilentStudents() throws Exception {
         resetLive();
+        String[] fixture = liveFixture(STUDENT, OTHER_STUDENT);
         mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON)
-                .content(json(control(true, System.currentTimeMillis() + 60000)))).andExpect(status().isOk());
-        mvc.perform(put("/api/live/me").headers(auth(OTHER_STUDENT)).contentType(JSON).content(json(Map.of("join", true))))
+                .content(json(start(fixture[0], fixture[1], System.currentTimeMillis() + 60000)))).andExpect(status().isOk());
+        mvc.perform(put("/api/live/me").headers(auth(OTHER_STUDENT)).contentType(JSON).content(json(Map.of("join", true, "code", code()))))
                 .andExpect(status().isOk());
         Map<String, Object> expire = new HashMap<>();
         expire.put("expiresAt", 1L);
         mvc.perform(put("/api/live").headers(auth(LECTURER)).contentType(JSON).content(json(expire))).andExpect(status().isOk());
-        mvc.perform(get("/api/live").headers(auth(STUDENT)))
+        mvc.perform(get("/api/live").headers(auth(LECTURER)))
                 .andExpect(jsonPath("$.revealed").value(true))
                 .andExpect(jsonPath("$.answers.SV002").value(-1));
+        // Students never see each other's answers.
+        mvc.perform(get("/api/live").headers(auth(STUDENT)))
+                .andExpect(jsonPath("$.answers.SV002").doesNotExist())
+                .andExpect(jsonPath("$.participants", hasSize(0)));
+        mvc.perform(put("/api/live/me").headers(auth(OTHER_STUDENT)).contentType(JSON).content(json(Map.of("join", false, "answer", 1))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/live/results").param("classId", fixture[0]).headers(auth(LECTURER)))
+                .andExpect(jsonPath("$[0].students[0].answer").value(-1))
+                .andExpect(jsonPath("$[0].answered").value(0))
+                .andExpect(jsonPath("$[0].correctCount").value(0));
     }
 
     @Test

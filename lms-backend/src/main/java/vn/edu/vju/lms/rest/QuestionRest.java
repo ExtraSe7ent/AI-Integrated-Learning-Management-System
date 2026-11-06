@@ -33,7 +33,7 @@ public interface QuestionRest {
     ResponseEntity<List<QuestionWrapper>> list();
 
     @Operation(summary = "Tìm kiếm, sắp xếp và phân trang câu hỏi")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @GetMapping("/search")
     ResponseEntity<PageResponse<QuestionWrapper>> search(
             @Parameter(description = "Ví dụ: title~rest,published:true") @RequestParam(required = false) String search,
@@ -41,18 +41,23 @@ public interface QuestionRest {
             @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Ví dụ: title,asc;id,desc") @RequestParam(required = false) String sort);
 
+    @Operation(summary = "Nhập câu hỏi hàng loạt từ Excel/CSV đã đọc ở frontend; lỗi một dòng thì không lưu dòng nào")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
+    @PostMapping("/import")
+    ResponseEntity<java.util.List<QuestionWrapper>> importQuestions(@RequestBody java.util.List<QuestionWrapper> rows);
+
     @Operation(summary = "Tạo câu hỏi")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PostMapping
     ResponseEntity<QuestionWrapper> create(@Valid @RequestBody QuestionWrapper wrapper);
 
     @Operation(summary = "Cập nhật câu hỏi, chỉ các trường khác null")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PutMapping("/{id}")
     ResponseEntity<QuestionWrapper> update(@PathVariable String id, @RequestBody QuestionWrapper wrapper);
 
     @Operation(summary = "Xóa câu hỏi")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable String id);
 

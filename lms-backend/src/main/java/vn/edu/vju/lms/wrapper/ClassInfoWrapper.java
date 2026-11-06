@@ -26,4 +26,7 @@ public class ClassInfoWrapper {
     private String leaderId;
 
     private List<String> studentIds;
+
+    /** Class size; set by the server so a student sees it without seeing the roster. */
+    private Integer studentCount;
 }

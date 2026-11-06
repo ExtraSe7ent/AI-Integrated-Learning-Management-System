@@ -15,6 +15,7 @@ import vn.edu.vju.lms.entity.Notice;
 import vn.edu.vju.lms.entity.UserAccount;
 import vn.edu.vju.lms.security.Role;
 import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.AnalyticsService;
 import vn.edu.vju.lms.service.AppealService;
 import vn.edu.vju.lms.service.AssessmentService;
 import vn.edu.vju.lms.service.AssignmentService;
@@ -68,13 +69,15 @@ public class BootstrapServiceImpl implements BootstrapService {
     private final StudyProgressService studyProgress;
     private final LiveService live;
     private final ChatService chat;
+    private final AnalyticsService analytics;
 
     public BootstrapServiceImpl(IUserAccountDao userDao, INoticeDao noticeDao, ICoordinationCompletionDao completionDao,
             CourseService courses, ClassInfoService classes, LessonService lessons, QuestionService questions,
             StudySessionService sessions, AssignmentService assignments, ResourceItemService resources,
             KnowledgeGapService gaps, FeedbackService feedback, AppealService appeals, ReminderService reminders,
             CoordinationItemService coordinationItems, ChangeRequestService changeRequests, ReferenceItemService references,
-            AssessmentService assessments, StudyProgressService studyProgress, LiveService live, ChatService chat) {
+            AssessmentService assessments, StudyProgressService studyProgress, LiveService live, ChatService chat,
+            AnalyticsService analytics) {
         this.userDao = userDao;
         this.noticeDao = noticeDao;
         this.completionDao = completionDao;
@@ -96,6 +99,7 @@ public class BootstrapServiceImpl implements BootstrapService {
         this.studyProgress = studyProgress;
         this.live = live;
         this.chat = chat;
+        this.analytics = analytics;
     }
 
     @Override
@@ -121,6 +125,8 @@ public class BootstrapServiceImpl implements BootstrapService {
         data.put("chat", chat.mine());
         data.put("live", live.state());
         data.put("coordination", coordination(user));
+        data.put("analytics", analytics.report());
+        data.put("gradeHistory", List.of());
         data.put("notices", notices(STUDENT_AUDIENCE));
         data.put("teacherNotices", notices(TEACHER_AUDIENCE));
         data.putAll(profileAndReadFlags(me));

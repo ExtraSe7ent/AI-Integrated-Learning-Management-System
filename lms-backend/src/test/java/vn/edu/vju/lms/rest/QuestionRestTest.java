@@ -22,7 +22,7 @@ class QuestionRestTest extends AbstractApiTest {
         QuestionWrapper wrapper = new QuestionWrapper();
         wrapper.setId(id);
         wrapper.setText("Câu hỏi mẫu?");
-        wrapper.setOptions(List.of("A", "B", "C"));
+        wrapper.setOptions(List.of("A", "B", "C", "D"));
         wrapper.setCorrect(1);
         wrapper.setExplanation("Giải thích");
         wrapper.setPage(1);

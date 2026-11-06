@@ -22,9 +22,6 @@ class ClassInfoRestTest extends AbstractApiTest {
 
     private static final String URL = "/api/class-info";
 
-    @Autowired
-    private ICourseDao courseDao;
-
     @BeforeEach
     void course() {
         if (courseDao.findById("c1").isEmpty()) {

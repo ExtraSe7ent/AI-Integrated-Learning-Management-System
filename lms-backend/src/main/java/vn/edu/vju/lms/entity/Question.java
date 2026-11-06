@@ -36,4 +36,8 @@ public class Question {
     private Integer page;
 
     private Boolean approved;
+
+    /** The lesson whose slide page this quiz is attached to; null means the demo lesson. */
+    @Column(name = "lesson_id", length = 100)
+    private String lessonId;
 }

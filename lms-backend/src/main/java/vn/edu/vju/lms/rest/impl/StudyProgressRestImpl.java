@@ -25,4 +25,12 @@ public class StudyProgressRestImpl implements StudyProgressRest {
     public ResponseEntity<StudyProgressWrapper> save(String sessionId, StudyProgressWrapper wrapper) {
         return ResponseEntity.ok(service.save(sessionId, wrapper));
     }
+
+    @Override
+    public ResponseEntity<StudyProgressService.QuizResult> answer(String sessionId, AnswerRequest request) {
+        if (request.questionId() == null || request.choice() == null) {
+            throw new vn.edu.vju.lms.common.exception.BusinessRuleException("Chọn một đáp án.");
+        }
+        return ResponseEntity.ok(service.answer(sessionId, request.questionId(), request.choice()));
+    }
 }

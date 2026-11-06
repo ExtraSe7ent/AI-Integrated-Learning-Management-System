@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import vn.edu.vju.lms.wrapper.ChatWrappers.AskRequest;
 import vn.edu.vju.lms.wrapper.ChatWrappers.ChatMessageWrapper;
+import vn.edu.vju.lms.wrapper.ChatWrappers.GeneratedQuestion;
+import vn.edu.vju.lms.wrapper.ChatWrappers.PracticeRequest;
+import vn.edu.vju.lms.wrapper.ChatWrappers.PracticeSet;
 import vn.edu.vju.lms.wrapper.ChatWrappers.RatingRequest;
 
 @Tag(name = "Trợ lý AI")
@@ -32,4 +35,13 @@ public interface ChatRest {
     @Operation(summary = "Đánh giá một câu trả lời")
     @PutMapping("/messages/{id}/rating")
     ResponseEntity<ChatMessageWrapper> rate(@PathVariable String id, @RequestBody RatingRequest request);
+
+    @Operation(summary = "Tạo bộ câu hỏi luyện tập theo phạm vi trang, không tính điểm")
+    @PostMapping("/practice")
+    ResponseEntity<PracticeSet> practice(@RequestBody PracticeRequest request);
+
+    @Operation(summary = "AI gợi ý câu hỏi cho giảng viên rà soát")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
+    @PostMapping("/question-suggestions")
+    ResponseEntity<List<GeneratedQuestion>> suggestQuestions(@RequestBody PracticeRequest request);
 }

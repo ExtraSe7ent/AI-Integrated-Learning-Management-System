@@ -24,7 +24,7 @@ class StudySessionRestTest extends AbstractApiTest {
         wrapper.setTitle("Phiên mẫu");
         wrapper.setOpens("2026-10-01T08:00");
         wrapper.setCloses("2027-01-31T23:59");
-        wrapper.setPublished(true);
+        wrapper.setPublished(false);
         wrapper.setLate(false);
         return wrapper;
     }

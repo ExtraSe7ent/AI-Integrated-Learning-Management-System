@@ -53,6 +53,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const flush = useCallback(async () => {
     if (flushing.current || !account.current) return;
     flushing.current = true;
+    let graded = false;
     try {
       // Rapid edits collapse: each round sends only the difference to the newest state.
       while (synced.current !== latest.current) {
@@ -60,12 +61,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const patches = await pushChanges(synced.current, target, account.current);
         synced.current = target;
         if (patches.length) {
+          graded = true;
           const current = latest.current;
           const patched = patches.reduce((d, p) => p(d), current);
           if (current === target) synced.current = patched;
           apply(patched);
         }
       }
+      if (graded) await reload();
     } catch (e) {
       setMessage((e as Error).message);
       await reload().catch(() => {});

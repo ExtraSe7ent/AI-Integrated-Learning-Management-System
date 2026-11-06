@@ -42,17 +42,17 @@ public interface StudySessionRest {
             @Parameter(description = "Ví dụ: title,asc;id,desc") @RequestParam(required = false) String sort);
 
     @Operation(summary = "Tạo phiên tự học")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PostMapping
     ResponseEntity<StudySessionWrapper> create(@Valid @RequestBody StudySessionWrapper wrapper);
 
     @Operation(summary = "Cập nhật phiên tự học, chỉ các trường khác null")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @PutMapping("/{id}")
     ResponseEntity<StudySessionWrapper> update(@PathVariable String id, @RequestBody StudySessionWrapper wrapper);
 
     @Operation(summary = "Xóa phiên tự học")
-    @PreAuthorize("hasAnyRole('ADMIN','LECTURER')")
+    @PreAuthorize("hasAnyRole('ADMIN','LECTURER','COURSE_LEADER')")
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable String id);
 

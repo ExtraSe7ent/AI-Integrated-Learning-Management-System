@@ -1,5 +1,8 @@
 package vn.edu.vju.lms.service;
 
+import java.util.List;
+import vn.edu.vju.lms.wrapper.LiveWrappers.LiveResultWrapper;
+
 import vn.edu.vju.lms.wrapper.LiveWrappers.LiveControl;
 import vn.edu.vju.lms.wrapper.LiveWrappers.LiveResponse;
 import vn.edu.vju.lms.wrapper.LiveWrappers.LiveStateWrapper;
@@ -12,4 +15,7 @@ public interface LiveService {
     LiveStateWrapper control(LiveControl control);
 
     LiveStateWrapper respond(LiveResponse response);
+
+    /** Saved in-class results of the caller's classes, newest first; classId narrows to one class. */
+    List<LiveResultWrapper> results(String classId);
 }

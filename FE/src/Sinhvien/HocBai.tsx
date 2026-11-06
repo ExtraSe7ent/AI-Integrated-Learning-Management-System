@@ -1,6 +1,11 @@
 import { materialSourceAvailable, recordChatFeedback } from "../AI/model";
 import { askAssistant } from "../api/assistant";
-import { useState } from "react";
+import { answerQuiz } from "../api/study";
+import { materialFileUrl } from "../api/materials";
+import { explanationsOf } from "../api/studyAi";
+import type { Explanation } from "../api/studyAi";
+import { ExplanationView } from "../AI/StudyText";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,19 +26,43 @@ import {
 import { advanceStudy, studyFor } from "../data/study";
 import { useDemo } from "../data/DemoProvider";
 import { slideTitles } from "../data/fixtures";
-import { Button, Badge, Progress, Dialog, Field } from "../shared/UI";
+import { lessonOf } from "../data/content";
+import { Button, Badge, Progress, Dialog, Field, Empty } from "../shared/UI";
+import type { Session } from "../data/fixtures";
 import { canAdvance, sessionState } from "../data/rules";
 export function HocBai() {
-  const { data, setData, notify } = useDemo();
+  const { data } = useDemo();
   const [params] = useSearchParams();
-  const sessionId = params.get("phien") || "s1";
-  const record = studyFor(data, sessionId);
   const session =
-    data.sessions.find((s) => s.id === sessionId) || data.sessions[0];
-  const lessonTitle =
-    data.lessons.find((l) => l.id === "l2")?.title || "Thiết kế RESTful API";
-  const titles = data.lessons.find((l) => l.id === "l2")?.slides || slideTitles;
+    data.sessions.find((s) => s.id === params.get("phien")) ||
+    data.sessions.find((s) => s.published);
+  if (!session)
+    return (
+      <Empty
+        title="Chưa có phiên tự học"
+        description="Giảng viên chưa công bố phiên tự học nào cho lớp của bạn."
+        action={
+          <Link className="button secondary" to="/sinh-vien/tu-hoc">
+            Về phiên tự học
+          </Link>
+        }
+      />
+    );
+  return <Reader key={session.id} session={session} />;
+}
+function Reader({ session }: { session: Session }) {
+  const { data, setData, notify, reload } = useDemo();
+  const [params] = useSearchParams();
+  const sessionId = session.id;
+  const record = studyFor(data, sessionId);
+  // The session's own lesson (UC-A02 links them); the built-in slide artwork exists only for the demo lesson.
+  const lesson = data.lessons.find((l) => l.id === lessonOf(session));
+  const demoLesson = (lesson?.id ?? "l2") === "l2";
+  const lessonTitle = lesson?.title || "Thiết kế RESTful API";
+  const titles = lesson?.slides?.length ? lesson.slides : slideTitles;
   const total = titles.length;
+  const courseId =
+    data.admin.classes.find((c) => c.id === (lesson?.classId || "CSE301.01"))?.courseId ?? "cs301";
   const [page, setPage] = useState(
       Math.max(
         1,
@@ -46,7 +75,34 @@ export function HocBai() {
     [list, setList] = useState(false),
     [question, setQuestion] = useState(""),
     [body, setBody] = useState("");
-  const q = data.questions.find((q) => q.page === page && q.approved);
+  const [explanations, setExplanations] = useState<Explanation[]>([]);
+  // The lecturer's PDF for this lesson, fetched with the login token (a plain link cannot send it).
+  const [pdfUrl, setPdfUrl] = useState("");
+  const materialId = lesson?.materialId;
+  useEffect(() => {
+    if (!materialId) return;
+    let url = "";
+    let live = true;
+    materialFileUrl(materialId).then(
+      (u) => {
+        url = u;
+        if (live) setPdfUrl(u);
+        else URL.revokeObjectURL(u);
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [materialId]);
+  useEffect(() => {
+    // Only published explanations come back for a student; a failure just leaves the tab empty.
+    explanationsOf(courseId).then(setExplanations).catch(() => setExplanations([]));
+  }, [courseId]);
+  const q = data.questions.find(
+    (q) => lessonOf(q) === (lesson?.id ?? "l2") && q.page === page && q.approved,
+  );
   const saved = q ? record.answers[q.id] : undefined;
   const answered = saved !== undefined;
   const state = sessionState(
@@ -61,18 +117,16 @@ export function HocBai() {
     setPage(Math.max(1, Math.min(next, total)));
     setSelected(undefined);
   }
-  function confirmAnswer() {
+  /** UC-B03: the server grades the answer; the key and explanation arrive with the reload that follows. */
+  async function confirmAnswer() {
     if (!q || selected === undefined) return;
-    setData((d) => ({
-      ...d,
-      studySessions: {
-        ...d.studySessions,
-        [sessionId]: {
-          ...record,
-          answers: { ...record.answers, [q.id]: selected },
-        },
-      },
-    }));
+    try {
+      // The answer is already saved by the server; reloading brings the key and the new progress.
+      await answerQuiz(sessionId, q.id, selected);
+      await reload();
+    } catch (e) {
+      notify((e as Error).message);
+    }
   }
   function next() {
     if (!locked && page > record.progress + 1) {
@@ -95,7 +149,8 @@ export function HocBai() {
     const text = question.trim();
     setQuestion("");
     try {
-      const reply = await askAssistant("cs301", text);
+      // UC-B04: the slide being read is sent as context.
+      const reply = await askAssistant(courseId, text, page);
       setData((d) => ({ ...d, chat: [...d.chat, reply] }));
     } catch (e) {
       setQuestion(text);
@@ -113,7 +168,9 @@ export function HocBai() {
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <small>CSE301 · PHIÊN TỰ HỌC</small>
+          <small>
+            {data.admin.courses.find((c) => c.id === courseId)?.code ?? ""} · PHIÊN TỰ HỌC
+          </small>
           <h1>{lessonTitle}</h1>
         </div>
         <div className="reader-progress">
@@ -150,10 +207,19 @@ export function HocBai() {
               <small>{i < 3 ? "Có câu hỏi" : "Tổng kết"}</small>
             </button>
           ))}
-          <a className="text-link" href="/materials/demo-lesson.pdf" download>
-            <Download size={15} />
-            Tải PDF
-          </a>
+          {pdfUrl ? (
+            <a className="text-link" href={pdfUrl} download={lesson?.pdfName || "bai-giang.pdf"}>
+              <Download size={15} />
+              Tải PDF
+            </a>
+          ) : (
+            demoLesson && (
+              <a className="text-link" href="/materials/demo-lesson.pdf" download>
+                <Download size={15} />
+                Tải PDF
+              </a>
+            )
+          )}
         </aside>
         <div className="reader-center">
           <div className="reader-toolbar">
@@ -188,23 +254,36 @@ export function HocBai() {
                 className="icon-button"
                 aria-label="Toàn màn hình bài học"
                 onClick={() =>
-                  document.querySelector(".slide-stage")?.requestFullscreen()
+                  document.querySelector(pdfUrl ? ".slide-pdf" : ".slide-stage")?.requestFullscreen()
                 }
               >
                 <Maximize2 size={17} />
               </button>
             </div>
           </div>
-          <div className="slide-stage">
+          {pdfUrl && (
+            <iframe
+              key={page}
+              className="slide-pdf"
+              src={`${pdfUrl}#page=${page}`}
+              title={`Bài giảng PDF · Trang ${page}`}
+            />
+          )}
+          <div className="slide-stage" hidden={Boolean(pdfUrl)}>
             <div className="slide-brand">
               <img src="/brand/vju-seal.jpeg" alt="VJU" />
               <span>PHÁT TRIỂN ỨNG DỤNG NÂNG CAO</span>
             </div>
             <span className="slide-chapter">
-              {String(page).padStart(2, "0")} / RESTFUL API
+              {String(page).padStart(2, "0")} / {lessonTitle.toUpperCase()}
             </span>
             <h2>{titles[page - 1]}</h2>
-            {page === 1 ? (
+            {!demoLesson ? (
+              <p className="slide-lead">
+                Trang {page} / {total} của bài “{lessonTitle}”. Xem phần giải thích ở tab “Bài giảng”, trả lời câu
+                hỏi của trang hoặc hỏi Chat AI về nội dung này.
+              </p>
+            ) : page === 1 ? (
               <>
                 <p className="slide-lead">
                   Một cách thống nhất để các ứng dụng
@@ -332,6 +411,13 @@ export function HocBai() {
               Chat AI
             </button>
             <button
+              className={tab === "lesson" ? "selected" : ""}
+              onClick={() => setTab("lesson")}
+            >
+              <FileText size={14} />
+              Bài giảng
+            </button>
+            <button
               className={tab === "notes" ? "selected" : ""}
               onClick={() => setTab("notes")}
             >
@@ -339,7 +425,26 @@ export function HocBai() {
               Ghi chú
             </button>
           </div>
-          {tab === "question" ? (
+          {tab === "lesson" ? (
+            <div className="question-panel">
+              <Badge>Bài giảng AI · Trang {page}</Badge>
+              {explanations.find((e) => e.page === page) ? (
+                <>
+                  <ExplanationView
+                    content={explanations.find((e) => e.page === page)!.content}
+                  />
+                  <small className="muted">
+                    Do AI soạn từ học liệu và giảng viên đã duyệt. Đối chiếu slide
+                    khi cần.
+                  </small>
+                </>
+              ) : (
+                <p className="muted">
+                  Giảng viên chưa công bố bài giảng AI cho trang này.
+                </p>
+              )}
+            </div>
+          ) : tab === "question" ? (
             <div className="question-panel">
               <Badge>{q ? "Kiểm tra kiến thức" : "Tổng kết bài học"}</Badge>
               <h2>{q?.text || "Bạn đã đến cuối bài học!"}</h2>
@@ -419,7 +524,7 @@ export function HocBai() {
                         <p>{m.answer}</p>
                         {m.page > 0 &&
                           m.page <= total &&
-                          materialSourceAvailable(data) && (
+                          (!demoLesson || materialSourceAvailable(data)) && (
                             <button
                               className="source-chip"
                               onClick={() => go(m.page)}
@@ -463,10 +568,10 @@ export function HocBai() {
                     <p>Hỏi về REST, HTTP hoặc trang bài học đang xem.</p>
                     <button
                       onClick={() =>
-                        setQuestion("Giải thích RESTful API là gì?")
+                        setQuestion(`Giải thích nội dung trang ${page}`)
                       }
                     >
-                      Giải thích RESTful API là gì?
+                      Giải thích nội dung trang {page}
                     </button>
                   </div>
                 )}
