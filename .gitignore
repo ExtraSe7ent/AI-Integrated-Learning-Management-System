@@ -1,20 +1,25 @@
 # Dependencies and generated output
 node_modules/
 dist/
+.vite/
+.cache/
 coverage/
 artifacts/
 test-results/
 playwright-report/
+playwright/.cache/
+blob-report/
 *.tsbuildinfo
 *.log
 
 # Local environment and machine files
 .env*
 !.env.example
+*.pem
+*.key
 .DS_Store
 .idea/
-
-# Agent tooling and local configuration
-.impeccable/
-.specify/
-.agents/
+*.swp
+*.swo
+*~
+*.bak
