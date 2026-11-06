@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:lmstest;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+lms:
+  seed:
+    enabled: false
+  security:
+    jwt-secret: test-jwt-secret-test-jwt-secret-test-jwt-secret
+  crypto:
+    passphrase: test-passphrase
+    salt: test-salt
+    iterations: 1000
+  storage:
+    root: ./target/test-storage

@@ -1,0 +1,15 @@
+# Local development only: file-based H2 and throwaway secrets, so the app runs without any setup.
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/lms;MODE=PostgreSQL;AUTO_SERVER=TRUE
+    username: sa
+    password: ""
+
+lms:
+  seed:
+    enabled: true
+  security:
+    jwt-secret: dev-only-jwt-secret-change-me-dev-only-jwt-secret
+  crypto:
+    passphrase: dev-only-aes-passphrase
+    salt: dev-only-aes-salt
