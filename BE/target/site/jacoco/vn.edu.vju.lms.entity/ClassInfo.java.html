@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClassInfo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.entity</a> &gt; <span class="el_source">ClassInfo.java</span></div><h1>ClassInfo.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.entity;
+
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = &quot;class_info&quot;)
+@Getter
+@Setter
+<span class="fc" id="L19">public class ClassInfo {</span>
+
+    @Id
+    @Column(length = 50)
+    private String id;
+
+    @Column(name = &quot;course_id&quot;, nullable = false, length = 100)
+    private String courseId;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(length = 10)
+    private String term;
+
+    @Column(name = &quot;academic_year&quot;, length = 20)
+    private String year;
+
+    @Column(name = &quot;enroll_round&quot;, length = 10)
+    private String round;
+
+    @Column(name = &quot;teacher_id&quot;, length = 50)
+    private String teacherId;
+
+    @Column(name = &quot;leader_id&quot;, length = 50)
+    private String leaderId;
+
+<span class="fc" id="L46">    @ElementCollection</span>
+    @CollectionTable(name = &quot;class_enrollments&quot;, joinColumns = @JoinColumn(name = &quot;class_id&quot;))
+    @Column(name = &quot;student_id&quot;, length = 50)
+    private List&lt;String&gt; studentIds = new ArrayList&lt;&gt;();
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LmsProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.config</a> &gt; <span class="el_source">LmsProperties.java</span></div><h1>LmsProperties.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.config;
+
+import java.util.List;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+@Data
+@ConfigurationProperties(prefix = &quot;lms&quot;)
+public class LmsProperties {
+
+    private String timeZone = &quot;Asia/Ho_Chi_Minh&quot;;
+
+    /**
+     * Opening and due times are typed in the browser without a zone, so the server must read them in the zone the
+     * users' clocks show. A blank value means this machine's zone (development: browser and server share it).
+     */
+    public String getTimeZone() {
+<span class="fc bfc" id="L18" title="All 4 branches covered.">        return timeZone == null || timeZone.isBlank() ? java.time.ZoneId.systemDefault().getId() : timeZone;</span>
+    }
+    private String defaultPassword = &quot;12345678&quot;;
+    private Cors cors = new Cors();
+    private Security security = new Security();
+    private Crypto crypto = new Crypto();
+    private Storage storage = new Storage();
+    private Ai ai = new Ai();
+    private Seed seed = new Seed();
+    private Reminder reminder = new Reminder();
+    private Mcp mcp = new Mcp();
+
+    @Data
+    public static class Mcp {
+        private String internalUrl = &quot;&quot;;
+        private String internalKey = &quot;&quot;;
+    }
+
+    @Data
+    public static class Cors {
+        private List&lt;String&gt; allowedOrigins = List.of();
+    }
+
+    @Data
+    public static class Security {
+        private String jwtSecret;
+        private long jwtTtlMinutes = 1440;
+    }
+
+    @Data
+    public static class Crypto {
+        private String passphrase;
+        private String salt;
+        private int iterations = 310000;
+    }
+
+    @Data
+    public static class Storage {
+        private String root = &quot;./private_media&quot;;
+        private long pdfMaxMb = 50;
+        private long videoMaxMb = 500;
+    }
+
+    @Data
+    public static class Seed {
+        private boolean enabled;
+        /** On an empty database: false loads only the accounts, without demo courses, lessons or results. */
+        private boolean demo = true;
+        /** At startup: delete all learning data and uploaded files but keep every account as it is. */
+        private boolean clearKeepAccounts;
+    }
+
+    @Data
+    public static class Reminder {
+        private String cron = &quot;0 0 * * * *&quot;;
+        private String smtpHost = &quot;&quot;;
+        private String mailFrom = &quot;no-reply@vju-learning.local&quot;;
+    }
+
+    @Data
+    public static class Ai {
+        private int dailyLimitStudent = 40;
+        private int dailyLimitTeacher = 200;
+        private int maxChunks = 160;
+        private String openrouterApiKey = &quot;&quot;;
+        private String openrouterBaseUrl = &quot;https://openrouter.ai/api/v1&quot;;
+        private String vilaoApiKey = &quot;&quot;;
+        private String vilaoBaseUrl = &quot;https://api.vilao.ai/v1&quot;;
+        private String chatProvider = &quot;openrouter&quot;;
+        private String chatModel = &quot;google/gemini-2.5-flash&quot;;
+        private String fastProvider = &quot;vilao&quot;;
+        private String fastModel = &quot;gemini-3.8-flash&quot;;
+        private String embedProvider = &quot;vilao&quot;;
+        private String embedModel = &quot;text-embedding-3-small&quot;;
+        private int embedDim = 1536;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserAccountServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">UserAccountServiceImpl.java</span></div><h1>UserAccountServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.util.List;
+import java.util.Locale;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.crypto.AesService;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.service.UserAccountService;
+import vn.edu.vju.lms.wrapper.UserAccountWrapper;
+
+@Service
+public class UserAccountServiceImpl extends AbstractCrudService&lt;UserAccount, UserAccountWrapper&gt;
+        implements UserAccountService {
+
+<span class="fc" id="L24">    private static final List&lt;Role&gt; STAFF_ROLES = List.of(Role.LECTURER, Role.DEAN, Role.COURSE_LEADER);</span>
+
+    private final IUserAccountDao dao;
+    private final PasswordEncoder passwordEncoder;
+    private final AesService aesService;
+    private final LmsProperties properties;
+
+    public UserAccountServiceImpl(IUserAccountDao dao, PasswordEncoder passwordEncoder, AesService aesService,
+<span class="fc" id="L32">            LmsProperties properties) {</span>
+<span class="fc" id="L33">        this.dao = dao;</span>
+<span class="fc" id="L34">        this.passwordEncoder = passwordEncoder;</span>
+<span class="fc" id="L35">        this.aesService = aesService;</span>
+<span class="fc" id="L36">        this.properties = properties;</span>
+<span class="fc" id="L37">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, UserAccount&gt; dao() {
+<span class="fc" id="L41">        return dao;</span>
+    }
+
+    @Override
+    protected UserAccount newEntity() {
+<span class="fc" id="L46">        return new UserAccount();</span>
+    }
+
+    @Override
+    protected UserAccountWrapper toWrapper(UserAccount entity) {
+<span class="fc" id="L51">        return toUserWrapper(entity);</span>
+    }
+
+    static UserAccountWrapper toUserWrapper(UserAccount entity) {
+<span class="fc" id="L55">        UserAccountWrapper wrapper = new UserAccountWrapper();</span>
+<span class="fc" id="L56">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L57">        wrapper.setName(entity.getName());</span>
+<span class="fc" id="L58">        wrapper.setEmail(entity.getEmail());</span>
+<span class="fc" id="L59">        wrapper.setPhone(entity.getPhone());</span>
+<span class="fc" id="L60">        wrapper.setFaculty(entity.getFaculty());</span>
+<span class="fc" id="L61">        wrapper.setMajor(entity.getMajor());</span>
+<span class="fc" id="L62">        wrapper.setKind(entity.getKind());</span>
+<span class="fc" id="L63">        wrapper.setRole(entity.getRole());</span>
+<span class="fc" id="L64">        wrapper.setActive(entity.isActive());</span>
+<span class="fc" id="L65">        wrapper.setMustChange(entity.isMustChange());</span>
+<span class="fc" id="L66">        return wrapper;</span>
+    }
+
+    /** Admins may only change role and status; identity fields stay as imported. */
+    @Override
+    protected void mapWrapperToEntity(UserAccountWrapper wrapper, UserAccount entity) {
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (wrapper.getRole() != null) {</span>
+<span class="nc" id="L73">            entity.setRole(wrapper.getRole());</span>
+        }
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (wrapper.getActive() != null) {</span>
+<span class="fc" id="L76">            entity.setActive(wrapper.getActive());</span>
+        }
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        if (wrapper.getMustChange() != null) {</span>
+<span class="nc" id="L79">            entity.setMustChange(wrapper.getMustChange());</span>
+        }
+<span class="fc" id="L81">    }</span>
+
+    @Override
+    protected String wrapperId(UserAccountWrapper wrapper) {
+<span class="fc" id="L85">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(UserAccount entity, String id) {
+<span class="fc" id="L90">        entity.setId(id);</span>
+<span class="fc" id="L91">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="nc" id="L95">        return &quot;Không tìm thấy tài khoản.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeCreate(UserAccountWrapper wrapper, UserAccount entity) {
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">        if (wrapper.getId() == null || !wrapper.getId().matches(&quot;^[\\p{L}\\p{N}_.-]+$&quot;)) {</span>
+<span class="fc" id="L101">            throw new BusinessRuleException(&quot;Mã không hợp lệ: &quot; + wrapper.getId());</span>
+        }
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        if (!StringUtils.hasText(wrapper.getName())) {</span>
+<span class="nc" id="L104">            throw new BusinessRuleException(&quot;Thiếu họ tên: &quot; + wrapper.getId());</span>
+        }
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">        if (dao.findByIdIgnoreCase(wrapper.getId()).isPresent()) {</span>
+<span class="nc" id="L107">            throw new BusinessRuleException(&quot;Mã đã tồn tại: &quot; + wrapper.getId());</span>
+        }
+<span class="pc bpc" id="L109" title="1 of 4 branches missed.">        if (wrapper.getEmail() == null || !wrapper.getEmail().trim().matches(&quot;^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$&quot;)) {</span>
+<span class="fc" id="L110">            throw new BusinessRuleException(&quot;Email không hợp lệ: &quot; + wrapper.getId());</span>
+        }
+<span class="fc" id="L112">        String hash = emailHash(wrapper.getEmail());</span>
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">        if (dao.existsByEmailHash(hash)) {</span>
+<span class="nc" id="L114">            throw new BusinessRuleException(&quot;Email đã tồn tại: &quot; + wrapper.getEmail());</span>
+        }
+<span class="fc" id="L116">        boolean student = &quot;student&quot;.equals(wrapper.getKind());</span>
+<span class="fc bfc" id="L117" title="All 4 branches covered.">        if (!student &amp;&amp; !&quot;teacher&quot;.equals(wrapper.getKind())) {</span>
+<span class="fc" id="L118">            throw new BusinessRuleException(&quot;Loại tài khoản không hợp lệ.&quot;);</span>
+        }
+        // UC-G05: a lecturer list carries Mã GV, Họ tên, Email and Khoa.
+<span class="fc bfc" id="L121" title="All 4 branches covered.">        if (!student &amp;&amp; !StringUtils.hasText(wrapper.getFaculty())) {</span>
+<span class="fc" id="L122">            throw new BusinessRuleException(&quot;Thiếu khoa của giảng viên: &quot; + wrapper.getId());</span>
+        }
+<span class="fc" id="L124">        entity.setName(wrapper.getName().trim());</span>
+<span class="fc" id="L125">        entity.setEmail(wrapper.getEmail().trim());</span>
+<span class="fc" id="L126">        entity.setEmailHash(hash);</span>
+<span class="fc" id="L127">        entity.setPhone(wrapper.getPhone());</span>
+<span class="fc" id="L128">        entity.setFaculty(wrapper.getFaculty());</span>
+<span class="fc" id="L129">        entity.setKind(wrapper.getKind());</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        entity.setRole(student ? Role.STUDENT : Role.LECTURER);</span>
+<span class="fc" id="L131">        entity.setActive(true);</span>
+<span class="fc" id="L132">        entity.setMustChange(true);</span>
+<span class="fc" id="L133">        entity.setPasswordHash(passwordEncoder.encode(properties.getDefaultPassword()));</span>
+<span class="fc" id="L134">    }</span>
+
+    @Override
+    @Transactional
+    public UserAccountWrapper update(String id, UserAccountWrapper wrapper) {
+<span class="fc" id="L139">        UserAccount current = require(id);</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        if (&quot;admin&quot;.equals(current.getKind())) {</span>
+<span class="fc" id="L141">            throw new BusinessRuleException(&quot;Không thay đổi tài khoản quản trị tại đây.&quot;);</span>
+        }
+<span class="pc bpc" id="L143" title="1 of 4 branches missed.">        if (wrapper.getRole() != null &amp;&amp; wrapper.getRole() != current.getRole()</span>
+<span class="pc bpc" id="L144" title="3 of 4 branches missed.">                &amp;&amp; (!&quot;teacher&quot;.equals(current.getKind()) || !STAFF_ROLES.contains(wrapper.getRole()))) {</span>
+<span class="fc" id="L145">            throw new BusinessRuleException(&quot;Chỉ gán vai trò quản lý cho tài khoản giảng viên.&quot;);</span>
+        }
+<span class="fc" id="L147">        return super.update(id, wrapper);</span>
+    }
+
+    @Override
+    @Transactional
+    public void delete(String id) {
+<span class="nc" id="L153">        throw new BusinessRuleException(&quot;Không xóa tài khoản; hãy vô hiệu hóa để giữ dữ liệu học tập.&quot;);</span>
+    }
+
+    @Override
+    @Transactional
+    public List&lt;UserAccountWrapper&gt; importAccounts(List&lt;UserAccountWrapper&gt; rows) {
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        if (rows.isEmpty()) {</span>
+<span class="fc" id="L160">            throw new BusinessRuleException(&quot;Tệp không có dòng dữ liệu.&quot;);</span>
+        }
+<span class="fc" id="L162">        return rows.stream().map(this::create).toList();</span>
+    }
+
+    @Override
+    @Transactional
+    public UserAccountWrapper resetPassword(String id) {
+<span class="fc" id="L168">        UserAccount account = require(id);</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        if (&quot;admin&quot;.equals(account.getKind())) {</span>
+<span class="fc" id="L170">            throw new BusinessRuleException(&quot;Không thay đổi tài khoản quản trị tại đây.&quot;);</span>
+        }
+<span class="fc" id="L172">        account.setPasswordHash(passwordEncoder.encode(properties.getDefaultPassword()));</span>
+<span class="fc" id="L173">        account.setMustChange(true);</span>
+<span class="fc" id="L174">        return toWrapper(dao.merge(account));</span>
+    }
+
+    private String emailHash(String email) {
+<span class="fc" id="L178">        return aesService.blindIndex(email.trim().toLowerCase(Locale.ROOT));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

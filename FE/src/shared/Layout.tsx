@@ -45,6 +45,7 @@ export const teacherNav: [string, string, LucideIcon][] = [
   ["lop-hoc", "Lớp giảng dạy", BookOpen],
   ["bai-hoc", "Bài học & học liệu", FolderOpen],
   ["phien-tu-hoc", "Phiên tự học", ListChecks],
+  ["hoc-lieu-ai", "Học liệu AI", Sparkles],
   ["bai-tap", "Bài tập & kiểm tra", ClipboardList],
   ["ngan-hang-cau-hoi", "Ngân hàng câu hỏi", MessageSquare],
   ["tren-lop", "Lớp học trực tiếp", Radio],
@@ -71,8 +72,8 @@ export function Layout() {
     ...nav.map(([path, label]) => [path, label]),
     ["tro-ly-ai", "Trợ lý AI"],
     ...(!teacher
-      ? [["luyen-tap", "Luyện tập"]]
-      : [["phuc-khao", "Yêu cầu phúc khảo"]]),
+      ? [["luyen-tap", "Luyện tập"], ["on-tap", "Ôn tập"]]
+      : [["phuc-khao", "Yêu cầu phúc khảo"], ["ket-noi-agent", "Kết nối agent AI"]]),
     ["tai-lieu", "Tài liệu tham khảo"],
     ["phan-hoi", "Phản hồi & hỗ trợ"],
     ["ho-so", "Hồ sơ cá nhân"],
@@ -202,6 +203,16 @@ export function Layout() {
             >
               <ListChecks size={19} />
               <span>Luyện tập</span>
+            </NavLink>
+          )}
+          {!teacher && (
+            <NavLink
+              className="nav-item"
+              to="/sinh-vien/on-tap"
+              onClick={() => setOpen(false)}
+            >
+              <BookOpen size={19} />
+              <span>Ôn tập</span>
             </NavLink>
           )}
           <NavLink
@@ -358,7 +369,7 @@ export function Layout() {
                       <Link
                         key={i}
                         className="notice-preview-row"
-                        to={`/${role}/${teacher ? ["cham-bai", "phan-hoi", "lop-hoc/cs301"][i] : "tu-hoc"}`}
+                        to={`/${role}/${teacher ? ["cham-bai", "phan-hoi", "lop-hoc"][i] ?? "tong-quan" : "tu-hoc"}`}
                         onClick={() => setPopup(null)}
                       >
                         <span className="task-icon">
@@ -400,6 +411,7 @@ export function Layout() {
                   >
                     Hồ sơ cá nhân
                   </Link>
+                  {teacher && <Link to="/giang-vien/ket-noi-agent" onClick={() => { setPopup(null); setOpen(false); }}>Kết nối agent AI</Link>}
                   <Link
                     to="/doi-mat-khau"
                     onClick={() => {

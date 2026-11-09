@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AgentConnectionService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service</a> &gt; <span class="el_source">AgentConnectionService.java</span></div><h1>AgentConnectionService.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import vn.edu.vju.lms.config.LmsProperties;
+
+/** The web never receives the service key or the backend/MCP bearer tokens. */
+@Service
+public class AgentConnectionService {
+<span class="fc" id="L18">    public record Connection(String id, String clientName, List&lt;String&gt; scopes, long createdAt, long expiresAt) { }</span>
+<span class="fc" id="L19">    public record Settings(String status, String message, String mcpUrl, List&lt;Connection&gt; connections) { }</span>
+<span class="fc" id="L20">    public record Revoked(int revoked) { }</span>
+    private final LmsProperties properties;
+    private final ObjectMapper mapper;
+<span class="fc" id="L23">    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2))</span>
+<span class="fc" id="L24">            .followRedirects(HttpClient.Redirect.NEVER).build();</span>
+
+<span class="fc" id="L26">    public AgentConnectionService(LmsProperties properties, ObjectMapper mapper) {</span>
+<span class="fc" id="L27">        this.properties = properties; this.mapper = mapper;</span>
+<span class="fc" id="L28">    }</span>
+    private boolean configured() {
+<span class="pc bpc" id="L30" title="1 of 4 branches missed.">        return !properties.getMcp().getInternalUrl().isBlank() &amp;&amp; properties.getMcp().getInternalKey().length() &gt;= 32;</span>
+    }
+    private &lt;T&gt; T request(String path, String method, String token, Class&lt;T&gt; type) {
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">        if (!configured()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, &quot;Chưa bật kết nối agent AI.&quot;);</span>
+        try {
+<span class="fc" id="L35">            URI base=URI.create(properties.getMcp().getInternalUrl());</span>
+            // A local service bridge, never a URL supplied by a student/agent or a forwarded Host header.
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">            if (!List.of(&quot;127.0.0.1&quot;, &quot;localhost&quot;, &quot;[::1]&quot;).contains(base.getHost())</span>
+<span class="pc bpc" id="L38" title="3 of 6 branches missed.">                    || !&quot;http&quot;.equals(base.getScheme()) || base.getUserInfo()!=null || base.getQuery()!=null</span>
+<span class="pc bpc" id="L39" title="4 of 6 branches missed.">                    || base.getFragment()!=null || !(base.getPath().isEmpty() || base.getPath().equals(&quot;/&quot;))) {</span>
+<span class="nc" id="L40">                throw new IllegalArgumentException(&quot;Invalid bridge origin&quot;);</span>
+            }
+<span class="fc" id="L42">            var request=HttpRequest.newBuilder(base.resolve(path)).timeout(Duration.ofSeconds(5))</span>
+<span class="fc" id="L43">                    .header(&quot;Authorization&quot;, token).header(&quot;X-LMS-MCP-Key&quot;,properties.getMcp().getInternalKey())</span>
+<span class="fc" id="L44">                    .method(method,HttpRequest.BodyPublishers.noBody()).build();</span>
+<span class="fc" id="L45">            var response=client.send(request,HttpResponse.BodyHandlers.ofString());</span>
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">            if(response.statusCode()==404) throw new ResponseStatusException(HttpStatus.NOT_FOUND,&quot;Không tìm thấy kết nối của bạn.&quot;);</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">            if(response.statusCode()!=200) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,&quot;Chưa thể quản lý kết nối agent. Hãy thử lại.&quot;);</span>
+<span class="fc" id="L48">            return mapper.readValue(response.body(),type);</span>
+<span class="nc" id="L49">        } catch(ResponseStatusException e) { throw e;</span>
+<span class="nc" id="L50">        } catch(InterruptedException e) {</span>
+<span class="nc" id="L51">            Thread.currentThread().interrupt();</span>
+<span class="nc" id="L52">            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,&quot;Dịch vụ kết nối agent đang gián đoạn.&quot;);</span>
+<span class="fc" id="L53">        } catch(Exception e) {</span>
+<span class="fc" id="L54">            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,&quot;Dịch vụ kết nối agent đang tắt hoặc không phản hồi.&quot;);</span>
+        }
+    }
+    public Settings settings(String token) {
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        if(!configured()) return new Settings(&quot;disabled&quot;,&quot;Kết nối agent AI chưa được bật. Liên hệ người quản trị hệ thống.&quot;,null,List.of());</span>
+        try {
+<span class="fc" id="L60">            Settings data=request(&quot;/internal/connections&quot;,&quot;GET&quot;,token,Settings.class);</span>
+<span class="pc bpc" id="L61" title="2 of 4 branches missed.">            if(!List.of(&quot;ready&quot;,&quot;local&quot;,&quot;disabled&quot;).contains(data.status()) || data.connections()==null) throw new IllegalArgumentException();</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            if(&quot;ready&quot;.equals(data.status())) {</span>
+<span class="fc" id="L63">                URI url=URI.create(data.mcpUrl());</span>
+<span class="pc bpc" id="L64" title="6 of 12 branches missed.">                if(!&quot;https&quot;.equals(url.getScheme()) || url.getHost()==null || url.getUserInfo()!=null || url.getQuery()!=null || url.getFragment()!=null || !&quot;/mcp&quot;.equals(url.getPath())) throw new IllegalArgumentException();</span>
+<span class="pc bnc" id="L65" title="All 2 branches missed.">            } else if(data.mcpUrl()!=null) throw new IllegalArgumentException();</span>
+<span class="fc" id="L66">            return data;</span>
+<span class="fc" id="L67">        } catch(Exception e) {</span>
+<span class="fc" id="L68">            return new Settings(&quot;unavailable&quot;,&quot;Không kết nối được dịch vụ agent AI. Link tạm thời không được hiển thị để tránh dùng nhầm link cũ.&quot;,null,List.of());</span>
+        }
+    }
+    public Revoked revoke(String id,String token) {
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if(!id.matches(&quot;[A-Za-z0-9_-]{1,128}&quot;)) throw new ResponseStatusException(HttpStatus.NOT_FOUND,&quot;Không tìm thấy kết nối của bạn.&quot;);</span>
+<span class="fc" id="L73">        return request(&quot;/internal/connections/&quot;+id,&quot;DELETE&quot;,token,Revoked.class);</span>
+    }
+<span class="fc" id="L75">    public Revoked revokeAll(String token) { return request(&quot;/internal/connections/revoke-all&quot;,&quot;POST&quot;,token,Revoked.class); }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

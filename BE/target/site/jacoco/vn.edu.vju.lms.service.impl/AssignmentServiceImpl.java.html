@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssignmentServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">AssignmentServiceImpl.java</span></div><h1>AssignmentServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IAssessmentDao;
+import vn.edu.vju.lms.dao.IAssignmentDao;
+import vn.edu.vju.lms.entity.Assignment;
+import vn.edu.vju.lms.entity.ExamQuestion;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.AssessmentGrader;
+import vn.edu.vju.lms.service.AssignmentService;
+import vn.edu.vju.lms.wrapper.AssignmentWrapper;
+
+@Service
+public class AssignmentServiceImpl extends AbstractCrudService&lt;Assignment, AssignmentWrapper&gt; implements AssignmentService {
+
+    private static final double TOTAL_POINTS = 10.0;
+<span class="fc" id="L22">    private static final List&lt;String&gt; TYPES = List.of(ExamQuestion.CHOICE, ExamQuestion.BLANK, ExamQuestion.ESSAY);</span>
+
+    private final vn.edu.vju.lms.service.AssignmentPolicy policy;
+    private final IAssignmentDao dao;
+    private final IAssessmentDao assessmentDao;
+
+<span class="fc" id="L28">    public AssignmentServiceImpl(IAssignmentDao dao, IAssessmentDao assessmentDao, vn.edu.vju.lms.service.AssignmentPolicy policy) {</span>
+<span class="fc" id="L29">        this.policy = policy;</span>
+<span class="fc" id="L30">        this.dao = dao;</span>
+<span class="fc" id="L31">        this.assessmentDao = assessmentDao;</span>
+<span class="fc" id="L32">    }</span>
+
+    @Override
+    protected org.springframework.data.jpa.domain.Specification&lt;Assignment&gt; readScope() {
+<span class="fc" id="L36">        var ids=dao.findAll().stream().filter(policy::canRead).map(Assignment::getId).toList();</span>
+<span class="fc" id="L37">        return (root, query, builder) -&gt; root.get(&quot;id&quot;).in(ids);</span>
+    }
+    @Override
+<span class="nc" id="L40">    protected void checkRead(Assignment entity) { policy.requireRead(entity); }</span>
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public AssignmentWrapper get(String id) {
+<span class="fc" id="L45">        Assignment a=locked(id);policy.requireRead(a);policy.refresh(a);return toWrapper(a);</span>
+    }
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public List&lt;AssignmentWrapper&gt; listAll() {
+<span class="fc" id="L50">        return dao.findAll().stream().filter(policy::canRead).sorted(java.util.Comparator.comparing(Assignment::getId))</span>
+<span class="fc" id="L51">            .map(a -&gt; { Assignment current=locked(a.getId());policy.refresh(current);return toWrapper(current); }).toList();</span>
+    }
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public vn.edu.vju.lms.common.web.PageResponse&lt;AssignmentWrapper&gt; search(String search,int page,int size,String sort) {
+<span class="fc" id="L56">        var spec=new vn.edu.vju.lms.common.search.SpecificationsBuilder&lt;Assignment&gt;().parse(search).build().and(readScope());</span>
+<span class="fc" id="L57">        var found=dao.findAll(spec,vn.edu.vju.lms.common.web.PageRequests.of(page,size,sort));</span>
+<span class="fc" id="L58">        found.getContent().stream().sorted(java.util.Comparator.comparing(Assignment::getId))</span>
+<span class="fc" id="L59">            .forEach(a -&gt; policy.refresh(locked(a.getId())));</span>
+<span class="fc" id="L60">        return vn.edu.vju.lms.common.web.PageResponse.of(found.map(this::toWrapper));</span>
+    }
+    private Assignment locked(String id) {
+<span class="fc" id="L63">        return dao.findForUpdate(id).orElseThrow(() -&gt; new vn.edu.vju.lms.common.exception.ResourceNotFoundException(notFoundMessage()));</span>
+    }
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public AssignmentWrapper releaseAnswers(String id) {
+<span class="fc" id="L68">        Assignment a=locked(id);policy.release(a);return toWrapper(a);</span>
+    }
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public AssignmentWrapper update(String id,AssignmentWrapper wrapper) {
+<span class="fc" id="L73">        Assignment current=locked(id);policy.requireTeaching(current);</span>
+<span class="pc bpc" id="L74" title="1 of 4 branches missed.">        boolean started=assessmentDao.findByAssignment(id).stream().anyMatch(r -&gt; r.getDraftDeadline()!=null || r.getScore()!=null);</span>
+<span class="pc bpc" id="L75" title="1 of 6 branches missed.">        if(started &amp;&amp; ((wrapper.getClassId()!=null&amp;&amp;!wrapper.getClassId().equals(current.getClassId()))</span>
+<span class="pc bpc" id="L76" title="1 of 4 branches missed.">            || (wrapper.getQuestions()!=null&amp;&amp;!wrapper.getQuestions().equals(AssessmentGrader.questionsOf(current)))</span>
+<span class="pc bpc" id="L77" title="1 of 4 branches missed.">            || (wrapper.getMinutes()!=null&amp;&amp;!wrapper.getMinutes().equals(current.getMinutes()))</span>
+<span class="pc bpc" id="L78" title="1 of 4 branches missed.">            || (wrapper.getRandom()!=null&amp;&amp;!wrapper.getRandom().equals(current.getRandom()))</span>
+<span class="pc bpc" id="L79" title="1 of 4 branches missed.">            || (wrapper.getOpens()!=null&amp;&amp;!wrapper.getOpens().equals(current.getOpens()))</span>
+<span class="pc bpc" id="L80" title="1 of 4 branches missed.">            || (wrapper.getCloses()!=null&amp;&amp;!wrapper.getCloses().equals(current.getCloses()))</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">            || Boolean.FALSE.equals(wrapper.getPublished()))) {</span>
+<span class="fc" id="L82">            throw new BusinessRuleException(&quot;Đã có sinh viên bắt đầu: không được đổi lớp, đề, thứ tự, thời gian hoặc ẩn bài.&quot;);</span>
+        }
+<span class="fc" id="L84">        return super.update(id,wrapper);</span>
+    }
+    @Override
+    protected void checkDelete(Assignment a) {
+<span class="fc" id="L88">        policy.requireTeaching(a);</span>
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        if(!assessmentDao.findByAssignment(a.getId()).isEmpty()) throw new BusinessRuleException(&quot;Không xóa bài tập đã có bài làm.&quot;);</span>
+<span class="fc" id="L90">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, Assignment&gt; dao() {
+<span class="fc" id="L94">        return dao;</span>
+    }
+
+    @Override
+    protected Assignment newEntity() {
+<span class="fc" id="L99">        return new Assignment();</span>
+    }
+
+    @Override
+    protected AssignmentWrapper toWrapper(Assignment entity) {
+<span class="fc" id="L104">        AssignmentWrapper wrapper = new AssignmentWrapper();</span>
+<span class="fc" id="L105">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L106">        wrapper.setClassId(entity.getClassId());</span>
+<span class="fc" id="L107">        wrapper.setAnswersReleased(Boolean.TRUE.equals(entity.getAnswersReleased()));</span>
+<span class="fc" id="L108">        wrapper.setStudentCount(policy.roster(entity).size());</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">        wrapper.setSubmittedCount((int)policy.roster(entity).stream().filter(id -&gt; assessmentDao.find(id,entity.getId()).filter(r -&gt; r.getScore()!=null).isPresent()).count());</span>
+<span class="fc" id="L110">        wrapper.setTitle(entity.getTitle());</span>
+<span class="fc" id="L111">        wrapper.setMinutes(entity.getMinutes());</span>
+<span class="fc" id="L112">        wrapper.setOpens(entity.getOpens());</span>
+<span class="fc" id="L113">        wrapper.setCloses(entity.getCloses());</span>
+<span class="fc" id="L114">        wrapper.setPublished(entity.getPublished());</span>
+<span class="fc" id="L115">        wrapper.setPreventPaste(entity.getPreventPaste());</span>
+<span class="fc" id="L116">        wrapper.setAttempts(entity.getAttempts());</span>
+<span class="fc" id="L117">        wrapper.setRandom(entity.getRandom());</span>
+<span class="fc" id="L118">        wrapper.setQuestions(visibleQuestions(entity));</span>
+<span class="fc" id="L119">        return wrapper;</span>
+    }
+
+    /** Answer keys never reach a student before they have submitted. */
+    private List&lt;ExamQuestion&gt; visibleQuestions(Assignment entity) {
+<span class="fc" id="L124">        List&lt;ExamQuestion&gt; questions = AssessmentGrader.questionsOf(entity);</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        if (!UserPrincipal.callerIsStudent()) {</span>
+<span class="fc" id="L126">            return questions;</span>
+        }
+<span class="fc" id="L128">        boolean released=Boolean.TRUE.equals(entity.getAnswersReleased());</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">        List&lt;ExamQuestion&gt; shown = questions.stream().map(released ? ExamQuestion::forReview : ExamQuestion::withoutAnswer).toList();</span>
+<span class="fc" id="L130">        return vn.edu.vju.lms.service.ExamOrder.toStudent(shown,</span>
+<span class="fc" id="L131">                vn.edu.vju.lms.service.ExamOrder.of(entity, UserPrincipal.current().id()));</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(AssignmentWrapper wrapper, Assignment entity) {
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        if (wrapper.getClassId() != null) entity.setClassId(wrapper.getClassId());</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        if (wrapper.getTitle() != null) {</span>
+<span class="fc" id="L138">            entity.setTitle(wrapper.getTitle());</span>
+        }
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        if (wrapper.getMinutes() != null) {</span>
+<span class="fc" id="L141">            entity.setMinutes(wrapper.getMinutes());</span>
+        }
+<span class="fc bfc" id="L143" title="All 2 branches covered.">        if (wrapper.getOpens() != null) {</span>
+<span class="fc" id="L144">            entity.setOpens(wrapper.getOpens());</span>
+        }
+<span class="fc bfc" id="L146" title="All 2 branches covered.">        if (wrapper.getCloses() != null) {</span>
+<span class="fc" id="L147">            entity.setCloses(wrapper.getCloses());</span>
+        }
+<span class="fc bfc" id="L149" title="All 2 branches covered.">        if (wrapper.getPublished() != null) {</span>
+<span class="fc" id="L150">            entity.setPublished(wrapper.getPublished());</span>
+        }
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        if (wrapper.getPreventPaste() != null) {</span>
+<span class="fc" id="L153">            entity.setPreventPaste(wrapper.getPreventPaste());</span>
+        }
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        if (wrapper.getAttempts() != null) {</span>
+<span class="fc" id="L156">            entity.setAttempts(wrapper.getAttempts());</span>
+        }
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        if (wrapper.getRandom() != null) {</span>
+<span class="fc" id="L159">            entity.setRandom(wrapper.getRandom());</span>
+        }
+<span class="pc bpc" id="L161" title="1 of 4 branches missed.">        if (wrapper.getQuestions() != null &amp;&amp; !wrapper.getQuestions().equals(AssessmentGrader.questionsOf(entity))) {</span>
+<span class="pc bpc" id="L162" title="3 of 4 branches missed.">            if (assessmentDao.findByAssignment(entity.getId()).stream().anyMatch(record -&gt; record.getScore() != null)) {</span>
+<span class="nc" id="L163">                throw new BusinessRuleException(&quot;Đề đã có bài nộp nên không thể sửa câu hỏi.&quot;);</span>
+            }
+<span class="fc" id="L165">            entity.setQuestions(wrapper.getQuestions());</span>
+        }
+<span class="fc" id="L167">    }</span>
+
+    @Override
+    protected String wrapperId(AssignmentWrapper wrapper) {
+<span class="fc" id="L171">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Assignment entity, String id) {
+<span class="fc" id="L176">        entity.setId(id);</span>
+<span class="fc" id="L177">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L181">        return &quot;Không tìm thấy bài tập.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeSave(Assignment entity) {
+<span class="fc bfc" id="L186" title="All 2 branches covered.">        if (!StringUtils.hasText(entity.getClassId())) throw new BusinessRuleException(&quot;Bài tập cần chọn lớp học phần.&quot;);</span>
+<span class="fc" id="L187">        policy.requireTeaching(entity);</span>
+<span class="pc bpc" id="L188" title="1 of 6 branches missed.">        if (entity.getMinutes()==null || entity.getMinutes()&lt;1 || entity.getMinutes()&gt;1440) throw new BusinessRuleException(&quot;Thời gian làm bài từ 1 đến 1440 phút.&quot;);</span>
+<span class="pc bpc" id="L189" title="2 of 4 branches missed.">        if (entity.getOpens()==null || entity.getCloses()==null) throw new BusinessRuleException(&quot;Thiếu thời gian mở/đóng bài tập.&quot;);</span>
+<span class="fc" id="L190">        try { java.time.LocalDateTime.parse(entity.getOpens()); java.time.LocalDateTime.parse(entity.getCloses()); } catch(java.time.format.DateTimeParseException e) { throw new BusinessRuleException(&quot;Thời gian bài tập không hợp lệ.&quot;); }</span>
+<span class="fc" id="L191">        entity.setAttempts(1);</span>
+<span class="pc bpc" id="L192" title="2 of 6 branches missed.">        if (entity.getOpens() != null &amp;&amp; entity.getCloses() != null &amp;&amp; entity.getCloses().compareTo(entity.getOpens()) &lt;= 0) {</span>
+<span class="fc" id="L193">            throw new BusinessRuleException(&quot;Thời điểm đóng phải sau thời điểm mở.&quot;);</span>
+        }
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        if (entity.getQuestions() != null) {</span>
+<span class="fc" id="L196">            validate(entity.getQuestions());</span>
+        }
+<span class="fc" id="L198">    }</span>
+
+    private void validate(List&lt;ExamQuestion&gt; questions) {
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        if (questions.isEmpty()) {</span>
+<span class="fc" id="L202">            throw new BusinessRuleException(&quot;Đề cần ít nhất một câu hỏi.&quot;);</span>
+        }
+<span class="fc" id="L204">        questions.forEach(this::validate);</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">        if (Math.abs(AssessmentGrader.total(questions.stream().map(ExamQuestion::getPoints).toList()) - TOTAL_POINTS) &gt; 0.001) {</span>
+<span class="fc" id="L206">            throw new BusinessRuleException(&quot;Tổng điểm của đề phải bằng 10.&quot;);</span>
+        }
+<span class="fc" id="L208">    }</span>
+
+    private void validate(ExamQuestion question) {
+<span class="pc bpc" id="L211" title="1 of 4 branches missed.">        if (!TYPES.contains(question.getType()) || !StringUtils.hasText(question.getText())</span>
+<span class="pc bpc" id="L212" title="1 of 4 branches missed.">                || question.getPoints() == null || question.getPoints() &lt;= 0) {</span>
+<span class="fc" id="L213">            throw new BusinessRuleException(&quot;Mỗi câu cần loại câu, nội dung và điểm lớn hơn 0.&quot;);</span>
+        }
+<span class="fc bfc" id="L215" title="All 4 branches covered.">        if (!question.isEssay() &amp;&amp; !StringUtils.hasText(question.getCorrect())) {</span>
+<span class="fc" id="L216">            throw new BusinessRuleException(&quot;Câu trắc nghiệm và điền trống cần có đáp án.&quot;);</span>
+        }
+<span class="fc bfc" id="L218" title="All 2 branches covered.">        if (ExamQuestion.CHOICE.equals(question.getType())) {</span>
+<span class="pc bpc" id="L219" title="1 of 2 branches missed.">            int options = question.getOptions() == null ? 0 : question.getOptions().size();</span>
+<span class="pc bpc" id="L220" title="1 of 6 branches missed.">            if (options &lt; 2 || !question.getCorrect().matches(&quot;\\d+&quot;) || Integer.parseInt(question.getCorrect()) &gt;= options) {</span>
+<span class="fc" id="L221">                throw new BusinessRuleException(&quot;Câu trắc nghiệm cần ít nhất 2 lựa chọn và một đáp án hợp lệ.&quot;);</span>
+            }
+        }
+<span class="fc" id="L224">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

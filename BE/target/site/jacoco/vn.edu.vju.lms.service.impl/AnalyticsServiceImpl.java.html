@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AnalyticsServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">AnalyticsServiceImpl.java</span></div><h1>AnalyticsServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.dao.IAssessmentDao;
+import vn.edu.vju.lms.dao.IAssignmentDao;
+import vn.edu.vju.lms.dao.IChatMessageDao;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.ICourseDao;
+import vn.edu.vju.lms.dao.IKnowledgeGapDao;
+import vn.edu.vju.lms.dao.ILessonDao;
+import vn.edu.vju.lms.dao.IQuestionDao;
+import vn.edu.vju.lms.dao.IStudyProgressDao;
+import vn.edu.vju.lms.dao.IStudySessionDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.Assessment;
+import vn.edu.vju.lms.entity.Assignment;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.entity.Course;
+import vn.edu.vju.lms.entity.KnowledgeGap;
+import vn.edu.vju.lms.entity.Lesson;
+import vn.edu.vju.lms.entity.Question;
+import vn.edu.vju.lms.entity.StudyProgress;
+import vn.edu.vju.lms.entity.StudySession;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.AnalyticsService;
+import vn.edu.vju.lms.wrapper.AnalyticsWrappers.ClassReport;
+import vn.edu.vju.lms.wrapper.AnalyticsWrappers.PageReport;
+import vn.edu.vju.lms.wrapper.AnalyticsWrappers.Report;
+import vn.edu.vju.lms.wrapper.AnalyticsWrappers.StudentReport;
+
+/** BR-03 and BR-04 are computed here so every dashboard and grade sheet shows the same numbers. */
+@Service
+public class AnalyticsServiceImpl implements AnalyticsService {
+
+    private static final int DEFAULT_SLIDES = 4;
+
+    private final IClassInfoDao classDao;
+    private final ICourseDao courseDao;
+    private final IUserAccountDao userDao;
+    private final IStudySessionDao sessionDao;
+    private final IAssignmentDao assignmentDao;
+    private final IStudyProgressDao progressDao;
+    private final IAssessmentDao assessmentDao;
+    private final IChatMessageDao chatDao;
+    private final ILessonDao lessonDao;
+    private final IQuestionDao questionDao;
+    private final IKnowledgeGapDao gapDao;
+    private final vn.edu.vju.lms.dao.IFeedbackDao feedbackDao;
+    private final ZoneId zone;
+
+    public AnalyticsServiceImpl(IClassInfoDao classDao, ICourseDao courseDao, IUserAccountDao userDao,
+            IStudySessionDao sessionDao, IAssignmentDao assignmentDao, IStudyProgressDao progressDao,
+            IAssessmentDao assessmentDao, IChatMessageDao chatDao, ILessonDao lessonDao, IQuestionDao questionDao,
+<span class="fc" id="L68">            IKnowledgeGapDao gapDao, vn.edu.vju.lms.dao.IFeedbackDao feedbackDao, LmsProperties properties) {</span>
+<span class="fc" id="L69">        this.feedbackDao = feedbackDao;</span>
+<span class="fc" id="L70">        this.classDao = classDao;</span>
+<span class="fc" id="L71">        this.courseDao = courseDao;</span>
+<span class="fc" id="L72">        this.userDao = userDao;</span>
+<span class="fc" id="L73">        this.sessionDao = sessionDao;</span>
+<span class="fc" id="L74">        this.assignmentDao = assignmentDao;</span>
+<span class="fc" id="L75">        this.progressDao = progressDao;</span>
+<span class="fc" id="L76">        this.assessmentDao = assessmentDao;</span>
+<span class="fc" id="L77">        this.chatDao = chatDao;</span>
+<span class="fc" id="L78">        this.lessonDao = lessonDao;</span>
+<span class="fc" id="L79">        this.questionDao = questionDao;</span>
+<span class="fc" id="L80">        this.gapDao = gapDao;</span>
+<span class="fc" id="L81">        this.zone = ZoneId.of(properties.getTimeZone());</span>
+<span class="fc" id="L82">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public Report report() {
+<span class="fc" id="L87">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        if (user.isStudent()) {</span>
+<span class="fc" id="L89">            return new Report(List.of(), List.of());</span>
+        }
+<span class="fc" id="L91">        Map&lt;String, Course&gt; courses = courseDao.findAll().stream().collect(Collectors.toMap(Course::getId, Function.identity()));</span>
+<span class="fc" id="L92">        Map&lt;String, UserAccount&gt; users = userDao.findAll().stream().collect(Collectors.toMap(UserAccount::getId, Function.identity()));</span>
+<span class="fc" id="L93">        List&lt;StudySession&gt; sessions = sessionDao.findAll().stream().filter(s -&gt; Boolean.TRUE.equals(s.getPublished())).toList();</span>
+<span class="fc" id="L94">        List&lt;Assignment&gt; assignments = assignmentDao.findAll().stream().filter(a -&gt; Boolean.TRUE.equals(a.getPublished())).toList();</span>
+<span class="pc bpc" id="L95" title="1 of 4 branches missed.">        int slides = lessonDao.findAll().stream().map(Lesson::getSlides).filter(list -&gt; list != null &amp;&amp; !list.isEmpty())</span>
+<span class="fc" id="L96">                .mapToInt(List::size).max().orElse(DEFAULT_SLIDES);</span>
+<span class="fc" id="L97">        List&lt;ClassReport&gt; classes = classDao.findAll().stream().filter(info -&gt; visible(info, user)).map(info -&gt; {</span>
+<span class="fc" id="L98">            Course course = courses.get(info.getCourseId());</span>
+<span class="fc" id="L99">            UserAccount teacher = users.get(info.getTeacherId());</span>
+<span class="fc" id="L100">            List&lt;StudentReport&gt; students = info.getStudentIds().stream().filter(users::containsKey)</span>
+<span class="fc" id="L101">                    .map(id -&gt; student(users.get(id),</span>
+<span class="fc" id="L102">                            sessions.stream().filter(s -&gt; lessonDao.findById(vn.edu.vju.lms.security.TeachingScope.lessonOr(s.getLessonId())).filter(l -&gt; info.getId().equals(vn.edu.vju.lms.security.TeachingScope.classOf(l))).isPresent()).toList(),</span>
+<span class="fc" id="L103">                            assignments.stream().filter(a -&gt; info.getId().equals(a.getClassId())).toList(), slides)).toList();</span>
+<span class="fc" id="L104">            return new ClassReport(info.getId(), info.getName(), info.getCourseId(),</span>
+<span class="fc bfc" id="L105" title="All 4 branches covered.">                    course == null ? info.getCourseId() : course.getCode(), course == null ? &quot;&quot; : course.getTitle(),</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">                    teacher == null ? &quot;&quot; : teacher.getName(), info.getTerm(), info.getYear(), students);</span>
+<span class="fc" id="L107">        }).toList();</span>
+<span class="fc" id="L108">        return new Report(classes, pages());</span>
+    }
+
+    private boolean visible(ClassInfo info, UserPrincipal user) {
+<span class="fc bfc" id="L112" title="All 3 branches covered.">        return switch (user.role()) {</span>
+<span class="fc" id="L113">            case LECTURER -&gt; user.id().equals(info.getTeacherId());</span>
+<span class="fc" id="L114">            case COURSE_LEADER -&gt; user.id().equals(info.getLeaderId());</span>
+<span class="pc bpc" id="L115" title="1 of 4 branches missed.">            default -&gt; user.role() == Role.DEAN || user.role() == Role.ADMIN;</span>
+        };
+    }
+
+    private StudentReport student(UserAccount account, List&lt;StudySession&gt; sessions, List&lt;Assignment&gt; assignments, int slides) {
+<span class="fc" id="L120">        Map&lt;String, StudyProgress&gt; progress = progressDao.findByStudent(account.getId()).stream()</span>
+<span class="fc" id="L121">                .collect(Collectors.toMap(StudyProgress::getSessionId, Function.identity()));</span>
+<span class="fc" id="L122">        Map&lt;String, Assessment&gt; work = assessmentDao.findByStudent(account.getId()).stream()</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">                .filter(record -&gt; record.getScore() != null)</span>
+<span class="fc" id="L124">                .collect(Collectors.toMap(Assessment::getAssignmentId, Function.identity()));</span>
+<span class="fc" id="L125">        int percent = 0;</span>
+<span class="fc" id="L126">        int onTime = 0;</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        for (StudySession session : sessions) {</span>
+<span class="fc" id="L128">            StudyProgress record = progress.get(session.getId());</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">            if (record != null) {</span>
+<span class="fc" id="L130">                percent += Math.min(100, record.getProgress() * 100 / slides);</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                onTime += isOnTime(record, session) ? 1 : 0;</span>
+            }
+<span class="fc" id="L133">        }</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        List&lt;Double&gt; scores = assignments.stream().map(a -&gt; work.get(a.getId())).filter(r -&gt; r != null).map(Assessment::getScore).toList();</span>
+<span class="fc" id="L135">        double average = scores.stream().mapToDouble(Double::doubleValue).average().orElse(0);</span>
+<span class="fc" id="L136">        int checked = 0;</span>
+<span class="fc" id="L137">        int right = 0;</span>
+<span class="fc" id="L138">        java.time.LocalDateTime latest = null;</span>
+<span class="fc" id="L139">        String lastSubmitted = null;</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        for (Assignment assignment : assignments) {</span>
+<span class="fc" id="L141">            Assessment record = work.get(assignment.getId());</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">            if (record == null) {</span>
+<span class="fc" id="L143">                continue;</span>
+            }
+<span class="fc" id="L145">            List&lt;vn.edu.vju.lms.entity.ExamQuestion&gt; questions = vn.edu.vju.lms.service.AssessmentGrader.questionsOf(assignment);</span>
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">            List&lt;String&gt; answers = record.getAnswers() == null ? List.of() : record.getAnswers();</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">            for (int i = 0; i &lt; questions.size(); i++) {</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                if (!questions.get(i).isEssay()) {</span>
+<span class="fc" id="L149">                    checked++;</span>
+<span class="fc bfc" id="L150" title="All 4 branches covered.">                    right += vn.edu.vju.lms.service.AssessmentGrader.isCorrect(questions.get(i), i &lt; answers.size() ? answers.get(i) : null) ? 1 : 0;</span>
+                }
+            }
+<span class="fc" id="L153">            java.time.LocalDateTime at = submittedAt(record.getSubmitted());</span>
+<span class="pc bpc" id="L154" title="1 of 6 branches missed.">            if (at != null &amp;&amp; (latest == null || at.isAfter(latest))) {</span>
+<span class="fc" id="L155">                latest = at;</span>
+<span class="fc" id="L156">                lastSubmitted = record.getSubmitted();</span>
+            }
+<span class="fc" id="L158">        }</span>
+<span class="fc" id="L159">        int feedback = (int) feedbackDao.findAll().stream().filter(f -&gt; account.getId().equals(f.getOwnerId())).count();</span>
+<span class="fc" id="L160">        return new StudentReport(account.getId(), account.getName(), account.getEmail(),</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">                sessions.isEmpty() ? 0 : percent / sessions.size(),</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">                sessions.isEmpty() ? 0 : oneDecimal(onTime * 10.0 / sessions.size()),</span>
+<span class="fc" id="L163">                oneDecimal(average), scores.size(), chatDao.findByOwner(account.getId()).size(),</span>
+<span class="fc bfc" id="L164" title="All 2 branches covered.">                checked == 0 ? null : Math.round(right * 100f / checked), lastSubmitted, feedback);</span>
+    }
+
+<span class="fc" id="L167">    private static final java.time.format.DateTimeFormatter SUBMITTED =</span>
+<span class="fc" id="L168">            java.time.format.DateTimeFormatter.ofPattern(&quot;HH:mm:ss dd/MM/yyyy&quot;);</span>
+
+    private static java.time.LocalDateTime submittedAt(String value) {
+        try {
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">            return StringUtils.hasText(value) ? java.time.LocalDateTime.parse(value, SUBMITTED) : null;</span>
+<span class="nc" id="L173">        } catch (DateTimeParseException e) {</span>
+<span class="nc" id="L174">            return null;</span>
+        }
+    }
+
+    private boolean isOnTime(StudyProgress record, StudySession session) {
+<span class="pc bpc" id="L179" title="1 of 4 branches missed.">        if (!StringUtils.hasText(record.getCompletedAt()) || !StringUtils.hasText(session.getCloses())) {</span>
+<span class="fc" id="L180">            return false;</span>
+        }
+        try {
+<span class="fc" id="L183">            Instant closes = LocalDateTime.parse(session.getCloses()).atZone(zone).toInstant();</span>
+<span class="fc" id="L184">            return Instant.parse(record.getCompletedAt()).isBefore(closes);</span>
+<span class="nc" id="L185">        } catch (DateTimeParseException e) {</span>
+<span class="nc" id="L186">            return false;</span>
+        }
+    }
+
+    private List&lt;PageReport&gt; pages() {
+<span class="fc" id="L191">        List&lt;Question&gt; questions = questionDao.findAll();</span>
+<span class="fc" id="L192">        List&lt;StudyProgress&gt; progress = progressDao.findAll();</span>
+<span class="fc" id="L193">        List&lt;KnowledgeGap&gt; gaps = gapDao.findAll();</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">        List&lt;Integer&gt; numbers = new ArrayList&lt;&gt;(questions.stream().map(Question::getPage).filter(p -&gt; p != null).toList());</span>
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        gaps.stream().map(KnowledgeGap::getPage).filter(p -&gt; p != null).forEach(numbers::add);</span>
+<span class="fc" id="L196">        return numbers.stream().distinct().sorted().map(page -&gt; {</span>
+<span class="fc" id="L197">            int answered = 0;</span>
+<span class="fc" id="L198">            int wrong = 0;</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">            for (Question question : questions) {</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                if (page.equals(question.getPage())) {</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">                    for (StudyProgress record : progress) {</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">                        Integer choice = record.getAnswers() == null ? null : record.getAnswers().get(question.getId());</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">                        if (choice != null) {</span>
+<span class="fc" id="L204">                            answered++;</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">                            wrong += choice.equals(question.getCorrect()) ? 0 : 1;</span>
+                        }
+<span class="fc" id="L207">                    }</span>
+                }
+<span class="fc" id="L209">            }</span>
+<span class="fc bfc" id="L210" title="All 4 branches covered.">            int open = (int) gaps.stream().filter(gap -&gt; page.equals(gap.getPage()) &amp;&amp; !StringUtils.hasText(gap.getResponse())).count();</span>
+<span class="fc" id="L211">            return new PageReport(page, answered, wrong, open);</span>
+<span class="fc" id="L212">        }).toList();</span>
+    }
+
+    private double oneDecimal(double value) {
+<span class="fc" id="L216">        return Math.round(value * 10) / 10.0;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

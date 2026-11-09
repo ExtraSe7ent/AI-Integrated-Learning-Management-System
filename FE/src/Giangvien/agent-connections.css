@@ -1,0 +1,33 @@
+.agent-settings { display: grid; gap: 24px; }
+.agent-panel-intro { display: flex; gap: 12px; align-items: flex-start; }
+.agent-panel-intro svg { flex: 0 0 auto; color: var(--red); margin-top: 4px; }
+.agent-panel-intro p { margin-top: 0; }
+.agent-url-label { display: block; font-weight: 600; margin: 12px 0 8px; }
+.agent-copy-row { display: flex; gap: 12px; }
+.agent-copy-row input { flex: 1; min-width: 0; font-family: monospace; }
+.agent-copy-row .button { flex-shrink: 0; }
+.agent-guide-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; }
+.agent-platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.agent-platforms button { padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px; background: white; color: inherit; font: inherit; cursor: pointer; }
+.agent-platforms button.active { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+.agent-steps { padding-left: 24px; display: grid; gap: 16px; }
+.agent-permissions { padding-left: 20px; display: grid; gap: 10px; }
+.agent-example { margin: 20px 0 0; padding: 16px; background: var(--ground); border-left: 3px solid #b8a184; border-radius: 0 6px 6px 0; }
+.agent-connections { list-style: none; padding: 0; margin: 0; }
+.agent-connections > li { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+.agent-connections > li:last-child { border-bottom: 0; }
+.agent-connections h3 { margin: 0 0 10px; overflow-wrap: anywhere; }
+.agent-scope-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.agent-notice, .agent-error { padding: 16px; border: 1px solid #e4d5bf; border-radius: 8px; background: #faf6ed; }
+.agent-error { border-color: #dfb9bc; color: #8c202b; }
+.agent-error .button { margin-left: 12px; }
+.agent-message { margin: 0; }
+.agent-empty { padding: 20px 0; color: var(--muted); }
+.agent-empty h3 { color: var(--ink); }
+.agent-dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+@media (max-width: 800px) {
+  .agent-guide-grid { grid-template-columns: 1fr; }
+  .agent-copy-row { flex-direction: column; }
+  .agent-connections > li { flex-direction: column; align-items: flex-start; }
+  .agent-settings .panel-heading { flex-wrap: wrap; gap: 12px; }
+}

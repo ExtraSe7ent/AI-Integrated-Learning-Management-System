@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClassInfoDaoImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.dao.impl</a> &gt; <span class="el_source">ClassInfoDaoImpl.java</span></div><h1>ClassInfoDaoImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Repository;
+import vn.edu.vju.lms.common.dao.HibernateGenericDao;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.repository.ClassInfoRepository;
+import vn.edu.vju.lms.entity.ClassInfo;
+
+@Repository
+public class ClassInfoDaoImpl extends HibernateGenericDao&lt;String, ClassInfo&gt; implements IClassInfoDao {
+
+    private final ClassInfoRepository repository;
+
+    public ClassInfoDaoImpl(ClassInfoRepository repository) {
+<span class="fc" id="L21">        super(ClassInfo.class);</span>
+<span class="fc" id="L22">        this.repository = repository;</span>
+<span class="fc" id="L23">    }</span>
+
+    @Override
+    public Page&lt;ClassInfo&gt; findAll(Specification&lt;ClassInfo&gt; specification, Pageable pageable) {
+<span class="fc" id="L27">        return repository.findAll(specification, pageable);</span>
+    }
+
+    @Override
+    public Optional&lt;ClassInfo&gt; findByName(String name) {
+<span class="fc" id="L32">        return single(&quot;SELECT c FROM ClassInfo c WHERE c.name = :name&quot;, Map.of(&quot;name&quot;, name));</span>
+    }
+
+    @Override
+    public boolean existsByCourse(String courseId) {
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        return !findByCourse(courseId).isEmpty();</span>
+    }
+
+    @Override
+    public boolean existsDuplicate(String id, String name, String term, String year, String round) {
+<span class="fc" id="L42">        return single(&quot;&quot;&quot;</span>
+                SELECT c FROM ClassInfo c
+                WHERE LOWER(c.name) = LOWER(:name) AND c.term = :term AND c.year = :year
+                  AND c.round = :round AND c.id &lt;&gt; :id
+<span class="fc" id="L46">                &quot;&quot;&quot;, Map.of(&quot;name&quot;, name, &quot;term&quot;, term, &quot;year&quot;, year, &quot;round&quot;, round, &quot;id&quot;, id)).isPresent();</span>
+    }
+
+    @Override
+    public List&lt;ClassInfo&gt; findByStudent(String studentId) {
+<span class="fc" id="L51">        return list(&quot;SELECT c FROM ClassInfo c WHERE :studentId MEMBER OF c.studentIds&quot;, Map.of(&quot;studentId&quot;, studentId));</span>
+    }
+
+    @Override
+    public List&lt;ClassInfo&gt; findByCourse(String courseId) {
+<span class="fc" id="L56">        return list(&quot;SELECT c FROM ClassInfo c WHERE c.courseId = :courseId&quot;, Map.of(&quot;courseId&quot;, courseId));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

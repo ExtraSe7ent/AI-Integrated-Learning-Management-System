@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeedbackServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">FeedbackServiceImpl.java</span></div><h1>FeedbackServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.ForbiddenOperationException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IFeedbackDao;
+import vn.edu.vju.lms.entity.Feedback;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.FeedbackService;
+import vn.edu.vju.lms.wrapper.FeedbackWrapper;
+
+@Service
+public class FeedbackServiceImpl extends AbstractCrudService&lt;Feedback, FeedbackWrapper&gt; implements FeedbackService {
+
+    private final IFeedbackDao dao;
+    private final vn.edu.vju.lms.service.FeedbackImageService images;
+
+<span class="fc" id="L22">    public FeedbackServiceImpl(IFeedbackDao dao, vn.edu.vju.lms.service.FeedbackImageService images) {</span>
+<span class="fc" id="L23">        this.images = images;</span>
+<span class="fc" id="L24">        this.dao = dao;</span>
+<span class="fc" id="L25">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, Feedback&gt; dao() {
+<span class="fc" id="L29">        return dao;</span>
+    }
+
+    @Override
+    protected Feedback newEntity() {
+<span class="fc" id="L34">        return new Feedback();</span>
+    }
+
+    @Override
+    protected FeedbackWrapper toWrapper(Feedback entity) {
+<span class="fc" id="L39">        FeedbackWrapper wrapper = new FeedbackWrapper();</span>
+<span class="fc" id="L40">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L41">        wrapper.setOwnerId(entity.getOwnerId());</span>
+<span class="fc" id="L42">        wrapper.setStudent(entity.getStudent());</span>
+<span class="fc" id="L43">        wrapper.setCourse(entity.getCourse());</span>
+<span class="fc" id="L44">        wrapper.setLesson(entity.getLesson());</span>
+<span class="fc" id="L45">        wrapper.setCategory(entity.getCategory());</span>
+<span class="fc" id="L46">        wrapper.setBody(entity.getBody());</span>
+<span class="fc" id="L47">        wrapper.setImages(entity.getImages());</span>
+<span class="fc" id="L48">        wrapper.setImageIds(entity.getImageIds());</span>
+<span class="fc" id="L49">        wrapper.setResponse(entity.getResponse());</span>
+<span class="fc" id="L50">        wrapper.setResolved(entity.getResolved());</span>
+<span class="fc" id="L51">        wrapper.setDate(entity.getDate());</span>
+<span class="fc" id="L52">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(FeedbackWrapper wrapper, Feedback entity) {
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if (wrapper.getStudent() != null) {</span>
+<span class="fc" id="L58">            entity.setStudent(wrapper.getStudent());</span>
+        }
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (wrapper.getCourse() != null) {</span>
+<span class="fc" id="L61">            entity.setCourse(wrapper.getCourse());</span>
+        }
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (wrapper.getLesson() != null) {</span>
+<span class="fc" id="L64">            entity.setLesson(wrapper.getLesson());</span>
+        }
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (wrapper.getCategory() != null) {</span>
+<span class="fc" id="L67">            entity.setCategory(wrapper.getCategory());</span>
+        }
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (wrapper.getBody() != null) {</span>
+<span class="fc" id="L70">            entity.setBody(wrapper.getBody());</span>
+        }
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        if (wrapper.getImages() != null) {</span>
+<span class="fc" id="L73">            entity.setImages(wrapper.getImages());</span>
+        }
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (wrapper.getImageIds() != null) {</span>
+<span class="fc" id="L76">            entity.setImageIds(wrapper.getImageIds());</span>
+        }
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        if (wrapper.getResponse() != null) {</span>
+<span class="fc" id="L79">            entity.setResponse(wrapper.getResponse());</span>
+        }
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        if (wrapper.getResolved() != null) {</span>
+<span class="fc" id="L82">            entity.setResolved(wrapper.getResolved());</span>
+        }
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (wrapper.getDate() != null) {</span>
+<span class="fc" id="L85">            entity.setDate(wrapper.getDate());</span>
+        }
+<span class="fc" id="L87">    }</span>
+
+    @Override
+    protected String wrapperId(FeedbackWrapper wrapper) {
+<span class="fc" id="L91">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Feedback entity, String id) {
+<span class="fc" id="L96">        entity.setId(id);</span>
+<span class="fc" id="L97">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L101">        return &quot;Không tìm thấy phản hồi.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeCreate(FeedbackWrapper wrapper, Feedback entity) {
+<span class="fc" id="L106">        entity.setOwnerId(UserPrincipal.current().id());</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (entity.getImageIds() != null) {</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">            if (entity.getImageIds().size() &gt; vn.edu.vju.lms.service.FeedbackImageService.MAX_FILES) {</span>
+<span class="fc" id="L109">                throw new vn.edu.vju.lms.common.exception.BusinessRuleException(&quot;Chọn tối đa 5 ảnh.&quot;);</span>
+            }
+<span class="fc" id="L111">            images.requireOwned(entity.getImageIds());</span>
+        }
+<span class="fc" id="L113">    }</span>
+
+    @Override
+    @Transactional
+    public FeedbackWrapper update(String id, FeedbackWrapper wrapper) {
+<span class="fc" id="L118">        Feedback current = require(id);</span>
+<span class="fc" id="L119">        requireOwnerOrStaff(current);</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">        if (UserPrincipal.current().isStudent()) {</span>
+<span class="fc" id="L121">            wrapper.setResponse(null);</span>
+<span class="fc" id="L122">            wrapper.setResolved(null);</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">            if (wrapper.getImageIds() != null) {</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">                List&lt;String&gt; known = current.getImageIds() == null ? List.of() : current.getImageIds();</span>
+<span class="pc bfc" id="L125" title="All 2 branches covered.">                images.requireOwned(wrapper.getImageIds().stream().filter(x -&gt; !known.contains(x)).toList());</span>
+            }
+        }
+<span class="fc" id="L128">        return super.update(id, wrapper);</span>
+    }
+
+    @Override
+    @Transactional
+    public void delete(String id) {
+<span class="fc" id="L134">        requireOwnerOrStaff(require(id));</span>
+<span class="fc" id="L135">        super.delete(id);</span>
+<span class="fc" id="L136">    }</span>
+
+    private void requireOwnerOrStaff(Feedback entity) {
+<span class="fc" id="L139">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="pc bpc" id="L140" title="2 of 4 branches missed.">        if (user.isStudent() &amp;&amp; !user.id().equals(entity.getOwnerId())) {</span>
+<span class="nc" id="L141">            throw new ForbiddenOperationException(&quot;Bạn chỉ được thao tác trên dữ liệu của mình.&quot;);</span>
+        }
+<span class="fc" id="L143">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

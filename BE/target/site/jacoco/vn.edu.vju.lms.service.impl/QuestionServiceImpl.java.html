@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>QuestionServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">QuestionServiceImpl.java</span></div><h1>QuestionServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.util.HashSet;
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IQuestionDao;
+import vn.edu.vju.lms.entity.Lesson;
+import vn.edu.vju.lms.entity.Question;
+import vn.edu.vju.lms.security.TeachingScope;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.QuestionService;
+import vn.edu.vju.lms.wrapper.QuestionWrapper;
+
+/**
+ * Pre-class quiz attached to one slide (UC-A01): a question, exactly four options A–D, the correct one and an
+ * explanation. AI suggestions arrive unapproved and stay invisible to students until a lecturer approves them.
+ */
+@Service
+public class QuestionServiceImpl extends AbstractCrudService&lt;Question, QuestionWrapper&gt; implements QuestionService {
+
+    static final int OPTION_COUNT = 4;
+    static final int TEXT_MAX = 1000;
+    static final int IMPORT_MAX = 500;
+
+    private final IQuestionDao dao;
+    private final TeachingScope scope;
+    private final vn.edu.vju.lms.dao.IStudyProgressDao progressDao;
+
+<span class="fc" id="L35">    public QuestionServiceImpl(IQuestionDao dao, TeachingScope scope, vn.edu.vju.lms.dao.IStudyProgressDao progressDao) {</span>
+<span class="fc" id="L36">        this.dao = dao;</span>
+<span class="fc" id="L37">        this.scope = scope;</span>
+<span class="fc" id="L38">        this.progressDao = progressDao;</span>
+<span class="fc" id="L39">    }</span>
+
+    /** UC-B03: a student only learns the key and explanation of a quiz after answering it on the server. */
+    private QuestionWrapper forStudent(Question question, java.util.Set&lt;String&gt; answered) {
+<span class="fc" id="L43">        QuestionWrapper wrapper = toWrapper(question);</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">        if (!answered.contains(question.getId())) {</span>
+<span class="fc" id="L45">            wrapper.setCorrect(null);</span>
+<span class="fc" id="L46">            wrapper.setExplanation(null);</span>
+        }
+<span class="fc" id="L48">        return wrapper;</span>
+    }
+
+    private java.util.Set&lt;String&gt; answeredBy(String studentId) {
+<span class="fc" id="L52">        java.util.Set&lt;String&gt; answered = new java.util.HashSet&lt;&gt;();</span>
+<span class="fc" id="L53">        progressDao.findByStudent(studentId).forEach(p -&gt; {</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">            if (p.getAnswers() != null) {</span>
+<span class="fc" id="L55">                answered.addAll(p.getAnswers().keySet());</span>
+            }
+<span class="fc" id="L57">        });</span>
+<span class="fc" id="L58">        return answered;</span>
+    }
+
+    @Override
+    protected org.springframework.data.jpa.domain.Specification&lt;Question&gt; readScope() {
+<span class="fc" id="L63">        var lessons=scope.readableLessonIds();</span>
+<span class="fc" id="L64">        return (root, query, builder) -&gt; {</span>
+<span class="fc" id="L65">            var owner=builder.or(root.get(&quot;lessonId&quot;).in(lessons),</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">                lessons.contains(TeachingScope.DEFAULT_LESSON)?builder.isNull(root.get(&quot;lessonId&quot;)):builder.disjunction());</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">            return UserPrincipal.callerIsStudent()?builder.and(owner,builder.isTrue(root.get(&quot;approved&quot;))):owner;</span>
+        };
+    }
+
+    @Override
+    protected IGenericDao&lt;String, Question&gt; dao() {
+<span class="fc" id="L73">        return dao;</span>
+    }
+
+    @Override
+    protected Question newEntity() {
+<span class="fc" id="L78">        return new Question();</span>
+    }
+
+    @Override
+    protected QuestionWrapper toWrapper(Question entity) {
+<span class="fc" id="L83">        QuestionWrapper wrapper = new QuestionWrapper();</span>
+<span class="fc" id="L84">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L85">        wrapper.setText(entity.getText());</span>
+<span class="fc" id="L86">        wrapper.setOptions(entity.getOptions());</span>
+<span class="fc" id="L87">        wrapper.setCorrect(entity.getCorrect());</span>
+<span class="fc" id="L88">        wrapper.setExplanation(entity.getExplanation());</span>
+<span class="fc" id="L89">        wrapper.setPage(entity.getPage());</span>
+<span class="fc" id="L90">        wrapper.setApproved(entity.getApproved());</span>
+<span class="fc" id="L91">        wrapper.setLessonId(TeachingScope.lessonOr(entity.getLessonId()));</span>
+<span class="fc" id="L92">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(QuestionWrapper wrapper, Question entity) {
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        if (wrapper.getText() != null) {</span>
+<span class="fc" id="L98">            entity.setText(wrapper.getText().trim());</span>
+        }
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        if (wrapper.getOptions() != null) {</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">            entity.setOptions(wrapper.getOptions().stream().map(o -&gt; o == null ? &quot;&quot; : o.trim()).toList());</span>
+        }
+<span class="fc bfc" id="L103" title="All 2 branches covered.">        if (wrapper.getCorrect() != null) {</span>
+<span class="fc" id="L104">            entity.setCorrect(wrapper.getCorrect());</span>
+        }
+<span class="fc bfc" id="L106" title="All 2 branches covered.">        if (wrapper.getExplanation() != null) {</span>
+<span class="fc" id="L107">            entity.setExplanation(wrapper.getExplanation().trim());</span>
+        }
+<span class="fc bfc" id="L109" title="All 2 branches covered.">        if (wrapper.getPage() != null) {</span>
+<span class="fc" id="L110">            entity.setPage(wrapper.getPage());</span>
+        }
+<span class="fc bfc" id="L112" title="All 2 branches covered.">        if (wrapper.getApproved() != null) {</span>
+<span class="fc" id="L113">            entity.setApproved(wrapper.getApproved());</span>
+        }
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        if (wrapper.getLessonId() != null) {</span>
+<span class="fc" id="L116">            entity.setLessonId(wrapper.getLessonId().trim());</span>
+        }
+<span class="fc" id="L118">    }</span>
+
+    @Override
+    protected String wrapperId(QuestionWrapper wrapper) {
+<span class="fc" id="L122">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Question entity, String id) {
+<span class="fc" id="L127">        entity.setId(id);</span>
+<span class="fc" id="L128">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L132">        return &quot;Không tìm thấy câu hỏi.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeCreate(QuestionWrapper wrapper, Question entity) {
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        if (!StringUtils.hasText(entity.getLessonId())) {</span>
+<span class="fc" id="L138">            entity.setLessonId(TeachingScope.DEFAULT_LESSON);</span>
+        }
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        if (entity.getApproved() == null) {</span>
+<span class="fc" id="L141">            entity.setApproved(false);</span>
+        }
+<span class="fc" id="L143">    }</span>
+
+    @Override
+    protected void beforeSave(Question entity) {
+<span class="pc bpc" id="L147" title="1 of 4 branches missed.">        if (!StringUtils.hasText(entity.getText()) || entity.getText().length() &gt; TEXT_MAX) {</span>
+<span class="fc" id="L148">            throw new BusinessRuleException(&quot;Nội dung câu hỏi bắt buộc và tối đa &quot; + TEXT_MAX + &quot; ký tự.&quot;);</span>
+        }
+<span class="fc" id="L150">        List&lt;String&gt; options = entity.getOptions();</span>
+<span class="pc bpc" id="L151" title="1 of 8 branches missed.">        if (options == null || options.size() != OPTION_COUNT || options.stream().anyMatch(o -&gt; !StringUtils.hasText(o))) {</span>
+<span class="fc" id="L152">            throw new BusinessRuleException(&quot;Câu trắc nghiệm cần đúng 4 lựa chọn A, B, C, D và không để trống.&quot;);</span>
+        }
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (new HashSet&lt;&gt;(options.stream().map(String::toLowerCase).toList()).size() != OPTION_COUNT) {</span>
+<span class="fc" id="L155">            throw new BusinessRuleException(&quot;Các lựa chọn của câu hỏi không được trùng nhau.&quot;);</span>
+        }
+<span class="pc bpc" id="L157" title="2 of 6 branches missed.">        if (entity.getCorrect() == null || entity.getCorrect() &lt; 0 || entity.getCorrect() &gt;= options.size()) {</span>
+<span class="fc" id="L158">            throw new BusinessRuleException(&quot;Đáp án đúng không nằm trong danh sách lựa chọn.&quot;);</span>
+        }
+<span class="fc" id="L160">        Lesson lesson = scope.requireLesson(entity.getLessonId());</span>
+<span class="pc bpc" id="L161" title="1 of 4 branches missed.">        int pages = lesson.getSlides() == null || lesson.getSlides().isEmpty() ? Integer.MAX_VALUE : lesson.getSlides().size();</span>
+<span class="pc bpc" id="L162" title="1 of 6 branches missed.">        if (entity.getPage() == null || entity.getPage() &lt; 1 || entity.getPage() &gt; pages) {</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">            throw new BusinessRuleException(&quot;Trang gắn câu hỏi phải từ 1 đến &quot; + (pages == Integer.MAX_VALUE ? &quot;số trang của bài&quot; : pages) + &quot;.&quot;);</span>
+        }
+<span class="fc" id="L165">    }</span>
+
+    @Override
+    @Transactional
+    public QuestionWrapper update(String id, QuestionWrapper wrapper) {
+<span class="fc" id="L170">        scope.requireLesson(require(id).getLessonId());</span>
+<span class="fc" id="L171">        return super.update(id, wrapper);</span>
+    }
+
+    /** An answered question keeps the students' results meaningful, so it can be edited but not removed. */
+    @Override
+    protected void checkDelete(Question entity) {
+<span class="fc" id="L177">        scope.requireLesson(entity.getLessonId());</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">        if (scope.questionAnswered(entity.getId())) {</span>
+<span class="fc" id="L179">            throw new BusinessRuleException(&quot;Câu hỏi đã có sinh viên trả lời, không thể xóa. Hãy sửa nội dung nếu cần.&quot;);</span>
+        }
+<span class="fc" id="L181">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;QuestionWrapper&gt; listAll() {
+<span class="fc bfc" id="L186" title="All 2 branches covered.">        if (!UserPrincipal.callerIsStudent()) {</span>
+<span class="fc" id="L187">            return super.listAll();</span>
+        }
+<span class="fc" id="L189">        java.util.Set&lt;String&gt; answered = answeredBy(UserPrincipal.current().id());</span>
+<span class="fc" id="L190">        return dao.findAll(readScope(),org.springframework.data.domain.Pageable.unpaged()).stream().filter(q -&gt; Boolean.TRUE.equals(q.getApproved()))</span>
+<span class="fc" id="L191">                .map(q -&gt; forStudent(q, answered)).toList();</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public QuestionWrapper get(String id) {
+<span class="fc" id="L197">        Question question = require(id);</span>
+<span class="fc" id="L198">        scope.requireReadLesson(question.getLessonId());</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        if (UserPrincipal.callerIsStudent()) {</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">            if (!Boolean.TRUE.equals(question.getApproved())) {</span>
+<span class="nc" id="L201">                throw new ResourceNotFoundException(notFoundMessage());</span>
+            }
+<span class="fc" id="L203">            return forStudent(question, answeredBy(UserPrincipal.current().id()));</span>
+        }
+<span class="fc" id="L205">        return toWrapper(question);</span>
+    }
+
+    @Override
+    @Transactional
+    public List&lt;QuestionWrapper&gt; importQuestions(List&lt;QuestionWrapper&gt; rows) {
+<span class="pc bpc" id="L211" title="1 of 4 branches missed.">        if (rows == null || rows.isEmpty()) {</span>
+<span class="fc" id="L212">            throw new BusinessRuleException(&quot;Tệp không có câu hỏi nào.&quot;);</span>
+        }
+<span class="fc bfc" id="L214" title="All 2 branches covered.">        if (rows.size() &gt; IMPORT_MAX) {</span>
+<span class="fc" id="L215">            throw new BusinessRuleException(&quot;Mỗi lần nhập tối đa &quot; + IMPORT_MAX + &quot; câu hỏi.&quot;);</span>
+        }
+<span class="fc" id="L217">        int[] line = {0};</span>
+<span class="fc" id="L218">        return rows.stream().map(row -&gt; {</span>
+<span class="fc" id="L219">            line[0]++;</span>
+            try {
+<span class="fc" id="L221">                return create(row);</span>
+<span class="fc" id="L222">            } catch (BusinessRuleException e) {</span>
+<span class="fc" id="L223">                throw new BusinessRuleException(&quot;Dòng &quot; + line[0] + &quot;: &quot; + e.getMessage());</span>
+            }
+<span class="fc" id="L225">        }).toList();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

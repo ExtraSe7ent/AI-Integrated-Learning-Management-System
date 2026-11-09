@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssessmentServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">AssessmentServiceImpl.java</span></div><h1>AssessmentServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import vn.edu.vju.lms.service.ExamOrder;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.ai.EssayGrader;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ForbiddenOperationException;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.dao.IAppealDao;
+import vn.edu.vju.lms.dao.IAssessmentDao;
+import vn.edu.vju.lms.dao.IAssignmentDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.Assessment;
+import vn.edu.vju.lms.entity.Assignment;
+import vn.edu.vju.lms.entity.ExamQuestion;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.AssessmentGrader;
+import vn.edu.vju.lms.service.AssessmentService;
+import vn.edu.vju.lms.wrapper.AssessmentWrapper;
+
+@Service
+public class AssessmentServiceImpl implements AssessmentService {
+
+    private static final String WAIT_FOR_APPEAL = &quot;Chờ xử lý phúc khảo trước khi làm lại bài tập.&quot;;
+
+    private final vn.edu.vju.lms.service.AssignmentPolicy policy;
+    private final IAssessmentDao assessmentDao;
+    private final IAssignmentDao assignmentDao;
+    private final IAppealDao appealDao;
+    private final IUserAccountDao userDao;
+    private final EssayGrader essayGrader;
+    private final ZoneId zone;
+
+    public AssessmentServiceImpl(IAssessmentDao assessmentDao, IAssignmentDao assignmentDao, IAppealDao appealDao,
+<span class="fc" id="L48">            IUserAccountDao userDao, EssayGrader essayGrader, LmsProperties properties, vn.edu.vju.lms.service.AssignmentPolicy policy) {</span>
+<span class="fc" id="L49">        this.policy = policy;</span>
+<span class="fc" id="L50">        this.assessmentDao = assessmentDao;</span>
+<span class="fc" id="L51">        this.assignmentDao = assignmentDao;</span>
+<span class="fc" id="L52">        this.appealDao = appealDao;</span>
+<span class="fc" id="L53">        this.userDao = userDao;</span>
+<span class="fc" id="L54">        this.essayGrader = essayGrader;</span>
+<span class="fc" id="L55">        this.zone = ZoneId.of(properties.getTimeZone());</span>
+<span class="fc" id="L56">    }</span>
+
+    @Override
+    @Transactional
+    public Map&lt;String, AssessmentWrapper&gt; visibleToCurrentUser() {
+<span class="fc" id="L61">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L62">        assignmentDao.findAll().stream().filter(policy::canRead).sorted(java.util.Comparator.comparing(Assignment::getId))</span>
+<span class="fc" id="L63">            .forEach(a -&gt; policy.refresh(requireAssignment(a.getId())));</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        List&lt;Assessment&gt; records = user.isStudent() ? assessmentDao.findByStudent(user.id()) : assessmentDao.findSubmitted();</span>
+<span class="fc" id="L65">        Map&lt;String, AssessmentWrapper&gt; result = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L66">        records.forEach(record -&gt; {</span>
+<span class="fc" id="L67">            assignmentDao.findById(record.getAssignmentId()).filter(policy::canRead).ifPresent(assignment -&gt; {</span>
+<span class="fc" id="L68">                finalizeExpired(record, assignment);</span>
+<span class="fc" id="L69">                result.put(record.getAssignmentId(), toWrapper(record));</span>
+<span class="fc" id="L70">            });</span>
+<span class="fc" id="L71">        });</span>
+<span class="fc" id="L72">        return result;</span>
+    }
+
+    @Override
+    @Transactional
+    public AssessmentWrapper save(String assignmentId, AssessmentWrapper wrapper) {
+<span class="fc" id="L78">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L79">        Assignment assignment = requireAssignment(assignmentId);</span>
+<span class="fc" id="L80">        policy.requireRead(assignment);</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        if (user.isStudent()) {</span>
+<span class="fc" id="L82">            Assessment saved=saveStudentWork(user.id(), assignment, wrapper);</span>
+<span class="fc" id="L83">            policy.refresh(assignment);</span>
+<span class="fc" id="L84">            return toWrapper(saved);</span>
+        }
+<span class="fc" id="L86">        policy.refresh(assignment);</span>
+<span class="pc bpc" id="L87" title="1 of 4 branches missed.">        if (user.role() != Role.LECTURER &amp;&amp; user.role() != Role.ADMIN) {</span>
+<span class="fc" id="L88">            throw new ForbiddenOperationException(&quot;Bạn không có quyền chấm bài.&quot;);</span>
+        }
+<span class="fc" id="L90">        policy.requireTeaching(assignment);</span>
+<span class="fc" id="L91">        return toWrapper(grade(assignment, wrapper));</span>
+    }
+
+    @Override
+    @Transactional
+    public List&lt;AssessmentWrapper&gt; submissions(String assignmentId) {
+<span class="fc" id="L97">        Assignment assignment = requireAssignment(assignmentId);</span>
+<span class="fc" id="L98">        policy.requireTeaching(assignment);</span>
+<span class="fc" id="L99">        policy.refresh(assignment);</span>
+<span class="fc" id="L100">        List&lt;Assessment&gt; records = assessmentDao.findByAssignment(assignmentId);</span>
+<span class="fc" id="L101">        records.forEach(record -&gt; finalizeExpired(record, assignment));</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">        return records.stream().filter(record -&gt; record.getScore() != null).map(record -&gt; {</span>
+<span class="fc" id="L103">            AssessmentWrapper wrapper = toWrapper(record);</span>
+<span class="fc" id="L104">            wrapper.setStudentName(userDao.findById(record.getStudentId()).map(UserAccount::getName).orElse(record.getStudentId()));</span>
+<span class="fc" id="L105">            return wrapper;</span>
+<span class="fc" id="L106">        }).toList();</span>
+    }
+
+    /** Not transactional: a model call can take a minute and must not hold a database connection. */
+    @Override
+    public List&lt;EssayGrader.Draft&gt; essayDrafts(String assignmentId, String studentId) {
+<span class="fc" id="L112">        Assignment assignment = assignmentDao.findById(assignmentId).orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy bài tập.&quot;));</span>
+<span class="fc" id="L113">        policy.requireTeaching(assignment);</span>
+<span class="fc" id="L114">        List&lt;String&gt; answers = submission(studentId, assignmentId).getAnswers();</span>
+<span class="fc" id="L115">        List&lt;ExamQuestion&gt; questions = AssessmentGrader.questionsOf(assignment);</span>
+<span class="fc" id="L116">        List&lt;EssayGrader.Draft&gt; drafts = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        for (int i = 0; i &lt; questions.size(); i++) {</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">            if (questions.get(i).isEssay()) {</span>
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">                drafts.add(essayGrader.draft(i, questions.get(i), i &lt; answers.size() ? answers.get(i) : &quot;&quot;));</span>
+            }
+        }
+<span class="fc" id="L122">        return drafts;</span>
+    }
+
+    @Override
+    @Transactional
+    public void regrade(String studentId, String assignmentId, int questionIndex, double points) {
+<span class="fc" id="L128">        Assignment assignment = requireAssignment(assignmentId);</span>
+<span class="fc" id="L129">        policy.requireTeaching(assignment);</span>
+<span class="fc" id="L130">        Assessment record = submission(studentId, assignmentId);</span>
+<span class="fc" id="L131">        List&lt;Double&gt; updated = new ArrayList&lt;&gt;(record.getQuestionPoints());</span>
+<span class="pc bpc" id="L132" title="2 of 4 branches missed.">        if (questionIndex &lt; 0 || questionIndex &gt;= updated.size()) {</span>
+<span class="nc" id="L133">            throw new BusinessRuleException(&quot;Điểm câu không hợp lệ.&quot;);</span>
+        }
+<span class="fc" id="L135">        updated.set(questionIndex, points);</span>
+<span class="fc" id="L136">        record.setQuestionPoints(validPoints(requireAssignment(assignmentId), updated));</span>
+<span class="fc" id="L137">        record.setScore(AssessmentGrader.total(updated));</span>
+<span class="fc" id="L138">        record.setApproved(true);</span>
+<span class="fc" id="L139">    }</span>
+
+    private Assignment requireAssignment(String assignmentId) {
+<span class="fc" id="L142">        return assignmentDao.findForUpdate(assignmentId)</span>
+<span class="fc" id="L143">                .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy bài tập.&quot;));</span>
+    }
+
+    private Assessment submission(String studentId, String assignmentId) {
+<span class="pc bpc" id="L147" title="1 of 2 branches missed.">        return assessmentDao.find(studentId, assignmentId).filter(record -&gt; record.getScore() != null)</span>
+<span class="fc" id="L148">                .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Chưa có bài nộp để chấm.&quot;));</span>
+    }
+
+    private Assessment saveStudentWork(String studentId, Assignment assignment, AssessmentWrapper wrapper) {
+<span class="fc" id="L152">        Assessment record = assessmentDao.find(studentId, assignment.getId()).orElseGet(() -&gt; create(studentId, assignment.getId()));</span>
+<span class="pc bpc" id="L153" title="1 of 4 branches missed.">        if (record.getScore()==null &amp;&amp; hasPendingAppeal(studentId, assignment.getId())) {</span>
+<span class="nc" id="L154">            throw new BusinessRuleException(WAIT_FOR_APPEAL);</span>
+        }
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (finalizeExpired(record, assignment)) {</span>
+<span class="fc" id="L157">            return record;</span>
+        }
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        if (wrapper.getDraft() != null) {</span>
+<span class="fc bfc" id="L160" title="All 4 branches covered.">            if(record.getScore()!=null &amp;&amp; !Boolean.TRUE.equals(assignment.getAnswersReleased())) throw new BusinessRuleException(&quot;Chờ công bố đáp án để luyện tập. Lượt tính điểm đã hoàn tất.&quot;);</span>
+<span class="fc" id="L161">            saveDraft(record, assignment, wrapper.getDraft());</span>
+<span class="pc bpc" id="L162" title="1 of 4 branches missed.">        } else if (wrapper.getResult() != null &amp;&amp; record.getDraftDeadline() != null) {</span>
+<span class="fc" id="L163">            submit(record, assignment, wrapper.getResult().getAnswers());</span>
+        }
+<span class="fc" id="L165">        return record;</span>
+    }
+
+    private void saveDraft(Assessment record, Assignment assignment, AssessmentWrapper.Draft draft) {
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">        if (record.getDraftDeadline() == null) {</span>
+<span class="fc" id="L170">            long now = Instant.now().toEpochMilli();</span>
+<span class="fc" id="L171">            long closes = epochMillis(assignment.getCloses());</span>
+<span class="pc bpc" id="L172" title="1 of 4 branches missed.">            boolean practice=record.getScore()!=null &amp;&amp; Boolean.TRUE.equals(assignment.getAnswersReleased());</span>
+<span class="pc bpc" id="L173" title="1 of 8 branches missed.">            if (!practice &amp;&amp; (!Boolean.TRUE.equals(assignment.getPublished()) || now &lt; epochMillis(assignment.getOpens()) || now &gt;= closes)) {</span>
+<span class="fc" id="L174">                throw new BusinessRuleException(&quot;Bài tập chưa mở hoặc đã đóng.&quot;);</span>
+            }
+<span class="pc bpc" id="L176" title="1 of 4 branches missed.">            if (!practice &amp;&amp; record.getScore()!=null) {</span>
+<span class="nc" id="L177">                throw new BusinessRuleException(&quot;Đã hết lượt làm bài.&quot;);</span>
+            }
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            record.setDraftDeadline(practice ? now + assignment.getMinutes()*60_000L : Math.min(now + assignment.getMinutes() * 60_000L, closes));</span>
+        }
+        // The student answers in their own question order; work is stored in the assignment's order.
+<span class="fc" id="L182">        record.setDraftAnswers(ExamOrder.toOriginal(draft.getAnswers(), ExamOrder.of(assignment, record.getStudentId())));</span>
+<span class="fc" id="L183">    }</span>
+
+    private void submit(Assessment record, Assignment assignment, List&lt;String&gt; answers) {
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        List&lt;String&gt; submitted = answers == null ? List.of()</span>
+<span class="fc" id="L187">                : ExamOrder.toOriginal(answers, ExamOrder.of(assignment, record.getStudentId()));</span>
+<span class="fc" id="L188">        finishSubmission(record, assignment, submitted);</span>
+<span class="fc" id="L189">    }</span>
+
+    private boolean finalizeExpired(Assessment record, Assignment assignment) {
+<span class="fc bfc" id="L192" title="All 4 branches covered.">        if (record.getDraftDeadline() == null || Instant.now().toEpochMilli() &lt; record.getDraftDeadline()) {</span>
+<span class="fc" id="L193">            return false;</span>
+        }
+        // Saved answers are already in the assignment's canonical order.
+<span class="pc bpc" id="L196" title="1 of 2 branches missed.">        finishSubmission(record, assignment, record.getDraftAnswers() == null ? List.of() : record.getDraftAnswers());</span>
+<span class="fc" id="L197">        return true;</span>
+    }
+
+    private void finishSubmission(Assessment record, Assignment assignment, List&lt;String&gt; submitted) {
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        if(record.getScore()==null) {</span>
+<span class="fc" id="L202">            policy.finishOfficial(record,assignment,submitted);</span>
+<span class="fc" id="L203">            policy.refresh(assignment);</span>
+<span class="fc" id="L204">            return;</span>
+        }
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">        if(!Boolean.TRUE.equals(assignment.getAnswersReleased())) throw new BusinessRuleException(&quot;Chưa công bố đáp án.&quot;);</span>
+<span class="fc" id="L207">        var practice = new vn.edu.vju.lms.entity.PracticeAttempt();</span>
+<span class="fc" id="L208">        practice.setAnswers(new ArrayList&lt;&gt;(submitted));</span>
+<span class="fc" id="L209">        practice.setQuestionPoints(AssessmentGrader.grade(AssessmentGrader.questionsOf(assignment),submitted));</span>
+<span class="fc" id="L210">        practice.setScore(AssessmentGrader.total(practice.getQuestionPoints()));</span>
+<span class="fc" id="L211">        practice.setSubmitted(policy.timestamp());</span>
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">        var history=new ArrayList&lt;&gt;(record.getPracticeResults()==null?List.&lt;vn.edu.vju.lms.entity.PracticeAttempt&gt;of():record.getPracticeResults());</span>
+<span class="fc" id="L213">        history.add(practice);record.setPracticeResults(history);</span>
+<span class="fc" id="L214">        record.setDraftAnswers(null);record.setDraftDeadline(null);</span>
+<span class="fc" id="L215">    }</span>
+
+    private Assessment grade(Assignment assignment, AssessmentWrapper wrapper) {
+<span class="fc" id="L218">        String assignmentId = assignment.getId();</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        Assessment record = (StringUtils.hasText(wrapper.getStudentId())</span>
+<span class="fc" id="L220">                ? assessmentDao.find(wrapper.getStudentId(), assignmentId)</span>
+<span class="fc" id="L221">                : assessmentDao.findSubmitted().stream().filter(a -&gt; assignmentId.equals(a.getAssignmentId())).findFirst())</span>
+<span class="fc" id="L222">                .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Chưa có bài nộp để chấm.&quot;));</span>
+<span class="fc" id="L223">        AssessmentWrapper.Result result = wrapper.getResult();</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">        if (result == null) {</span>
+<span class="fc" id="L225">            return record;</span>
+        }
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        if (result.getQuestionPoints() != null) {</span>
+<span class="fc" id="L228">            record.setQuestionPoints(validPoints(assignment, result.getQuestionPoints()));</span>
+<span class="fc" id="L229">            record.setScore(AssessmentGrader.total(record.getQuestionPoints()));</span>
+        }
+<span class="fc bfc" id="L231" title="All 2 branches covered.">        if (result.getApproved() != null) {</span>
+<span class="fc" id="L232">            record.setApproved(result.getApproved());</span>
+        }
+<span class="fc bfc" id="L234" title="All 2 branches covered.">        if (result.getComment() != null) {</span>
+<span class="fc" id="L235">            record.setComment(result.getComment());</span>
+        }
+<span class="fc" id="L237">        return record;</span>
+    }
+
+    private List&lt;Double&gt; validPoints(Assignment assignment, List&lt;Double&gt; points) {
+<span class="fc" id="L241">        List&lt;ExamQuestion&gt; questions = AssessmentGrader.questionsOf(assignment);</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        if (points.size() != questions.size()) {</span>
+<span class="fc" id="L243">            throw new BusinessRuleException(&quot;Điểm câu không hợp lệ.&quot;);</span>
+        }
+<span class="fc bfc" id="L245" title="All 2 branches covered.">        for (int i = 0; i &lt; points.size(); i++) {</span>
+<span class="fc" id="L246">            Double value = points.get(i);</span>
+<span class="pc bpc" id="L247" title="2 of 6 branches missed.">            if (value == null || value &lt; 0 || value &gt; questions.get(i).getPoints()) {</span>
+<span class="fc" id="L248">                throw new BusinessRuleException(&quot;Điểm câu không hợp lệ.&quot;);</span>
+            }
+        }
+<span class="fc" id="L251">        return new ArrayList&lt;&gt;(points);</span>
+    }
+
+    private boolean hasPendingAppeal(String studentId, String assignmentId) {
+<span class="fc bfc" id="L255" title="All 2 branches covered.">        return appealDao.findAll().stream().anyMatch(appeal -&gt; studentId.equals(appeal.getOwnerId())</span>
+<span class="pc bpc" id="L256" title="3 of 4 branches missed.">                &amp;&amp; assignmentId.equals(appeal.getAssignmentId()) &amp;&amp; &quot;pending&quot;.equals(appeal.getStatus()));</span>
+    }
+
+    private Assessment create(String studentId, String assignmentId) {
+<span class="fc" id="L260">        Assessment record = new Assessment();</span>
+<span class="fc" id="L261">        record.setId(studentId + &quot;:&quot; + assignmentId);</span>
+<span class="fc" id="L262">        record.setStudentId(studentId);</span>
+<span class="fc" id="L263">        record.setAssignmentId(assignmentId);</span>
+<span class="fc" id="L264">        return assessmentDao.persist(record);</span>
+    }
+
+    private long epochMillis(String localDateTime) {
+<span class="fc" id="L268">        return LocalDateTime.parse(localDateTime).atZone(zone).toInstant().toEpochMilli();</span>
+    }
+
+    private AssessmentWrapper toWrapper(Assessment record) {
+<span class="fc" id="L272">        AssessmentWrapper wrapper = canonicalWrapper(record);</span>
+<span class="fc" id="L273">        var assignment=assignmentDao.findById(record.getAssignmentId()).orElse(null);</span>
+<span class="fc" id="L274">        var practiceResults=new ArrayList&lt;AssessmentWrapper.Result&gt;();</span>
+<span class="fc bfc" id="L275" title="All 4 branches covered.">        for(var p:record.getPracticeResults()==null?List.&lt;vn.edu.vju.lms.entity.PracticeAttempt&gt;of():record.getPracticeResults()) {</span>
+<span class="fc" id="L276">            var r=new AssessmentWrapper.Result();r.setAnswers(p.getAnswers());r.setQuestionPoints(p.getQuestionPoints());r.setScore(p.getScore());r.setSubmitted(p.getSubmitted());practiceResults.add(r);</span>
+<span class="fc" id="L277">        }</span>
+<span class="fc" id="L278">        wrapper.setPracticeResults(practiceResults);</span>
+<span class="fc bfc" id="L279" title="All 4 branches covered.">        if(wrapper.getDraft()!=null) wrapper.getDraft().setMode(record.getScore()==null?&quot;official&quot;:&quot;practice&quot;);</span>
+<span class="pc bpc" id="L280" title="1 of 8 branches missed.">        if(UserPrincipal.callerIsStudent() &amp;&amp; (assignment==null || !Boolean.TRUE.equals(assignment.getAnswersReleased())) &amp;&amp; wrapper.getResult()!=null) {</span>
+<span class="fc" id="L281">            wrapper.getResult().setQuestionPoints(null);wrapper.getResult().setAiFeedback(null);wrapper.getResult().setComment(null);</span>
+        }
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        if (!UserPrincipal.callerIsStudent()) {</span>
+<span class="fc" id="L284">            return wrapper;</span>
+        }
+<span class="fc" id="L286">        int[] order = assignmentDao.findById(record.getAssignmentId())</span>
+<span class="fc" id="L287">                .map(a -&gt; ExamOrder.of(a, record.getStudentId())).orElse(new int[0]);</span>
+<span class="fc bfc" id="L288" title="All 2 branches covered.">        if (wrapper.getDraft() != null) {</span>
+<span class="fc" id="L289">            wrapper.getDraft().setAnswers(ExamOrder.toStudent(wrapper.getDraft().getAnswers(), order));</span>
+        }
+<span class="fc bfc" id="L291" title="All 2 branches covered.">        if (wrapper.getResult() != null) {</span>
+<span class="fc" id="L292">            wrapper.getResult().setAnswers(ExamOrder.toStudent(wrapper.getResult().getAnswers(), order));</span>
+<span class="fc" id="L293">            wrapper.getResult().setQuestionPoints(ExamOrder.toStudent(wrapper.getResult().getQuestionPoints(), order));</span>
+<span class="fc" id="L294">            wrapper.getResult().setAiFeedback(ExamOrder.toStudent(wrapper.getResult().getAiFeedback(), order));</span>
+        }
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        for(var r:wrapper.getPracticeResults()) {</span>
+<span class="fc" id="L297">            r.setAnswers(ExamOrder.toStudent(r.getAnswers(),order));</span>
+<span class="fc" id="L298">            r.setQuestionPoints(ExamOrder.toStudent(r.getQuestionPoints(),order));</span>
+<span class="fc" id="L299">        }</span>
+<span class="fc" id="L300">        return wrapper;</span>
+    }
+
+    private AssessmentWrapper canonicalWrapper(Assessment record) {
+<span class="fc" id="L304">        AssessmentWrapper wrapper = new AssessmentWrapper();</span>
+<span class="fc" id="L305">        wrapper.setStudentId(record.getStudentId());</span>
+<span class="fc" id="L306">        wrapper.setAttempts(record.getAttempts());</span>
+<span class="fc bfc" id="L307" title="All 2 branches covered.">        if (record.getDraftDeadline() != null) {</span>
+<span class="fc" id="L308">            AssessmentWrapper.Draft draft = new AssessmentWrapper.Draft();</span>
+<span class="fc" id="L309">            draft.setAnswers(record.getDraftAnswers());</span>
+<span class="fc" id="L310">            draft.setDeadline(record.getDraftDeadline());</span>
+<span class="fc" id="L311">            wrapper.setDraft(draft);</span>
+        }
+<span class="fc bfc" id="L313" title="All 2 branches covered.">        if (record.getScore() != null) {</span>
+<span class="fc" id="L314">            AssessmentWrapper.Result result = new AssessmentWrapper.Result();</span>
+<span class="fc" id="L315">            result.setScore(record.getScore());</span>
+<span class="fc" id="L316">            result.setQuestionPoints(record.getQuestionPoints());</span>
+<span class="fc" id="L317">            result.setAnswers(record.getAnswers());</span>
+<span class="fc" id="L318">            result.setSubmitted(record.getSubmitted());</span>
+<span class="fc" id="L319">            result.setApproved(record.getApproved());</span>
+<span class="fc" id="L320">            result.setComment(record.getComment());</span>
+<span class="fc" id="L321">            result.setAiFeedback(record.getAiFeedback());</span>
+<span class="fc" id="L322">            wrapper.setResult(result);</span>
+        }
+<span class="fc" id="L324">        return wrapper;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

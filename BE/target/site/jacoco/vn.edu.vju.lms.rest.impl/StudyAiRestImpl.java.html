@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StudyAiRestImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.rest.impl</a> &gt; <span class="el_source">StudyAiRestImpl.java</span></div><h1>StudyAiRestImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.rest.impl;
+
+import java.util.List;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.vju.lms.rest.StudyAiRest;
+import vn.edu.vju.lms.service.StudyAiService;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.Aid;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.AidCreate;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.AidGenerateRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.AidUpdate;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.ExplainRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.Explanation;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.ExplanationUpdate;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.Insights;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.InsightsRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.MistakeExplanationWrapper;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.MistakeRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.ReviewRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.ReviewState;
+
+@RestController
+public class StudyAiRestImpl implements StudyAiRest {
+
+    private final StudyAiService service;
+
+<span class="fc" id="L27">    public StudyAiRestImpl(StudyAiService service) {</span>
+<span class="fc" id="L28">        this.service = service;</span>
+<span class="fc" id="L29">    }</span>
+
+    @Override
+    public ResponseEntity&lt;List&lt;Explanation&gt;&gt; explanations(String courseId) {
+<span class="fc" id="L33">        return ResponseEntity.ok(service.explanations(courseId));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;List&lt;Explanation&gt;&gt; generateExplanations(String courseId, ExplainRequest request) {
+<span class="fc" id="L38">        return ResponseEntity.ok(service.generateExplanations(courseId, request));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Explanation&gt; updateExplanation(String courseId, int page, ExplanationUpdate update) {
+<span class="fc" id="L43">        return ResponseEntity.ok(service.updateExplanation(courseId, page, update));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Insights&gt; insights(InsightsRequest request) {
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        return ResponseEntity.ok(service.insights(request == null ? null : request.courseId()));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;MistakeExplanationWrapper&gt; explainMistake(MistakeRequest request) {
+<span class="fc" id="L53">        return ResponseEntity.ok(service.explainMistake(request));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;List&lt;Aid&gt;&gt; aids(String courseId, String kind) {
+<span class="fc" id="L58">        return ResponseEntity.ok(service.aids(courseId, kind));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;List&lt;Aid&gt;&gt; generateAids(AidGenerateRequest request) {
+<span class="fc" id="L63">        return ResponseEntity.ok(service.generateAids(request));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Aid&gt; createAid(AidCreate request) {
+<span class="fc" id="L68">        return ResponseEntity.ok(service.createAid(request));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Aid&gt; updateAid(String id, AidUpdate update) {
+<span class="fc" id="L73">        return ResponseEntity.ok(service.updateAid(id, update));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Void&gt; deleteAid(String id) {
+<span class="fc" id="L78">        service.deleteAid(id);</span>
+<span class="fc" id="L79">        return ResponseEntity.noContent().build();</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;ReviewState&gt; review(String id, ReviewRequest request) {
+<span class="fc" id="L84">        return ResponseEntity.ok(service.review(id, request.remembered()));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

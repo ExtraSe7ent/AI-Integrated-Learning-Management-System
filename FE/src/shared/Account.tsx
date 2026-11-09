@@ -8,7 +8,8 @@ import { accountHome } from "../data/accounts";
 export function DangNhap() {
   const { signIn } = useAccount();
   const [help, setHelp] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   return (
     <div className="auth-layout">
@@ -46,18 +47,25 @@ export function DangNhap() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (submitting) return;
               const f = new FormData(e.currentTarget);
-              const account = await signIn(
-                String(f.get("username")),
-                String(f.get("password")),
-              );
-              if (!account) {
-                setError(
-                  "Mã tài khoản hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.",
+              setError("");
+              setSubmitting(true);
+              try {
+                const account = await signIn(
+                  String(f.get("username")),
+                  String(f.get("password")),
                 );
-                return;
+                if (!account) {
+                  setError("Mã tài khoản hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.");
+                  return;
+                }
+                navigate(account.mustChange ? "/doi-mat-khau" : accountHome(account.role), { replace: true });
+              } catch (error) {
+                setError(error instanceof Error ? error.message : "Không thể đăng nhập. Vui lòng thử lại.");
+              } finally {
+                setSubmitting(false);
               }
-              navigate(account.mustChange ? "/doi-mat-khau" : accountHome(account.role), { replace: true });
             }}
           >
             <Field label="Mã tài khoản">
@@ -89,8 +97,8 @@ export function DangNhap() {
             >
               Quên mật khẩu?
             </button>
-            <Button type="submit">
-              Đăng nhập
+            <Button type="submit" disabled={submitting} aria-busy={submitting}>
+              {submitting ? "Đang đăng nhập…" : "Đăng nhập"}
               <ArrowRight size={17} />
             </Button>
           </form>
@@ -186,6 +194,7 @@ export function HoSo({ teacher = false }: { teacher?: boolean }) {
         title="Hồ sơ cá nhân"
         description="Thông tin tài khoản trong không gian VJU Learning."
       />
+      {teacher && <Panel title="Agent AI cá nhân"><p>Kết nối ứng dụng AI để hỗ trợ soạn bài trong các lớp bạn phụ trách.</p><Link className="text-link" to="/giang-vien/ket-noi-agent">Kết nối agent AI <ArrowRight size={16}/></Link></Panel>}
       <div className="profile-layout">
         <Panel>
           <div className="profile-avatar">{teacher ? "MA" : "QA"}</div>

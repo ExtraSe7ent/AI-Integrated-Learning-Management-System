@@ -3,17 +3,22 @@ import { Link } from "react-router-dom";
 import { Send, FileText, ThumbsUp, Flag } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
 import { PageHeader, Field, Button, Badge } from "../shared/UI";
-import { answerFromMaterial, materialSourceAvailable } from "./model";
+import { materialSourceAvailable } from "./model";
+import { askAssistant } from "../api/assistant";
+import { useScope } from "../shared/useScope";
 export function Assistant({ teacher = false }: { teacher?: boolean }) {
   const { data, setData } = useDemo();
-  const [course, setCourse] = useState("cs301"),
+  const { courses, lessons } = useScope();
+  // The lesson the sources point to: the demo lesson when present, otherwise the first of the viewer's lessons.
+  const sourceLesson = lessons.find((l) => l.id === "l2") ?? lessons[0];
+  const [course, setCourse] = useState(courses[0]?.id ?? ""),
     [text, setText] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const link = (page = 1) =>
     teacher
-      ? "/giang-vien/soan-bai?bai=l2&trang=" + page
-      : "/sinh-vien/hoc/cs301?phien=s1&trang=" + page;
+      ? `/giang-vien/soan-bai?bai=${sourceLesson?.id ?? ""}&trang=` + page
+      : "/sinh-vien/hoc/cs301?trang=" + page;
   const available = materialSourceAvailable(data);
   const messages = data.chat
     .map((m, index) => ({ ...m, index }))
@@ -23,14 +28,11 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
     setBusy(true);
     setError("");
     try {
-      const result = answerFromMaterial(course, q.trim(), available);
-      setData((d) => ({
-        ...d,
-        chat: [...d.chat, { question: q.trim(), ...result, courseId: course }],
-      }));
+      const reply = await askAssistant(course, q.trim());
+      setData((d) => ({ ...d, chat: [...d.chat, reply] }));
       setText("");
-    } catch {
-      setError("Không tạo được phản hồi. Hãy gửi lại câu hỏi.");
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -50,7 +52,7 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
               value={course}
               onChange={(e) => setCourse(e.target.value)}
             >
-              {data.admin.courses.map((c) => (
+              {courses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.code} · {c.title}
                 </option>
@@ -73,8 +75,9 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
             </>
           ) : (
             <p>
-              Học phần này chưa có học liệu được kết nối với trợ lý. Chọn CSE301
-              hoặc hỏi giảng viên.
+              {courses.length
+                ? "Trợ lý trả lời từ học liệu PDF giảng viên đã công bố cho học phần này."
+                : "Bạn chưa thuộc học phần nào nên trợ lý chưa có học liệu để trả lời."}
             </p>
           )}
           <hr />
@@ -103,7 +106,8 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
                       <strong>Trợ lý VJU</strong>
                       <p>{m.answer}</p>
                       <div className="ai-sources">
-                        {(available
+                        {/* Sources come from the server; only the demo course also needs its demo lesson intact. */}
+                        {(course !== "cs301" || available
                           ? (m.sources ?? (m.page ? [m.page] : []))
                           : []
                         ).map((page) => (
@@ -112,7 +116,7 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
                             className="source-chip"
                             to={link(page)}
                           >
-                            Bài giảng RESTful API · Trang {page}
+                            Học liệu · Trang {page}
                           </Link>
                         ))}
                       </div>
@@ -153,7 +157,7 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
                                         id: crypto.randomUUID(),
                                         student: d.profile.name,
                                         course,
-                                        lesson: "Thiết kế RESTful API",
+                                        lesson: "Trợ lý AI",
                                         category: "Chat AI",
                                         body: `Cần kiểm tra câu trả lời: ${m.question}\n${m.answer}`,
                                         images: [],
@@ -186,11 +190,10 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
                 <h2>Bạn muốn hỏi phần nào trong bài?</h2>
                 <p>Chọn câu hỏi hoặc nhập nội dung cần giải thích.</p>
                 <div className="prompt-suggestions">
-                  {[
-                    "Giải thích RESTful API bằng ví dụ",
-                    "Phân biệt PUT và PATCH",
-                    "Ôn lại mã trạng thái HTTP",
-                  ].map((q) => (
+                  {(course === "cs301" && available
+                    ? ["Giải thích RESTful API bằng ví dụ", "Phân biệt PUT và PATCH", "Ôn lại mã trạng thái HTTP"]
+                    : ["Tóm tắt ý chính của bài học", "Giải thích lại khái niệm khó nhất", "Cho tôi một ví dụ minh họa"]
+                  ).map((q) => (
                     <button key={q} onClick={() => ask(q)}>
                       {q}
                     </button>
@@ -223,8 +226,7 @@ export function Assistant({ teacher = false }: { teacher?: boolean }) {
             </Button>
           </form>
           <small className="ai-disclaimer">
-            Phản hồi mô phỏng từ học liệu mẫu; chưa kết nối mô hình AI. AI có
-            thể mắc lỗi. Hãy kiểm tra nguồn và đối chiếu với bài giảng.
+            AI có thể mắc lỗi. Hãy kiểm tra nguồn và đối chiếu với bài giảng.
           </small>
         </section>
       </div>

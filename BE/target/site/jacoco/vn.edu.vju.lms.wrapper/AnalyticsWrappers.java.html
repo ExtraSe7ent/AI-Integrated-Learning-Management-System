@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AnalyticsWrappers.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.wrapper</a> &gt; <span class="el_source">AnalyticsWrappers.java</span></div><h1>AnalyticsWrappers.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.wrapper;
+
+import java.util.List;
+
+public final class AnalyticsWrappers {
+
+    private AnalyticsWrappers() {
+    }
+
+    /**
+     * correctRate is the share of auto-graded (choice and fill-in) answers that were right, null with no such
+     * answers; lastSubmitted is the latest submission time as shown to students (UC-F01 b, c).
+     */
+<span class="fc" id="L14">    public record StudentReport(String id, String name, String email, int progress, double selfStudy, double average,</span>
+            int submitted, int chats, Integer correctRate, String lastSubmitted, int feedback) {
+    }
+
+<span class="fc" id="L18">    public record ClassReport(String id, String name, String courseId, String courseCode, String courseTitle,</span>
+            String teacher, String term, String year, List&lt;StudentReport&gt; students) {
+    }
+
+    /** Quiz and knowledge-gap signals for one slide, across every student. */
+<span class="fc" id="L23">    public record PageReport(int page, int answered, int wrong, int gaps) {</span>
+    }
+
+<span class="fc" id="L26">    public record Report(List&lt;ClassReport&gt; classes, List&lt;PageReport&gt; pages) {</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TextNormalizer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service</a> &gt; <span class="el_source">TextNormalizer.java</span></div><h1>TextNormalizer.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service;
+
+import java.text.Normalizer;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/** Vietnamese-aware text folding shared by grading, guardrails and keyword retrieval. */
+public final class TextNormalizer {
+
+    private TextNormalizer() {
+    }
+
+    /** Lowercases, turns đ into d and strips accents, like normalized() in rag_guardrails.py. */
+    public static String fold(String text) {
+<span class="fc" id="L18">        String lowered = text.toLowerCase(Locale.ROOT).replace('đ', 'd');</span>
+<span class="fc" id="L19">        return Normalizer.normalize(lowered, Normalizer.Form.NFD).replaceAll(&quot;\\p{M}&quot;, &quot;&quot;);</span>
+    }
+
+    /** Fill-in comparison also ignores punctuation and spacing, like quiz_grading.py. */
+    public static String forComparison(String text) {
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        if (text == null) {</span>
+<span class="fc" id="L25">            return &quot;&quot;;</span>
+        }
+<span class="fc" id="L27">        return fold(text).replaceAll(&quot;[^\\p{L}\\p{N}_\\s]&quot;, &quot; &quot;).trim().replaceAll(&quot;\\s+&quot;, &quot; &quot;);</span>
+    }
+
+    public static Set&lt;String&gt; tokens(String text) {
+<span class="fc" id="L31">        return Arrays.stream(forComparison(text).split(&quot; &quot;))</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">                .filter(token -&gt; token.length() &gt; 1)</span>
+<span class="fc" id="L33">                .collect(Collectors.toCollection(LinkedHashSet::new));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

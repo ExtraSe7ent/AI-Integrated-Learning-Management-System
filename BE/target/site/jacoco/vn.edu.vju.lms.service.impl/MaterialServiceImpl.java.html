@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MaterialServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">MaterialServiceImpl.java</span></div><h1>MaterialServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import vn.edu.vju.lms.ai.RagIndexJob;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ForbiddenOperationException;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.crypto.AesService;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.IMaterialDao;
+import vn.edu.vju.lms.dao.IMaterialVersionDao;
+import vn.edu.vju.lms.dao.IRagChunkDao;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.entity.Material;
+import vn.edu.vju.lms.entity.MaterialVersion;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.MaterialService;
+import vn.edu.vju.lms.wrapper.MaterialWrapper;
+
+@Service
+public class MaterialServiceImpl implements MaterialService {
+
+<span class="fc" id="L42">    private static final Logger log = LoggerFactory.getLogger(MaterialServiceImpl.class);</span>
+<span class="fc" id="L43">    private static final byte[] PDF_MAGIC = &quot;%PDF-&quot;.getBytes(StandardCharsets.US_ASCII);</span>
+    private static final long MEGABYTE = 1024 * 1024;
+
+    private final IMaterialDao materialDao;
+    private final IMaterialVersionDao versionDao;
+    private final IRagChunkDao chunkDao;
+    private final IClassInfoDao classDao;
+    private final AesService aesService;
+    private final RagIndexJob indexJob;
+    private final LmsProperties.Storage storage;
+
+    public MaterialServiceImpl(IMaterialDao materialDao, IMaterialVersionDao versionDao, IRagChunkDao chunkDao,
+<span class="fc" id="L55">            IClassInfoDao classDao, AesService aesService, RagIndexJob indexJob, LmsProperties properties) {</span>
+<span class="fc" id="L56">        this.materialDao = materialDao;</span>
+<span class="fc" id="L57">        this.versionDao = versionDao;</span>
+<span class="fc" id="L58">        this.chunkDao = chunkDao;</span>
+<span class="fc" id="L59">        this.classDao = classDao;</span>
+<span class="fc" id="L60">        this.aesService = aesService;</span>
+<span class="fc" id="L61">        this.indexJob = indexJob;</span>
+<span class="fc" id="L62">        this.storage = properties.getStorage();</span>
+<span class="fc" id="L63">    }</span>
+
+    @Override
+    @Transactional
+    public MaterialWrapper upload(String classId, String title, int weekNumber, MultipartFile file) {
+<span class="fc" id="L68">        requireTeaching(requireClass(classId));</span>
+<span class="pc bpc" id="L69" title="1 of 4 branches missed.">        if (title == null || title.isBlank()) {</span>
+<span class="fc" id="L70">            throw new BusinessRuleException(&quot;Nhập tiêu đề học liệu.&quot;);</span>
+        }
+<span class="pc bpc" id="L72" title="1 of 4 branches missed.">        if (weekNumber &lt; 1 || weekNumber &gt; 20) {</span>
+<span class="fc" id="L73">            throw new BusinessRuleException(&quot;Tuần học phải từ 1 đến 20.&quot;);</span>
+        }
+<span class="fc" id="L75">        Material material = new Material();</span>
+<span class="fc" id="L76">        material.setId(UUID.randomUUID().toString());</span>
+<span class="fc" id="L77">        material.setClassId(classId);</span>
+<span class="fc" id="L78">        material.setTitle(title.trim());</span>
+<span class="fc" id="L79">        material.setWeekNumber(weekNumber);</span>
+<span class="fc" id="L80">        material.setKind(kindOf(file));</span>
+<span class="fc" id="L81">        material.setUploadedBy(UserPrincipal.current().id());</span>
+<span class="fc" id="L82">        materialDao.persist(material);</span>
+<span class="fc" id="L83">        return store(material, file);</span>
+    }
+
+    @Override
+    @Transactional
+    public MaterialWrapper addVersion(String id, MultipartFile file) {
+<span class="fc" id="L89">        Material material = requireMaterial(id);</span>
+<span class="fc" id="L90">        requireTeaching(requireClass(material.getClassId()));</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        if (!material.getKind().equals(kindOf(file))) {</span>
+<span class="fc" id="L92">            throw new BusinessRuleException(&quot;Phiên bản mới phải cùng loại với học liệu.&quot;);</span>
+        }
+<span class="fc" id="L94">        material.setIndexStatus(Material.INDEX_NOT_STARTED);</span>
+<span class="fc" id="L95">        return store(material, file);</span>
+    }
+
+    private MaterialWrapper store(Material material, MultipartFile file) {
+<span class="fc" id="L99">        int number = material.getCurrentVersion() + 1;</span>
+<span class="fc" id="L100">        Path relative = Path.of(&quot;materials&quot;, material.getId(), UUID.randomUUID() + &quot;.enc&quot;);</span>
+<span class="fc" id="L101">        Path target = Path.of(storage.getRoot()).resolve(relative);</span>
+<span class="fc" id="L102">        try (InputStream in = file.getInputStream()) {</span>
+<span class="fc" id="L103">            Files.createDirectories(target.getParent());</span>
+<span class="fc" id="L104">            aesService.encryptFile(in, target);</span>
+<span class="nc" id="L105">        } catch (IOException e) {</span>
+<span class="nc" id="L106">            throw new UncheckedIOException(&quot;Không lưu được tệp.&quot;, e);</span>
+<span class="fc" id="L107">        }</span>
+<span class="fc" id="L108">        MaterialVersion version = new MaterialVersion();</span>
+<span class="fc" id="L109">        version.setMaterialId(material.getId());</span>
+<span class="fc" id="L110">        version.setNumber(number);</span>
+<span class="fc" id="L111">        version.setStoredPath(relative.toString().replace('\\', '/'));</span>
+<span class="fc" id="L112">        version.setOriginalName(file.getOriginalFilename());</span>
+<span class="fc" id="L113">        version.setFileSize(file.getSize());</span>
+<span class="fc" id="L114">        version.setUploadedBy(UserPrincipal.current().id());</span>
+<span class="fc" id="L115">        versionDao.persist(version);</span>
+<span class="fc" id="L116">        material.setCurrentVersion(number);</span>
+<span class="fc" id="L117">        log.info(&quot;Stored material {} version {}&quot;, material.getId(), number);</span>
+<span class="fc" id="L118">        return toWrapper(materialDao.merge(material));</span>
+    }
+
+    private String kindOf(MultipartFile file) {
+<span class="fc" id="L122">        String name = String.valueOf(file.getOriginalFilename()).toLowerCase(Locale.ROOT);</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        if (name.endsWith(&quot;.pdf&quot;)) {</span>
+<span class="fc" id="L124">            checkSize(file, storage.getPdfMaxMb(), &quot;PDF&quot;);</span>
+<span class="fc" id="L125">            try (InputStream in = new BufferedInputStream(file.getInputStream())) {</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">                if (!Arrays.equals(in.readNBytes(PDF_MAGIC.length), PDF_MAGIC)) {</span>
+<span class="fc" id="L127">                    throw new BusinessRuleException(&quot;Tệp không phải PDF hợp lệ.&quot;);</span>
+                }
+<span class="nc" id="L129">            } catch (IOException e) {</span>
+<span class="nc" id="L130">                throw new UncheckedIOException(&quot;Không đọc được tệp.&quot;, e);</span>
+<span class="fc" id="L131">            }</span>
+<span class="fc" id="L132">            return &quot;pdf&quot;;</span>
+        }
+<span class="pc bpc" id="L134" title="1 of 4 branches missed.">        if (name.endsWith(&quot;.mp4&quot;) || name.endsWith(&quot;.webm&quot;)) {</span>
+<span class="fc" id="L135">            checkSize(file, storage.getVideoMaxMb(), &quot;Video&quot;);</span>
+<span class="fc" id="L136">            return &quot;video&quot;;</span>
+        }
+<span class="fc" id="L138">        throw new BusinessRuleException(&quot;Chỉ nhận tệp PDF, MP4 hoặc WebM.&quot;);</span>
+    }
+
+    private void checkSize(MultipartFile file, long maxMb, String label) {
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        if (file.getSize() &gt; maxMb * MEGABYTE) {</span>
+<span class="nc" id="L143">            throw new BusinessRuleException(label + &quot; vượt quá &quot; + maxMb + &quot; MB.&quot;);</span>
+        }
+<span class="fc" id="L145">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;MaterialWrapper&gt; listByClass(String classId) {
+<span class="fc" id="L150">        ClassInfo info = requireClass(classId);</span>
+<span class="fc" id="L151">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="pc bpc" id="L152" title="1 of 4 branches missed.">        if (!user.isStudent() &amp;&amp; user.role()!=Role.DEAN) requireTeaching(info);</span>
+<span class="fc bfc" id="L153" title="All 4 branches covered.">        if (user.isStudent() &amp;&amp; !info.getStudentIds().contains(user.id())) {</span>
+<span class="fc" id="L154">            throw new ForbiddenOperationException(&quot;Bạn không thuộc lớp này.&quot;);</span>
+        }
+<span class="fc" id="L156">        return materialDao.findByClass(classId).stream()</span>
+<span class="pc bpc" id="L157" title="1 of 4 branches missed.">                .filter(material -&gt; !user.isStudent() || Material.PUBLISHED.equals(material.getStatus()))</span>
+<span class="fc" id="L158">                .map(this::toWrapper).toList();</span>
+    }
+
+    @Override
+    @Transactional
+    public MaterialWrapper publish(String id) {
+<span class="fc" id="L164">        Material material = requireMaterial(id);</span>
+<span class="fc" id="L165">        requireTeaching(requireClass(material.getClassId()));</span>
+<span class="fc" id="L166">        material.setStatus(Material.PUBLISHED);</span>
+<span class="fc" id="L167">        material.setPublishedAt(Instant.now());</span>
+<span class="fc" id="L168">        return toWrapper(materialDao.merge(material));</span>
+    }
+
+    @Override
+    @Transactional
+    public MaterialWrapper unpublish(String id) {
+<span class="fc" id="L174">        Material material = requireMaterial(id);</span>
+<span class="fc" id="L175">        requireTeaching(requireClass(material.getClassId()));</span>
+<span class="fc" id="L176">        material.setStatus(Material.DRAFT);</span>
+<span class="fc" id="L177">        return toWrapper(materialDao.merge(material));</span>
+    }
+
+    @Override
+    @Transactional
+    public MaterialWrapper requestIndex(String id) {
+<span class="fc" id="L183">        Material material = requireMaterial(id);</span>
+<span class="fc" id="L184">        requireTeaching(requireClass(material.getClassId()));</span>
+<span class="pc bpc" id="L185" title="1 of 4 branches missed.">        if (!Material.PUBLISHED.equals(material.getStatus()) || !&quot;pdf&quot;.equals(material.getKind())) {</span>
+<span class="fc" id="L186">            throw new BusinessRuleException(&quot;Chọn PDF đã công bố.&quot;);</span>
+        }
+<span class="fc" id="L188">        material.setIndexStatus(Material.INDEX_QUEUED);</span>
+<span class="fc" id="L189">        MaterialWrapper wrapper = toWrapper(materialDao.merge(material));</span>
+<span class="fc" id="L190">        indexJob.enqueueAfterCommit(id);</span>
+<span class="fc" id="L191">        return wrapper;</span>
+    }
+
+    @Override
+    @Transactional
+    public void delete(String id) {
+<span class="fc" id="L197">        Material material = requireMaterial(id);</span>
+<span class="fc" id="L198">        requireTeaching(requireClass(material.getClassId()));</span>
+<span class="fc" id="L199">        chunkDao.deleteByMaterial(id);</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">        for (MaterialVersion version : versionDao.findByMaterial(id)) {</span>
+            try {
+<span class="fc" id="L202">                Files.deleteIfExists(Path.of(storage.getRoot()).resolve(version.getStoredPath()));</span>
+<span class="nc" id="L203">            } catch (IOException e) {</span>
+<span class="nc" id="L204">                log.warn(&quot;Could not delete stored file of material {}&quot;, id, e);</span>
+<span class="fc" id="L205">            }</span>
+<span class="fc" id="L206">            versionDao.remove(version);</span>
+<span class="fc" id="L207">        }</span>
+<span class="fc" id="L208">        materialDao.remove(material);</span>
+<span class="fc" id="L209">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public String fileName(String id) {
+<span class="fc" id="L214">        Material material = requireMaterial(id);</span>
+<span class="fc" id="L215">        requireReadable(material);</span>
+<span class="fc" id="L216">        return currentVersion(material).getOriginalName();</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void writeFile(String id, OutputStream target) {
+<span class="fc" id="L222">        Material material = requireMaterial(id);</span>
+<span class="fc" id="L223">        requireReadable(material);</span>
+<span class="fc" id="L224">        aesService.decryptFile(Path.of(storage.getRoot()).resolve(currentVersion(material).getStoredPath()), target);</span>
+<span class="fc" id="L225">    }</span>
+
+    private void requireReadable(Material material) {
+<span class="fc" id="L228">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">        if (!user.isStudent()) {</span>
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">            if(user.role()!=Role.DEAN) requireTeaching(requireClass(material.getClassId()));</span>
+<span class="fc" id="L231">            return;</span>
+        }
+<span class="fc" id="L233">        boolean enrolled = requireClass(material.getClassId()).getStudentIds().contains(user.id());</span>
+<span class="fc bfc" id="L234" title="All 4 branches covered.">        if (!enrolled || !Material.PUBLISHED.equals(material.getStatus())) {</span>
+<span class="fc" id="L235">            throw new ResourceNotFoundException(&quot;Không tìm thấy học liệu.&quot;);</span>
+        }
+<span class="fc" id="L237">    }</span>
+
+    private void requireTeaching(ClassInfo info) {
+<span class="fc" id="L240">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="pc bpc" id="L241" title="1 of 6 branches missed.">        boolean allowed = user.role() == Role.ADMIN || user.id().equals(info.getTeacherId()) || user.id().equals(info.getLeaderId());</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        if (!allowed) {</span>
+<span class="fc" id="L243">            throw new ForbiddenOperationException(&quot;Bạn không phụ trách lớp này.&quot;);</span>
+        }
+<span class="fc" id="L245">    }</span>
+
+    private ClassInfo requireClass(String classId) {
+<span class="fc" id="L248">        return classDao.findById(classId).orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Lớp không tồn tại.&quot;));</span>
+    }
+
+    private Material requireMaterial(String id) {
+<span class="fc" id="L252">        return materialDao.findById(id).orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy học liệu.&quot;));</span>
+    }
+
+    private MaterialVersion currentVersion(Material material) {
+<span class="fc" id="L256">        return versionDao.find(material.getId(), material.getCurrentVersion())</span>
+<span class="pc" id="L257">                .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy tệp học liệu.&quot;));</span>
+    }
+
+    private MaterialWrapper toWrapper(Material material) {
+<span class="fc" id="L261">        MaterialWrapper wrapper = new MaterialWrapper();</span>
+<span class="fc" id="L262">        wrapper.setId(material.getId());</span>
+<span class="fc" id="L263">        wrapper.setClassId(material.getClassId());</span>
+<span class="fc" id="L264">        wrapper.setWeekNumber(material.getWeekNumber());</span>
+<span class="fc" id="L265">        wrapper.setKind(material.getKind());</span>
+<span class="fc" id="L266">        wrapper.setTitle(material.getTitle());</span>
+<span class="fc" id="L267">        wrapper.setStatus(material.getStatus());</span>
+<span class="fc" id="L268">        wrapper.setIndexStatus(material.getIndexStatus());</span>
+<span class="fc" id="L269">        wrapper.setIndexError(material.getIndexError());</span>
+<span class="fc" id="L270">        wrapper.setCurrentVersion(material.getCurrentVersion());</span>
+<span class="fc" id="L271">        versionDao.find(material.getId(), material.getCurrentVersion()).ifPresent(version -&gt; {</span>
+<span class="fc" id="L272">            wrapper.setOriginalName(version.getOriginalName());</span>
+<span class="fc" id="L273">            wrapper.setFileSize(version.getFileSize());</span>
+<span class="fc" id="L274">        });</span>
+<span class="fc" id="L275">        return wrapper;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

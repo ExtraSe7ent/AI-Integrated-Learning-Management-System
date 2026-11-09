@@ -1,4 +1,3 @@
-import {EssayDraft} from "../AI/Insights";
 import { useState, useEffect, useRef } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -21,16 +20,32 @@ import {
   Empty,
 } from "../shared/UI";
 import { CourseContext } from "../shared/CourseComponents";
-import { assessmentFor, updateAssessment, beginAssessment, submitAssessment, pointsFor } from "../data/assessment";
+import {
+  assessmentFor,
+  beginAssessment,
+  examOf,
+  examTotal,
+  isAnswerCorrect,
+  pointsFor,
+  shownAnswer,
+  submitAssessment,
+  typeLabel,
+  updateAssessment,
+} from "../data/assessment";
 import type { Assignment } from "../data/fixtures";
+import { explainMistake } from "../api/studyAi";
+import type { MistakeExplanation } from "../api/studyAi";
 import { useDemo } from "../data/DemoProvider";
 export function BaiTap() {
-  const { data, setData, notify } = useDemo();
+  const { data, saveData, notify } = useDemo();
+  const [starting, setStarting] = useState<string|null>(null);
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const items = data.assignments.filter((a) => a.published);
-  function start(a: Assignment) {
-    try {setData(beginAssessment(data,a.id));} catch(e) {notify((e as Error).message);return;}
+  async function start(a: Assignment) {
+    if(starting) return;
+    setStarting(a.id);
+    try {if (!await saveData(d => beginAssessment(d,a.id))) return;} catch(e) {notify((e as Error).message);return;} finally {setStarting(null);}
     navigate("/sinh-vien/lam-bai?bai=" + a.id);
   }
   return (
@@ -80,26 +95,22 @@ export function BaiTap() {
                     <Badge tone={record.result ? "green" : "amber"}>
                       {record.result ? "Đã nộp" : "Chưa hoàn thành"}
                     </Badge>
-                    <span>CSE301 · Tuần 07</span>
                   </div>
                   <h2>{a.title}</h2>
                 </div>
               </div>
-              <p>
-                Vận dụng kiến thức RESTful API để thiết kế các thao tác quản lý
-                sách. Gồm trắc nghiệm, điền trống và tự luận.
-              </p>
               <div className="assignment-facts">
                 <span>
                   <Clock3 size={16} />
                   {a.minutes} phút
                 </span>
                 <span>
-                  <FileText size={16} />3 câu hỏi · 10 điểm
+                  <FileText size={16} />
+                  {examOf(a).length} câu hỏi · {examTotal(examOf(a))} điểm
                 </span>
                 <span>
                   <RotateCcw size={16} />
-                  {record.attempts}/{a.attempts} lượt làm
+                  {record.result ? "Đã nộp lượt tính điểm" : "1 lượt tính điểm"} · {record.practiceResults?.length??0} lượt luyện tập
                 </span>
               </div>
               <div className="assignment-bottom">
@@ -108,7 +119,11 @@ export function BaiTap() {
                 </small>
                 <div className="row-actions">
                 {record.result && <Link className="button secondary" to={`/sinh-vien/ket-qua?bai=${a.id}`}>Xem kết quả<ArrowRight size={16}/></Link>}
-                <Button disabled={data.appeals.some(x=>x.assignmentId===a.id&&x.status==="pending")||record.attempts>=a.attempts||Date.now()<Date.parse(a.opens)||Date.now()>=Date.parse(a.closes)} onClick={()=>start(a)}>{record.draft?"Tiếp tục làm bài":record.result?"Làm lại bài tập":"Bắt đầu làm bài"}<ArrowRight size={16}/></Button>
+                <Button disabled={Boolean(starting)||(!record.result&&(Date.now()<Date.parse(a.opens)||Date.now()>=Date.parse(a.closes)))||Boolean(record.result&&!a.answersReleased)} onClick={()=>start(a)}>
+                  {starting===a.id?"Đang mở bài…":record.draft?"Tiếp tục làm bài":record.result?"Luyện tập lại · Không tính điểm":"Bắt đầu lượt tính điểm"}<ArrowRight size={16}/>
+                </Button>
+                {record.result&&!a.answersReleased&&<small>Chờ cả lớp nộp bài hoặc giảng viên công bố đáp án.</small>}
+
                 </div>
               </div>
             </Panel>
@@ -133,41 +148,65 @@ export function BaiTap() {
     </>
   );
 }
-export function LamBai({ practice = false }: { practice?: boolean }) {
-  const { data, setData, notify } = useDemo();
-  const navigate = useNavigate();
+export function LamBai() {
+  const { data } = useDemo();
   const [params] = useSearchParams();
-  const a =
-    data.assignments.find((x) => x.id === (params.get("bai") || "a1")) ||
-    data.assignments[0];
+  const a = data.assignments.find((x) => x.id === params.get("bai"));
+  if (!a) return <NoAssignment />;
+  return <Exam key={a.id} a={a} />;
+}
+function NoAssignment() {
+  return (
+    <Empty
+      title="Không tìm thấy bài tập"
+      description="Bài tập không tồn tại hoặc tài khoản của bạn không có quyền truy cập."
+      action={
+        <Link className="button secondary" to="/sinh-vien/bai-tap">
+          Về danh sách bài tập
+        </Link>
+      }
+    />
+  );
+}
+function Exam({ a }: { a: Assignment }) {
+  const { data, setData, saveData, notify } = useDemo();
+  const navigate = useNavigate();
+  const questions = examOf(a);
+  const practicing = Boolean(assessmentFor(data,a.id).result && a.answersReleased);
   const record = assessmentFor(data, a.id);
   const [answers, setAnswers] = useState<string[]>(
-    practice ? ["", "", ""] : record.draft?.answers || ["", "", ""],
+    record.draft?.answers.length
+      ? record.draft.answers
+      : questions.map(() => ""),
   );
-  const [deadline, setDeadline] = useState(record.draft?.deadline || 0);
+  const deadline = record.draft?.deadline || 0;
   const [remaining, setRemaining] = useState(
     Math.max(0, Math.ceil((deadline - Date.now()) / 1000)),
   );
-  const [done, setDone] = useState(false);
-  const [scope, setScope] = useState("all");
   const submitted = useRef(false);
-  const score =
-    (answers[0] === "0" ? 4 : 0) +
-    (answers[1].trim().toUpperCase() === "POST" ? 3 : 0);
+  const [submitting, setSubmitting] = useState(false);
   const submitRef = useRef(() => {});
-  submitRef.current = () => {
+  submitRef.current = async () => {
     if (submitted.current) return;
     submitted.current = true;
-    if (practice) {
-      setDone(true);
+    setSubmitting(true);
+    try {
+      if (!await saveData((d) => submitAssessment(d, a.id, answers))) {
+        submitted.current = false;
+        return;
+      }
+    } catch (e) {
+      submitted.current = false;
+      notify((e as Error).message);
       return;
+    } finally {
+      setSubmitting(false);
     }
-    try {setData(d=>submitAssessment(d,a.id,answers));}catch(e){notify((e as Error).message);return;}
-    notify("Đã nộp bài. Phần tự luận chờ giảng viên duyệt.");
-    navigate("/sinh-vien/ket-qua?bai=" + a.id);
+    notify(practicing?"Đã lưu kết quả luyện tập. Điểm lượt đầu không thay đổi.":"Đã nộp lượt tính điểm.");
+    navigate("/sinh-vien/ket-qua?bai=" + a.id + (practicing?"&mode=practice":""));
   };
   useEffect(() => {
-    if (practice || !deadline) return;
+    if (!deadline) return;
     const tick = () => {
       const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setRemaining(left);
@@ -176,26 +215,21 @@ export function LamBai({ practice = false }: { practice?: boolean }) {
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [deadline, practice]);
+  }, [deadline]);
   function answer(index: number, value: string) {
     const next = [...answers];
     next[index] = value;
     setAnswers(next);
-    if (!practice && record.draft)
+    if (record.draft)
       setData((d) =>
         updateAssessment(d, a.id, {
           draft: record.draft ? { ...record.draft, answers: next } : null,
         }),
       );
   }
-  function newPractice() {
-    setAnswers(["", "", ""]);
-    setDone(false);
-    submitted.current = false;
-    notify("Đã tạo bộ luyện tập mẫu. Không tính điểm học phần.");
-  }
-  if (!practice && record.result && !record.draft) return <Navigate to={"/sinh-vien/ket-qua?bai="+a.id} replace />;
-  if (!practice && !record.draft)
+  if (record.result && !record.draft && !submitting)
+    return <Navigate to={"/sinh-vien/ket-qua?bai=" + a.id + (practicing?"&mode=practice":"")} replace />;
+  if (!record.draft && !submitting)
     return (
       <>
         <PageHeader title="Bạn chưa bắt đầu bài tập" />
@@ -207,39 +241,17 @@ export function LamBai({ practice = false }: { practice?: boolean }) {
   return (
     <>
       <PageHeader
-        title={practice ? "Luyện tập kiến thức" : a.title}
-        description={
-          practice
-            ? "Tự kiểm tra kiến thức · Không tính điểm · Có thể làm lại."
-            : "Bài tập tính điểm · CSE301 · Đáp án tự lưu trên trình duyệt."
-        }
+        title={a.title}
+        description={practicing?"Luyện tập sau công bố đáp án · Không thay đổi điểm chính thức.":"Lượt đầu tính điểm · Đáp án được lưu tự động."}
         action={
-          practice ? (
-            <Badge tone="green">Không tính điểm</Badge>
-          ) : (
-            <span className={`quiz-timer ${remaining < 60 ? "urgent" : ""}`}>
-              <Clock3 size={19} />
-              {String(Math.floor(remaining / 60)).padStart(2, "0")}:
-              {String(remaining % 60).padStart(2, "0")}
-            </span>
-          )
+          <span className={`quiz-timer ${remaining < 60 ? "urgent" : ""}`}>
+            <Clock3 size={19} />
+            {String(Math.floor(remaining / 60)).padStart(2, "0")}:
+            {String(remaining % 60).padStart(2, "0")}
+          </span>
         }
       />
       <CourseContext />
-      {practice && (
-        <div className="toolbar">
-          <Field label="Phạm vi luyện tập">
-            <select value={scope} onChange={(e) => setScope(e.target.value)}>
-              <option value="all">Toàn bộ bài học RESTful API</option>
-              <option value="http">Trang 2–3 · HTTP methods</option>
-            </select>
-          </Field>
-          <Button onClick={newPractice}>
-            <RotateCcw size={16} />
-            Tạo bộ câu hỏi mẫu
-          </Button>
-        </div>
-      )}
       <div className="quiz-layout">
         <form
           className="quiz-questions"
@@ -248,105 +260,74 @@ export function LamBai({ practice = false }: { practice?: boolean }) {
             submitRef.current();
           }}
           onPaste={(e) => {
-            if (!practice && a.preventPaste) {
+            if (a.preventPaste) {
               e.preventDefault();
               notify("Bài tập này không cho phép dán nội dung.");
             }
           }}
         >
-          <Panel>
-            <div className="question-number">
-              <Badge>Câu 1 · Trắc nghiệm</Badge>
-              <span>4 điểm</span>
-            </div>
-            <h2>Trong kiến trúc REST, tài nguyên được định danh bằng gì?</h2>
-            <div className="answer-options">
-              {[
-                "Một URI duy nhất",
-                "Một kết nối TCP",
-                "Một bảng trong database",
-                "Một phiên đăng nhập",
-              ].map((v, i) => (
-                <label
-                  key={v}
-                  className={answers[0] === String(i) ? "chosen" : ""}
-                >
+          {questions.map((q, i) => (
+            <Panel key={i}>
+              <div className="question-number">
+                <Badge>
+                  Câu {i + 1} · {typeLabel[q.type]}
+                </Badge>
+                <span>{q.points} điểm</span>
+              </div>
+              <h2>{q.text}</h2>
+              {q.type === "choice" && (
+                <div className="answer-options">
+                  {q.options?.map((v, j) => (
+                    <label
+                      key={j}
+                      className={answers[i] === String(j) ? "chosen" : ""}
+                    >
+                      <input
+                        disabled={submitting}
+                        type="radio"
+                        name={`quiz-${i}`}
+                        checked={answers[i] === String(j)}
+                        onChange={() => answer(i, String(j))}
+                      />
+                      <span>{String.fromCharCode(65 + j)}</span>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+              )}
+              {q.type === "blank" && (
+                <Field label="Đáp án của bạn">
                   <input
-                    type="radio"
-                    name="quiz"
-                    disabled={done}
-                    checked={answers[0] === String(i)}
-                    onChange={() => answer(0, String(i))}
+                    disabled={submitting}
+                    placeholder="Nhập đáp án…"
+                    value={answers[i] ?? ""}
+                    onChange={(e) => answer(i, e.target.value)}
                   />
-                  <span>{String.fromCharCode(65 + i)}</span>
-                  {v}
-                </label>
-              ))}
-            </div>
-            {done && (
-              <p className="green-text">
-                Đáp án đúng: A. URI xác định tài nguyên trong API.
-              </p>
-            )}
-          </Panel>
-          <Panel>
-            <div className="question-number">
-              <Badge>Câu 2 · Điền trống</Badge>
-              <span>3 điểm</span>
-            </div>
-            <h2>Điền HTTP method dùng để tạo tài nguyên mới.</h2>
-            <Field label="Đáp án của bạn">
-              <input
-                placeholder="Nhập tên method…"
-                disabled={done}
-                value={answers[1]}
-                onChange={(e) => answer(1, e.target.value)}
-              />
-            </Field>
-            {done && <p className="green-text">Đáp án: POST.</p>}
-          </Panel>
-          <Panel>
-            <div className="question-number">
-              <Badge>Câu 3 · Tự luận</Badge>
-              <span>3 điểm</span>
-            </div>
-            <h2>Thiết kế API cho thao tác mượn sách.</h2>
-            <p>
-              Đề xuất endpoint, method và mã trạng thái phản hồi. Giải thích lựa
-              chọn của bạn.
-            </p>
-            <Field label="Bài làm">
-              <textarea
-                rows={6}
-                disabled={done}
-                maxLength={5000}
-                value={answers[2]}
-                onChange={(e) => answer(2, e.target.value)}
-                placeholder="Trình bày phương án của bạn…"
-              />
-            </Field>
-            {done && (
-              <p className="muted">
-                Gợi ý: POST /api/loans, trả về 201 khi tạo lượt mượn thành công.
-              </p>
-            )}
-          </Panel>
-          {!done && (
-            <Button type="submit">
-              <CheckCircle2 size={18} />
-              {practice ? "Kiểm tra đáp án" : "Nộp bài"}
-            </Button>
-          )}
-          {done && (
-            <Button type="button" onClick={newPractice}>
-              Làm lại với bộ mẫu
-            </Button>
-          )}
+                </Field>
+              )}
+              {q.type === "essay" && (
+                <Field label="Bài làm">
+                  <textarea
+                    disabled={submitting}
+                    rows={6}
+                    maxLength={5000}
+                    value={answers[i] ?? ""}
+                    onChange={(e) => answer(i, e.target.value)}
+                    placeholder="Trình bày phương án của bạn…"
+                  />
+                </Field>
+              )}
+            </Panel>
+          ))}
+          <Button type="submit" disabled={submitting} aria-busy={submitting}>
+            <CheckCircle2 size={18} />
+            {submitting ? "Đang nộp bài…" : "Nộp bài"}
+          </Button>
         </form>
         <aside>
           <Panel title="Tiến độ làm bài">
             <div className="question-grid">
-              {answers.map((v, i) => (
+              {questions.map((_, i) => (
                 <a
                   href={`#question-${i}`}
                   key={i}
@@ -359,65 +340,83 @@ export function LamBai({ practice = false }: { practice?: boolean }) {
                         block: "center",
                       });
                   }}
-                  className={v ? "filled" : ""}
+                  className={answers[i] ? "filled" : ""}
                 >
                   {i + 1}
                 </a>
               ))}
             </div>
-            <p>{answers.filter(Boolean).length}/3 câu đã trả lời</p>
+            <p>
+              {answers.filter(Boolean).length}/{questions.length} câu đã trả lời
+            </p>
             <hr />
             <p className="muted">
-              {practice
-                ? "Phản hồi mẫu giúp bạn tự đối chiếu. AI chưa được kết nối."
-                : "Hết giờ bài sẽ tự nộp. Câu chưa trả lời được tính 0 điểm."}
+              Hết giờ bài sẽ tự nộp. Câu chưa trả lời được tính 0 điểm.
             </p>
-            {!practice && (
-              <p className="muted">
-                Tự luận: AI chấm nháp, giảng viên duyệt trước khi công bố.
-              </p>
-            )}
-            {practice && done && (
-              <strong className="practice-score">{score}/7 điểm tự chấm</strong>
-            )}
           </Panel>
-          {!practice && (
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setDeadline(Date.now() + a.minutes * 60000);
-                notify("Đã khởi động lại thời gian.");
-              }}
-              hidden
-            >
-              Khởi động
-            </Button>
-          )}
         </aside>
       </div>
     </>
   );
 }
 export function KetQua() {
-  const { data, setData, notify } = useDemo();
+  const { data } = useDemo();
   const [params] = useSearchParams();
-  const assignmentId = params.get("bai") || "a1";
-  const assignment =
-    data.assignments.find((a) => a.id === assignmentId) || data.assignments[0];
-  const [appeal, setAppeal] = useState<number|null>(null),
-    [reason, setReason] = useState("");
-  const r = assessmentFor(data, assignmentId).result;
+  const assignment = data.assignments.find((a) => a.id === params.get("bai"));
+  if (!assignment) return <NoAssignment />;
+  return <Result key={assignment.id} assignment={assignment} />;
+}
+function Result({ assignment }: { assignment: Assignment }) {
+  const { data, setData, notify } = useDemo();
+  const assignmentId = assignment.id;
+  const questions = examOf(assignment);
+  const [appeal, setAppeal] = useState<number | null>(null),
+    [reason, setReason] = useState(""),
+    [mistakes, setMistakes] = useState<Record<number, MistakeExplanation>>({}),
+    [explaining, setExplaining] = useState<number | null>(null);
+  async function explain(index: number) {
+    setExplaining(index);
+    try {
+      const reply = await explainMistake(assignmentId, index);
+      setMistakes((m) => ({ ...m, [index]: reply }));
+    } catch (e) {
+      notify((e as Error).message);
+    } finally {
+      setExplaining(null);
+    }
+  }
+  const [params,setParams]=useSearchParams();
+  const record=assessmentFor(data,assignmentId);
+  const practice=record.practiceResults??[];
+  const practiceMode=params.get("mode")==="practice";
+  const practiceIndex=Number(params.get("lan")??practice.length-1);
+  const r=practiceMode?practice[practiceIndex]??null:record.result;
+
+  const graded = questions
+    .map((q, i) => isAnswerCorrect(q, r?.answers[i]))
+    .filter((v) => v !== null);
+  const correct = graded.filter(Boolean).length;
+  const appealsOf = (index: number) =>
+    data.appeals.filter(
+      (a) => a.assignmentId === assignmentId && a.questionIndex === index,
+    );
   return (
     <>
       <PageHeader
         title="Kết quả bài tập"
-        description={assignment.title + " · CSE301"}
+        description={assignment.title}
         action={
           <Link className="button secondary" to="/sinh-vien/bai-tap">
             Danh sách bài tập
           </Link>
         }
       />
+      <div className="toolbar"><div className="tabs">
+        <button className={!practiceMode?"selected":""} onClick={()=>setParams({bai:assignmentId})}>Lượt đầu · Tính điểm</button>
+        <button disabled={!practice.length} className={practiceMode?"selected":""} onClick={()=>setParams({bai:assignmentId,mode:"practice"})}>Luyện tập ({practice.length})</button>
+      </div>{practiceMode&&<select aria-label="Lượt luyện tập" value={practiceIndex} onChange={e=>setParams({bai:assignmentId,mode:"practice",lan:e.target.value})}>{practice.map((p,i)=><option key={i} value={i}>Lượt luyện tập {i+1} · {p.submitted}</option>)}</select>}</div>
+      {!assignment.answersReleased&&record.result&&<Panel title="Chờ công bố đáp án"><p>Cả lớp cần nộp lượt tính điểm, hoặc giảng viên chủ động công bố. Bạn chưa thể xem đáp án hoặc làm lại.</p></Panel>}
+      {practiceMode&&<p className="info-line">Kết quả luyện tập không dùng tính điểm. Điểm lượt đầu: {record.result?.score??0}/10. Tự luận luyện tập dùng để tự đối chiếu, không gửi vào hàng chấm chính thức.</p>}
       {!r ? (
         <Empty
           title="Bạn chưa nộp bài"
@@ -433,98 +432,133 @@ export function KetQua() {
           <Panel className="result-summary">
             <div className="result-score">
               {r.score}
-              <span>/10</span>
+              <span>/{examTotal(questions)}</span>
             </div>
             <div>
-              <Badge tone="green">Đã nộp bài</Badge>
+              <Badge tone="green">{practiceMode?"Luyện tập · Không tính điểm":"Lượt đầu · Tính điểm"}</Badge>
               <h2>Bạn đã hoàn thành bài tập</h2>
               <p>
-                Nộp lúc {r.submitted} ·{" "}
-                {
-                  r.answers
-                    .slice(0, 2)
-                    .filter((v, i) =>
-                      i === 0 ? v === "0" : v.toUpperCase() === "POST",
-                    ).length
-                }
-                /2 câu tự chấm đúng
+                Nộp lúc {r.submitted} · {questions.length} câu
+                {graded.length > 0 &&
+                  ` · Tỷ lệ đúng ${Math.round((correct / graded.length) * 100)}% (${correct}/${graded.length} câu tự chấm)`}
               </p>
               <p className="muted">
-                {r.approved
+                {practiceMode ? "Điểm tự động của phần trắc nghiệm/điền trống; tự luận tự đối chiếu học liệu." : r.approved
                   ? "Điểm đã được giảng viên duyệt và công bố."
-                  : "Điểm tạm tính. Tự luận chờ giảng viên duyệt; đây là kết quả mô phỏng."}
+                  : "Điểm tạm tính. Tự luận chờ AI hoặc giảng viên chấm."}
               </p>
             </div>
           </Panel>
-          {[
-            "Trắc nghiệm · Định danh tài nguyên",
-            "Điền trống · HTTP method",
-            "Tự luận · API mượn sách",
-          ].map((title, i) => (
-            <Panel key={title}>
-              <div className="panel-heading">
-                <h2>
-                  Câu {i + 1}: {title}
-                </h2>
-                <span>Điểm: {pointsFor(r)[i]}/{[4,3,3][i]}</span>
-                <Badge tone={i === 2 ? "amber" : "neutral"}>
-                  {i === 2
-                    ? r.approved
-                      ? "Đã duyệt"
-                      : "Chờ duyệt"
-                    : "Đã chấm tự động"}
-                </Badge>
-              </div>
-              <p>
-                <strong>Bài làm:</strong>{" "}
-                {i === 0
-                  ? r.answers[0] === "0"
-                    ? "A. Một URI duy nhất"
-                    : r.answers[0] || "Chưa trả lời"
-                  : r.answers[i] || "Chưa trả lời"}
-              </p>
-              <p className="muted">
-                {i === 0
-                  ? "Tài nguyên được định danh bằng URI."
-                  : i === 1
-                    ? "POST được dùng để tạo tài nguyên mới."
-                    : "Giảng viên xem xét endpoint, method và lý do lựa chọn trước khi công bố điểm."}
-              </p>
-              {i === 2 && !r.approved && <EssayDraft answer={r.answers[2]||""}/>}
-              {i === 2 && r.comment && (
-                <div className="reply-block">
-                  <strong>Nhận xét giảng viên</strong>
-                  <p>{r.comment}</p>
+          {questions.map((q, i) => {
+            const verdict = isAnswerCorrect(q, r.answers[i]);
+            const decided = appealsOf(i).find((a) => a.status !== "pending");
+            return (
+              <Panel key={i}>
+                <div className="panel-heading">
+                  <h2>
+                    Câu {i + 1} · {typeLabel[q.type]}
+                  </h2>
+                  <span>
+                    {assignment.answersReleased?`Điểm: ${pointsFor(r)[i] ?? 0}/${q.points}`:"Điểm từng câu: Chờ công bố đáp án"}
+                  </span>
+                  <Badge
+                    tone={
+                      verdict === null ? "amber" : verdict ? "green" : "red"
+                    }
+                  >
+                    {!assignment.answersReleased ? "Chờ công bố đáp án" : verdict === null
+                      ? practiceMode ? "Tự đối chiếu học liệu" : r.approved
+                        ? "Đã duyệt"
+                        : "Chờ duyệt"
+                      : verdict
+                        ? "Đúng"
+                        : "Sai"}
+                  </Badge>
                 </div>
-              )}
-              <Button variant="secondary small" disabled={data.appeals.some(a=>a.assignmentId===assignmentId&&a.status==="pending"&&a.questionIndex===i)} onClick={() => setAppeal(i)}>
-                Yêu cầu phúc khảo
-              </Button>
-            </Panel>
-          ))}
-          {data.appeals
-            .filter((a) => a.assignmentId === assignmentId)
-            .map((a) => (
-              <Panel key={a.id}>
-                <Badge tone={a.status === "pending" ? "amber" : "green"}>
-                  {a.status === "pending"
-                    ? "Phúc khảo đang chờ xử lý"
-                    : "Đã có kết quả phúc khảo"}
-                </Badge>
-                <p>{a.reason}</p>
-                {a.response && (
+                <p>{q.text}</p>
+                <p>
+                  <strong>Bài làm:</strong> {shownAnswer(q, r.answers[i])}
+                </p>
+                {q.type !== "essay" && q.correct !== undefined && (
                   <p>
-                    <strong>Giảng viên:</strong> {a.response}
+                    <strong>Đáp án đúng:</strong>{" "}
+                    {shownAnswer(q, q.correct.split("|")[0])}
                   </p>
                 )}
+                {q.explanation && <p className="muted">💡 {q.explanation}</p>}
+                {r.aiFeedback?.[i] && (
+                  <div className="reply-block">
+                    <strong>📝 Phản hồi từ AI</strong>
+                    <p>{r.aiFeedback[i]}</p>
+                  </div>
+                )}
+                {!practiceMode && verdict === false &&
+                  (mistakes[i] ? (
+                    <div className="reply-block" role="status">
+                      <strong>
+                        {mistakes[i].mode === "ai"
+                          ? "AI giải thích lỗi sai"
+                          : "Đối chiếu học liệu"}
+                      </strong>
+                      {mistakes[i].answer.split("\n\n").map((p, j) => (
+                        <p key={j}>{p}</p>
+                      ))}
+                      {mistakes[i].pages.map((page) => (
+                        <Link
+                          key={page}
+                          className="source-chip"
+                          to={`/sinh-vien/hoc/cs301?trang=${page}`}
+                        >
+                          Xem nguồn · Trang {page}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <Button
+                      variant="secondary small"
+                      disabled={explaining === i}
+                      onClick={() => explain(i)}
+                    >
+                      {explaining === i ? "Đang giải thích…" : "AI giải thích lỗi sai"}
+                    </Button>
+                  ))}
+                {!practiceMode && decided && (
+                  <p>
+                    <Badge tone="green">
+                      {decided.status === "accepted"
+                        ? "Đã chấm lại"
+                        : "Giữ nguyên điểm"}
+                    </Badge>{" "}
+                    {decided.response}
+                  </p>
+                )}
+                {!practiceMode&&assignment.answersReleased&&<Button
+                  variant="secondary small"
+                  disabled={appealsOf(i).some((a) => a.status === "pending")}
+                  onClick={() => setAppeal(i)}
+                >
+                  Yêu cầu phúc khảo
+                </Button>}
               </Panel>
-            ))}
+            );
+          })}
+          {r.comment && (
+            <Panel title="Nhận xét giảng viên">
+              <p>{r.comment}</p>
+            </Panel>
+          )}
         </>
       )}
       {appeal !== null && (
         <Dialog title="Yêu cầu phúc khảo" onClose={() => setAppeal(null)}>
-          <p>Câu {appeal+1} · Bài làm: {r?.answers[appeal]||"Chưa trả lời"}</p>
-          <p>Điểm hiện tại: {r?pointsFor(r)[appeal]:0}/{[4,3,3][appeal]}</p>
+          <p>
+            <strong>Câu {appeal + 1}:</strong> {questions[appeal].text}
+          </p>
+          <p>Bài làm: {shownAnswer(questions[appeal], r?.answers[appeal])}</p>
+          <p>
+            Điểm hiện tại: {r ? pointsFor(r)[appeal] : 0}/
+            {questions[appeal].points}
+          </p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -535,20 +569,24 @@ export function KetQua() {
                   {
                     id: crypto.randomUUID(),
                     assignmentId,
-                    question: `Câu ${appeal!+1} · ${["Định danh tài nguyên","HTTP method","API mượn sách"][appeal!]}`,
-                    questionIndex:appeal!,
-                    answer:r?.answers[appeal!]||"Chưa trả lời",
-                    previousPoints:r?pointsFor(r)[appeal!]:0,
-                    maxPoints:[4,3,3][appeal!],
+                    question: `Câu ${appeal + 1} · ${questions[appeal].text}`,
+                    questionIndex: appeal,
+                    answer: shownAnswer(questions[appeal], r?.answers[appeal]),
+                    previousPoints: r ? pointsFor(r)[appeal] : 0,
+                    maxPoints: questions[appeal].points,
                     reason: reason.trim(),
                     response: "",
                     status: "pending",
                   },
                 ],
-                teacherNotices: [...d.teacherNotices,"Có yêu cầu phúc khảo mới đang chờ xử lý."],
-                readTeacherNotices:false,
+                teacherNotices: [
+                  ...d.teacherNotices,
+                  "Có yêu cầu phúc khảo mới đang chờ xử lý.",
+                ],
+                readTeacherNotices: false,
               }));
               setAppeal(null);
+              setReason("");
               notify("Đã lưu yêu cầu phúc khảo.");
             }}
           >

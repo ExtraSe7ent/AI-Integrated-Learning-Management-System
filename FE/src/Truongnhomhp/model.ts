@@ -57,6 +57,20 @@ export const classes = [
     teacher: "Nguyễn Minh Anh",
   },
 ];
+export interface LeaderClass {
+  id: string;
+  name?: string;
+  courseId: string;
+  teacherId: string;
+  teacher: string;
+}
+/** Courses and classes a course leader is assigned to. Screens pass the real one from data/scope;
+ * demoScope is the sample assignment the unit tests use. */
+export interface LeaderScope {
+  courses: string[];
+  classes: LeaderClass[];
+}
+export const demoScope: LeaderScope = { courses: assignedCourses, classes };
 export const slideBody =
   "REST là một kiểu kiến trúc cho hệ thống phân tán. API tổ chức tài nguyên bằng URI và dùng HTTP để biểu diễn thao tác.\n\nGET đọc dữ liệu; POST tạo tài nguyên; PUT thay thế; PATCH cập nhật một phần; DELETE xoá tài nguyên.\n\nVí dụ: GET /books trả về danh sách sách. POST /books tạo sách và trả về mã 201.\n\nCâu hỏi kiểm tra: Khi cập nhật một thuộc tính của sách, bạn chọn PUT hay PATCH? Vì sao?";
 export const initialCoordination: Coordination = {
@@ -187,19 +201,24 @@ export const initialCoordination: Coordination = {
     },
   ],
 };
-export const classFor = (courseId: string, classId: string) =>
-  classes.find(
+export const classFor = (
+  courseId: string,
+  classId: string,
+  scope: LeaderScope = demoScope,
+) =>
+  scope.classes.find(
     (c) =>
       c.courseId === courseId &&
       c.id === classId &&
-      assignedCourses.includes(courseId),
+      scope.courses.includes(courseId),
   );
 export const classItems = (
   s: Coordination,
   courseId: string,
   classId: string,
+  scope: LeaderScope = demoScope,
 ) =>
-  classFor(courseId, classId)
+  classFor(courseId, classId, scope)
     ? s.items.filter((i) => i.courseId === courseId && i.classId === classId)
     : [];
 export const findItem = (
@@ -207,14 +226,16 @@ export const findItem = (
   courseId: string,
   classId: string,
   id: string,
-) => classItems(s, courseId, classId).find((i) => i.id === id);
+  scope: LeaderScope = demoScope,
+) => classItems(s, courseId, classId, scope).find((i) => i.id === id);
 function requiredItem(
   s: Coordination,
   courseId: string,
   classId: string,
   id: string,
+  scope: LeaderScope,
 ) {
-  const i = findItem(s, courseId, classId, id);
+  const i = findItem(s, courseId, classId, id, scope);
   if (!i) throw Error("Không tìm thấy học liệu trong phạm vi này.");
   return i;
 }
@@ -226,8 +247,9 @@ export function reviewItem(
   classId: string,
   id: string,
   level: number,
+  scope: LeaderScope = demoScope,
 ): Coordination {
-  requiredItem(s, courseId, classId, id);
+  requiredItem(s, courseId, classId, id, scope);
   if (!Number.isInteger(level) || level < 0 || level > 3)
     throw Error("Mức xử lý không hợp lệ.");
   if (level === 2)
@@ -253,8 +275,9 @@ export function requestChange(
   id: string,
   body: string,
   requestId: string,
+  scope: LeaderScope = demoScope,
 ): Coordination {
-  requiredItem(s, courseId, classId, id);
+  requiredItem(s, courseId, classId, id, scope);
   if (!body.trim()) throw Error("Nhập nội dung cần giảng viên điều chỉnh.");
   if (s.requests.some((r) => r.itemId === id && !r.closed && !r.reply))
     throw Error("Chờ giảng viên phản hồi yêu cầu hiện tại trước.");
@@ -282,13 +305,14 @@ export function replyToRequest(
   teacherId: string,
   reply: string,
   body: string,
+  scope: LeaderScope = demoScope,
 ): Coordination {
   const request = s.requests.find((r) => r.id === id && !r.closed);
   const item = s.items.find((i) => i.id === request?.itemId);
   if (
     !request ||
     !item ||
-    classFor(item.courseId, item.classId)?.teacherId !== teacherId
+    classFor(item.courseId, item.classId, scope)?.teacherId !== teacherId
   )
     throw Error("Không có quyền xử lý yêu cầu này.");
   if (!reply.trim() || !body.trim())
@@ -310,16 +334,17 @@ export function saveMaterial(
   s: Coordination,
   input: Material,
   editing: boolean,
+  scope: LeaderScope = demoScope,
 ): Coordination {
   if (
-    !classFor(input.courseId, input.classId) ||
+    !classFor(input.courseId, input.classId, scope) ||
     !Object.hasOwn(kinds, input.kind) ||
     !input.title.trim() ||
     !input.body.trim()
   )
     throw Error("Chọn đúng lớp và nhập đầy đủ tiêu đề, nội dung.");
   if (editing) {
-    const old = requiredItem(s, input.courseId, input.classId, input.id);
+    const old = requiredItem(s, input.courseId, input.classId, input.id, scope);
     if (!old.editable)
       throw Error("Bạn không có quyền chỉnh sửa học liệu này.");
     if (old.kind !== input.kind)
@@ -358,8 +383,9 @@ export function canComplete(
   s: Coordination,
   courseId: string,
   classId: string,
+  scope: LeaderScope = demoScope,
 ) {
-  const items = classItems(s, courseId, classId);
+  const items = classItems(s, courseId, classId, scope);
   return (
     Object.keys(kinds).every((kind) => items.some((i) => i.kind === kind)) &&
     items.every((i) => i.level === 3) &&
@@ -370,8 +396,9 @@ export function completeClass(
   s: Coordination,
   courseId: string,
   classId: string,
+  scope: LeaderScope = demoScope,
 ): Coordination {
-  if (!canComplete(s, courseId, classId))
+  if (!canComplete(s, courseId, classId, scope))
     throw Error("Cần đủ slide, quiz và bài tập đạt M3, không còn yêu cầu mở.");
   return { ...s, completed: [...new Set([...s.completed, classId])] };
 }

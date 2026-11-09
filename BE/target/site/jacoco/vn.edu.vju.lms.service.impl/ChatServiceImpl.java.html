@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChatServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">ChatServiceImpl.java</span></div><h1>ChatServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.ai.AiAnswer;
+import vn.edu.vju.lms.ai.AiClient;
+import vn.edu.vju.lms.ai.AiProviderException;
+import vn.edu.vju.lms.ai.GuardrailService;
+import vn.edu.vju.lms.ai.LocalTutor;
+import vn.edu.vju.lms.ai.QuestionGenerator;
+import vn.edu.vju.lms.ai.RagAnswerService;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.dao.IChatMessageDao;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.IQuestionDao;
+import vn.edu.vju.lms.entity.ChatMessage;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.entity.ExamQuestion;
+import vn.edu.vju.lms.entity.Question;
+import vn.edu.vju.lms.entity.RagChunk;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.ChatService;
+import vn.edu.vju.lms.wrapper.ChatWrappers.AskRequest;
+import vn.edu.vju.lms.wrapper.ChatWrappers.ChatMessageWrapper;
+import vn.edu.vju.lms.wrapper.ChatWrappers.GeneratedQuestion;
+import vn.edu.vju.lms.wrapper.ChatWrappers.PracticeRequest;
+import vn.edu.vju.lms.wrapper.ChatWrappers.PracticeSet;
+
+/** No transaction around ask: model calls can take a minute and must not hold a database connection. */
+@Service
+public class ChatServiceImpl implements ChatService {
+
+    private static final String DEFAULT_COURSE = &quot;cs301&quot;;
+    private static final int PRACTICE_SIZE = 3;
+    private static final int BLANK_ANSWER_LIMIT = 24;
+    private static final String NOT_ENOUGH = &quot;Nội dung học liệu chưa đủ để tạo câu hỏi.&quot;;
+
+    private final IChatMessageDao chatDao;
+    private final IClassInfoDao classDao;
+    private final AiClient client;
+    private final GuardrailService guardrails;
+    private final RagAnswerService ragAnswers;
+    private final LocalTutor localTutor;
+    private final QuestionGenerator generator;
+    private final IQuestionDao questionDao;
+    private final TransactionTemplate transaction;
+    private final LmsProperties properties;
+
+    public ChatServiceImpl(IChatMessageDao chatDao, IClassInfoDao classDao, AiClient client, GuardrailService guardrails,
+            RagAnswerService ragAnswers, LocalTutor localTutor, QuestionGenerator generator, IQuestionDao questionDao,
+<span class="fc" id="L60">            TransactionTemplate transaction, LmsProperties properties) {</span>
+<span class="fc" id="L61">        this.chatDao = chatDao;</span>
+<span class="fc" id="L62">        this.classDao = classDao;</span>
+<span class="fc" id="L63">        this.client = client;</span>
+<span class="fc" id="L64">        this.guardrails = guardrails;</span>
+<span class="fc" id="L65">        this.ragAnswers = ragAnswers;</span>
+<span class="fc" id="L66">        this.localTutor = localTutor;</span>
+<span class="fc" id="L67">        this.generator = generator;</span>
+<span class="fc" id="L68">        this.questionDao = questionDao;</span>
+<span class="fc" id="L69">        this.transaction = transaction;</span>
+<span class="fc" id="L70">        this.properties = properties;</span>
+<span class="fc" id="L71">    }</span>
+
+    @Override
+    public ChatMessageWrapper ask(AskRequest request) {
+<span class="fc" id="L75">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L76">        checkQuota(user);</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        String courseId = StringUtils.hasText(request.courseId()) ? request.courseId() : DEFAULT_COURSE;</span>
+<span class="fc" id="L78">        String question = request.question().trim();</span>
+<span class="fc" id="L79">        AiAnswer answer = answer(user, courseId, question, request.page());</span>
+<span class="fc" id="L80">        ChatMessage message = new ChatMessage();</span>
+<span class="fc" id="L81">        message.setId(UUID.randomUUID().toString());</span>
+<span class="fc" id="L82">        message.setOwnerId(user.id());</span>
+<span class="fc" id="L83">        message.setCourseId(courseId);</span>
+<span class="fc" id="L84">        message.setQuestion(question);</span>
+<span class="fc" id="L85">        message.setAnswer(answer.answer());</span>
+<span class="fc" id="L86">        message.setPage(answer.page());</span>
+<span class="fc" id="L87">        message.setSources(answer.sources());</span>
+<span class="fc" id="L88">        message.setMode(answer.mode());</span>
+<span class="fc" id="L89">        transaction.executeWithoutResult(s -&gt; chatDao.persist(message));</span>
+<span class="fc" id="L90">        return toWrapper(message);</span>
+    }
+
+    private AiAnswer answer(UserPrincipal user, String courseId, String question, Integer page) {
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        boolean teacher = !user.isStudent();</span>
+<span class="fc" id="L95">        List&lt;RagChunk&gt; chunks = ragAnswers.candidates(scope(user, courseId));</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">        if (client.chatConfigured()) {</span>
+<span class="fc" id="L97">            return ragAnswers.answer(question, teacher, chunks, page);</span>
+        }
+<span class="fc" id="L99">        GuardrailService.Decision decision = guardrails.ruleDecision(question, teacher);</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        if (decision != null) {</span>
+<span class="fc" id="L101">            boolean hint = &quot;hint&quot;.equals(decision.action());</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">            return AiAnswer.withoutSources(hint ? GuardrailService.HINT : GuardrailService.REFUSAL, &quot;guardrail_&quot; + decision.action());</span>
+        }
+<span class="fc" id="L104">        return localTutor.answer(courseId, question, chunks, page);</span>
+    }
+
+    @Override
+    public PracticeSet practice(PracticeRequest request) {
+<span class="fc" id="L109">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L110">        checkQuota(user);</span>
+<span class="fc" id="L111">        List&lt;RagChunk&gt; chunks = chunksInRange(user, request);</span>
+<span class="pc bpc" id="L112" title="1 of 4 branches missed.">        if (client.chatConfigured() &amp;&amp; !chunks.isEmpty()) {</span>
+            try {
+<span class="fc" id="L114">                List&lt;GeneratedQuestion&gt; questions = generator.generate(chunks, PRACTICE_SIZE, request.round(),</span>
+<span class="fc" id="L115">                        List.of(ExamQuestion.CHOICE, ExamQuestion.BLANK));</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">                if (!questions.isEmpty()) {</span>
+<span class="fc" id="L117">                    return new PracticeSet(&quot;ai&quot;, questions);</span>
+                }
+<span class="fc" id="L119">            } catch (AiProviderException e) {</span>
+<span class="fc" id="L120">                return new PracticeSet(&quot;bank&quot;, fromBank(request));</span>
+<span class="fc" id="L121">            }</span>
+        }
+<span class="fc" id="L123">        return new PracticeSet(&quot;bank&quot;, fromBank(request));</span>
+    }
+
+    @Override
+    public List&lt;GeneratedQuestion&gt; suggestQuestions(PracticeRequest request) {
+<span class="fc" id="L128">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L129">        checkQuota(user);</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        if (!client.chatConfigured()) {</span>
+<span class="fc" id="L131">            throw new BusinessRuleException(&quot;Chưa cấu hình khóa AI nên chưa thể gợi ý câu hỏi.&quot;);</span>
+        }
+<span class="fc" id="L133">        List&lt;RagChunk&gt; chunks = chunksInRange(user, request);</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        if (chunks.isEmpty()) {</span>
+<span class="fc" id="L135">            throw new BusinessRuleException(NOT_ENOUGH);</span>
+        }
+        try {
+<span class="fc" id="L138">            return generator.generate(chunks, PRACTICE_SIZE, request.round(), List.of(ExamQuestion.CHOICE));</span>
+<span class="fc" id="L139">        } catch (AiProviderException e) {</span>
+<span class="fc" id="L140">            throw new BusinessRuleException(&quot;Trợ lý AI tạm thời không phản hồi. Bạn hãy thử lại sau.&quot;);</span>
+        }
+    }
+
+    private List&lt;RagChunk&gt; chunksInRange(UserPrincipal user, PracticeRequest request) {
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">        String courseId = StringUtils.hasText(request.courseId()) ? request.courseId() : DEFAULT_COURSE;</span>
+<span class="fc" id="L146">        return ragAnswers.candidates(scope(user, courseId)).stream()</span>
+<span class="fc" id="L147">                .filter(chunk -&gt; inRange(chunk.getPage(), request)).toList();</span>
+    }
+
+    private boolean inRange(Integer page, PracticeRequest request) {
+<span class="pc bpc" id="L151" title="3 of 6 branches missed.">        return page != null &amp;&amp; (request.fromPage() == null || page &gt;= request.fromPage())</span>
+<span class="pc bpc" id="L152" title="1 of 4 branches missed.">                &amp;&amp; (request.toPage() == null || page &lt;= request.toPage());</span>
+    }
+
+    /** Without a model, approved questions rotate each round, alternating choice and fill-in where the answer is short. */
+    private List&lt;GeneratedQuestion&gt; fromBank(PracticeRequest request) {
+<span class="fc" id="L157">        List&lt;Question&gt; pool = transaction.execute(s -&gt; questionDao.findAll().stream()</span>
+<span class="pc bpc" id="L158" title="1 of 4 branches missed.">                .filter(question -&gt; Boolean.TRUE.equals(question.getApproved()) &amp;&amp; inRange(question.getPage(), request)).toList());</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        if (pool.isEmpty()) {</span>
+<span class="fc" id="L160">            throw new BusinessRuleException(NOT_ENOUGH);</span>
+        }
+<span class="fc" id="L162">        List&lt;GeneratedQuestion&gt; questions = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L163">        int offset = Math.floorMod(request.round(), pool.size());</span>
+<span class="fc bfc" id="L164" title="All 2 branches covered.">        for (int i = 0; i &lt; Math.min(PRACTICE_SIZE, pool.size()); i++) {</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">            questions.add(asPractice(pool.get((offset + i) % pool.size()), (request.round() + i) % 2 == 1));</span>
+        }
+<span class="fc" id="L167">        return questions;</span>
+    }
+
+    private GeneratedQuestion asPractice(Question question, boolean blank) {
+<span class="fc" id="L171">        String answer = question.getOptions().get(question.getCorrect());</span>
+<span class="fc bfc" id="L172" title="All 4 branches covered.">        if (blank &amp;&amp; answer.length() &lt;= BLANK_ANSWER_LIMIT) {</span>
+<span class="fc" id="L173">            return new GeneratedQuestion(question.getId(), ExamQuestion.BLANK, question.getPage(), question.getText(), null,</span>
+<span class="fc" id="L174">                    answer, question.getExplanation());</span>
+        }
+<span class="fc" id="L176">        return new GeneratedQuestion(question.getId(), ExamQuestion.CHOICE, question.getPage(), question.getText(),</span>
+<span class="fc" id="L177">                question.getOptions(), answer, question.getExplanation());</span>
+    }
+
+    /** Students only search classes they are enrolled in; staff search every class of the course. */
+    private List&lt;String&gt; scope(UserPrincipal user, String courseId) {
+<span class="fc" id="L182">        return transaction.execute(s -&gt; classDao.findByCourse(courseId).stream()</span>
+<span class="fc bfc" id="L183" title="All 4 branches covered.">                .filter(info -&gt; !user.isStudent() || info.getStudentIds().contains(user.id()))</span>
+<span class="fc" id="L184">                .map(ClassInfo::getId).toList());</span>
+    }
+
+    private void checkQuota(UserPrincipal user) {
+<span class="fc" id="L188">        ZoneId zone = ZoneId.of(properties.getTimeZone());</span>
+<span class="fc" id="L189">        Instant startOfDay = LocalDate.now(zone).atStartOfDay(zone).toInstant();</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        int limit = user.isStudent() ? properties.getAi().getDailyLimitStudent() : properties.getAi().getDailyLimitTeacher();</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">        if (chatDao.countSince(user.id(), startOfDay) &gt;= limit) {</span>
+<span class="fc" id="L192">            throw new BusinessRuleException(&quot;Bạn đã dùng hết lượt hỏi AI hôm nay.&quot;);</span>
+        }
+<span class="fc" id="L194">    }</span>
+
+    @Override
+    public List&lt;ChatMessageWrapper&gt; mine() {
+<span class="fc" id="L198">        return chatDao.findByOwner(UserPrincipal.current().id()).stream().map(this::toWrapper).toList();</span>
+    }
+
+    @Override
+    public ChatMessageWrapper rate(String id, String rating) {
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        if (!List.of(&quot;helpful&quot;, &quot;reported&quot;).contains(String.valueOf(rating))) {</span>
+<span class="fc" id="L204">            throw new BusinessRuleException(&quot;Đánh giá không hợp lệ.&quot;);</span>
+        }
+<span class="fc" id="L206">        String owner = UserPrincipal.current().id();</span>
+<span class="fc" id="L207">        return transaction.execute(s -&gt; {</span>
+<span class="fc" id="L208">            ChatMessage message = chatDao.findById(id).filter(m -&gt; owner.equals(m.getOwnerId()))</span>
+<span class="fc" id="L209">                    .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy câu trả lời.&quot;));</span>
+<span class="fc" id="L210">            message.setRating(rating);</span>
+<span class="fc" id="L211">            return toWrapper(message);</span>
+        });
+    }
+
+    private ChatMessageWrapper toWrapper(ChatMessage message) {
+<span class="fc" id="L216">        return new ChatMessageWrapper(message.getId(), message.getQuestion(), message.getAnswer(), message.getPage(),</span>
+<span class="fc" id="L217">                message.getCourseId(), message.getSources(), message.getRating());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

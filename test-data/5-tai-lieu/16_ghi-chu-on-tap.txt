@@ -1,0 +1,4 @@
+Ghi chú ôn tập CSE301
+- 401: chưa xác thực
+- 403: không đủ quyền
+- JWT: header.payload.signature

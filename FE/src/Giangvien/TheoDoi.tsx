@@ -1,14 +1,7 @@
-import { learningSummary } from "../data/learningSummary";
-import { LearningInsights } from "../AI/Insights";
+import { ClassInsights, LearningInsights } from "../AI/Insights";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Download, Bell, CheckCircle2 } from "lucide-react";
-import { students } from "../data/fixtures";
-import {
-  assessmentFor,
-  updateAssessment,
-  regradeQuestion,
-} from "../data/assessment";
 import { useDemo } from "../data/DemoProvider";
 import {
   PageHeader,
@@ -26,13 +19,15 @@ import { exportWorkbook } from "../shared/Grades";
 export function TheoDoi() {
   const { data, setData, notify } = useDemo();
   const [query, setQuery] = useState(""),
-    [filter, setFilter] = useState("all");
-  const summary = learningSummary(data);
-  const normalized = students.map((s) =>
-    s.id === "sv1"
-      ? { ...s, progress: summary.progress, grade: summary.average }
-      : s,
-  );
+    [filter, setFilter] = useState("all"),
+    [classId, setClassId] = useState("");
+  const classes = data.analytics.classes;
+  const current = classes.find((c) => c.id === classId) ?? classes[0];
+  const normalized = (current?.students ?? []).map((s) => ({
+    ...s,
+    code: s.id,
+    grade: s.average,
+  }));
   const rows = normalized.filter(
     (s) =>
       (s.name + s.code).toLowerCase().includes(query.toLowerCase()) &&
@@ -64,21 +59,36 @@ export function TheoDoi() {
         }
       />
       <CourseContext />
+      <Field label="Lớp học">
+        <select
+          aria-label="Lớp theo dõi"
+          value={current?.id ?? ""}
+          onChange={(e) => setClassId(e.target.value)}
+        >
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </Field>
       <MetricStrip
         items={[
           {
-            label: "Sinh viên trong mẫu",
+            label: "Sinh viên của lớp",
             value: String(normalized.length),
-            note: "Danh sách minh họa",
+            note: current?.name ?? "Chưa có lớp",
           },
           {
             label: "Tiến độ trung bình",
             value:
-              Math.round(
-                normalized.reduce((n, s) => n + s.progress, 0) /
-                  normalized.length,
-              ) + "%",
-            note: "Phiên RESTful API",
+              (normalized.length
+                ? Math.round(
+                    normalized.reduce((n, s) => n + s.progress, 0) /
+                      normalized.length,
+                  )
+                : 0) + "%",
+            note: "Các phiên đã công bố",
           },
           {
             label: "Cần hỗ trợ",
@@ -90,6 +100,7 @@ export function TheoDoi() {
         ]}
       />
       <LearningInsights />
+      {current && <ClassInsights courseId={current.courseId} />}
       <Panel>
         <div className="toolbar">
           <div className="tabs">
@@ -119,6 +130,7 @@ export function TheoDoi() {
                 <th>Sinh viên</th>
                 <th>Tiến độ tự học</th>
                 <th>Điểm bài tập</th>
+                <th>Tương tác</th>
                 <th>Hoạt động</th>
                 <th>Thao tác</th>
               </tr>
@@ -145,6 +157,15 @@ export function TheoDoi() {
                   <td>
                     {s.grade}
                     /10
+                    <small className="muted admin-line">
+                      {s.correctRate !== undefined ? `${s.correctRate}% đúng` : "Chưa nộp bài"}
+                      {s.lastSubmitted ? ` · nộp ${s.lastSubmitted}` : ""}
+                    </small>
+                  </td>
+                  <td>
+                    <small>
+                      {s.chats} câu hỏi AI · {s.feedback ?? 0} phản hồi
+                    </small>
                   </td>
                   <td>
                     <Badge
@@ -163,7 +184,7 @@ export function TheoDoi() {
                           ...d,
                           notices: [
                             ...d.notices,
-                            `Nhắc học minh họa cho ${s.name}: hãy hoàn thành phiên tự học.`,
+                            "Giảng viên nhắc: hãy hoàn thành phiên tự học đúng hạn.",
                           ],
                           readNotices: false,
                         }));
@@ -198,19 +219,11 @@ export function TheoDoi() {
                 </tr>
               </thead>
               <tbody>
-                {[1, 2, 3, 4].map((page) => (
-                  <tr key={page}>
-                    <td>Trang {page}</td>
-                    <td>
-                      {data.questions.filter((q) => q.page === page).length}
-                    </td>
-                    <td>
-                      {
-                        data.gaps.filter((g) => g.page === page && !g.response)
-                          .length
-                      }{" "}
-                      chưa giải đáp
-                    </td>
+                {data.analytics.pages.map((p) => (
+                  <tr key={p.page}>
+                    <td>Trang {p.page}</td>
+                    <td>{data.questions.filter((q) => q.page === p.page).length}</td>
+                    <td>{p.gaps} chưa giải đáp</td>
                   </tr>
                 ))}
               </tbody>
@@ -220,8 +233,8 @@ export function TheoDoi() {
         <Panel title="Tương tác cần theo dõi">
           <dl className="detail-list">
             <div>
-              <dt>Lượt hỏi AI mẫu</dt>
-              <dd>{data.chat.length}</dd>
+              <dt>Lượt hỏi AI của lớp</dt>
+              <dd>{normalized.reduce((n, s) => n + s.chats, 0)}</dd>
             </div>
             <div>
               <dt>Phản hồi chưa giải quyết</dt>
@@ -263,7 +276,11 @@ export function PhucKhao() {
           <Panel key={a.id}>
             <div className="panel-heading">
               <div>
-                <h2>Nguyễn Quang Anh · 23110149</h2>
+                <h2>
+                  {data.admin.users.find((u) => u.id === a.ownerId)?.name ??
+                    "Sinh viên"}{" "}
+                  · {a.ownerId}
+                </h2>
                 <p>{a.question}</p>
               </div>
               <Badge tone={a.status === "pending" ? "amber" : "green"}>
@@ -292,26 +309,14 @@ export function PhucKhao() {
                   const score = Number(f.get("score"));
                   const response = String(f.get("response"));
                   setData((d) => ({
-                    ...(accepted && assessmentFor(d, a.assignmentId).result
-                      ? updateAssessment(d, a.assignmentId, {
-                          result: {
-                            ...regradeQuestion(
-                              assessmentFor(d, a.assignmentId).result!,
-                              a.questionIndex ?? 2,
-                              score,
-                            ),
-                          },
-                        })
-                      : d),
+                    ...d,
                     appeals: d.appeals.map((x) =>
                       x.id === a.id
                         ? {
                             ...x,
                             status: accepted ? "accepted" : "rejected",
                             response,
-                            grade: accepted
-                              ? score
-                              : assessmentFor(d, a.assignmentId).result?.score,
+                            grade: accepted ? score : undefined,
                           }
                         : x,
                     ),

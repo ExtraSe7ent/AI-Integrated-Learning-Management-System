@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GlobalExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.common.web</a> &gt; <span class="el_source">GlobalExceptionHandler.java</span></div><h1>GlobalExceptionHandler.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.common.web;
+
+import jakarta.validation.ConstraintViolationException;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.mapping.PropertyReferenceException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ForbiddenOperationException;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+
+@RestControllerAdvice
+<span class="fc" id="L29">public class GlobalExceptionHandler {</span>
+
+<span class="fc" id="L31">    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);</span>
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity&lt;ApiError&gt; badCredentials(BadCredentialsException e) {
+<span class="fc" id="L35">        return error(HttpStatus.UNAUTHORIZED, e.getMessage());</span>
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity&lt;ApiError&gt; notFound(ResourceNotFoundException e) {
+<span class="fc" id="L40">        return error(HttpStatus.NOT_FOUND, e.getMessage());</span>
+    }
+
+    @ExceptionHandler({BusinessRuleException.class, IllegalArgumentException.class})
+    public ResponseEntity&lt;ApiError&gt; badRequest(RuntimeException e) {
+<span class="fc" id="L45">        return error(HttpStatus.BAD_REQUEST, e.getMessage());</span>
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
+        MissingServletRequestPartException.class, InvalidDataAccessApiUsageException.class, PropertyReferenceException.class})
+    public ResponseEntity&lt;ApiError&gt; malformedRequest(Exception e) {
+<span class="fc" id="L51">        log.debug(&quot;Malformed request: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L52">        return error(HttpStatus.BAD_REQUEST, &quot;Dữ liệu gửi lên không hợp lệ.&quot;);</span>
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;ApiError&gt; invalid(MethodArgumentNotValidException e) {
+<span class="fc" id="L57">        String message = e.getBindingResult().getFieldErrors().stream()</span>
+<span class="fc" id="L58">                .map(field -&gt; field.getField() + &quot;: &quot; + field.getDefaultMessage())</span>
+<span class="fc" id="L59">                .collect(Collectors.joining(&quot;; &quot;));</span>
+<span class="fc" id="L60">        return error(HttpStatus.BAD_REQUEST, message);</span>
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity&lt;ApiError&gt; invalidParameters(HandlerMethodValidationException e) {
+<span class="nc" id="L65">        return error(HttpStatus.BAD_REQUEST, &quot;Dữ liệu gửi lên không hợp lệ.&quot;);</span>
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity&lt;ApiError&gt; constraint(ConstraintViolationException e) {
+<span class="nc" id="L70">        return error(HttpStatus.BAD_REQUEST, e.getMessage());</span>
+    }
+
+    @ExceptionHandler({ForbiddenOperationException.class, AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity&lt;ApiError&gt; forbidden(RuntimeException e) {
+<span class="fc" id="L75">        boolean ours = e instanceof ForbiddenOperationException;</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        return error(HttpStatus.FORBIDDEN, ours ? e.getMessage() : &quot;Bạn không có quyền thực hiện thao tác này.&quot;);</span>
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity&lt;ApiError&gt; conflict(DataIntegrityViolationException e) {
+<span class="nc" id="L81">        log.warn(&quot;Data integrity violation: {}&quot;, e.getMostSpecificCause().getMessage());</span>
+<span class="nc" id="L82">        return error(HttpStatus.CONFLICT, &quot;Dữ liệu đã tồn tại hoặc đang được sử dụng.&quot;);</span>
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity&lt;ApiError&gt; tooLarge(MaxUploadSizeExceededException e) {
+<span class="nc" id="L87">        return error(HttpStatus.PAYLOAD_TOO_LARGE, &quot;Tệp vượt quá dung lượng cho phép.&quot;);</span>
+    }
+
+    /** The browser left mid-response; there is nobody to answer and nothing is wrong on our side. */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void clientGone(AsyncRequestNotUsableException e) {
+<span class="nc" id="L93">        log.debug(&quot;Client disconnected: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L94">    }</span>
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity&lt;ApiError&gt; unexpected(Exception e) {
+<span class="fc" id="L98">        log.error(&quot;Unhandled error&quot;, e);</span>
+<span class="fc" id="L99">        return error(HttpStatus.INTERNAL_SERVER_ERROR, &quot;Đã có lỗi xảy ra. Vui lòng thử lại.&quot;);</span>
+    }
+
+    private ResponseEntity&lt;ApiError&gt; error(HttpStatus status, String message) {
+<span class="fc" id="L103">        return ResponseEntity.status(status).body(new ApiError(status.value(), message));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

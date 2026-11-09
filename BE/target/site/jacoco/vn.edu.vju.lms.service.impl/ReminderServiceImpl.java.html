@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReminderServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">ReminderServiceImpl.java</span></div><h1>ReminderServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.dao.IAssessmentDao;
+import vn.edu.vju.lms.dao.IAssignmentDao;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.ILessonDao;
+import vn.edu.vju.lms.dao.INoticeDao;
+import vn.edu.vju.lms.dao.IReminderDao;
+import vn.edu.vju.lms.dao.IStudyProgressDao;
+import vn.edu.vju.lms.dao.IStudySessionDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.Assignment;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.entity.Lesson;
+import vn.edu.vju.lms.entity.Notice;
+import vn.edu.vju.lms.entity.Reminder;
+import vn.edu.vju.lms.entity.StudyProgress;
+import vn.edu.vju.lms.entity.StudySession;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.service.ReminderService;
+import vn.edu.vju.lms.wrapper.ReminderWrapper;
+
+@Service
+public class ReminderServiceImpl extends AbstractCrudService&lt;Reminder, ReminderWrapper&gt; implements ReminderService {
+
+<span class="fc" id="L53">    private static final Logger log = LoggerFactory.getLogger(ReminderServiceImpl.class);</span>
+<span class="fc" id="L54">    private static final Duration WINDOW = Duration.ofHours(24);</span>
+    private static final int DEFAULT_SLIDES = 4;
+    private static final String SESSION = &quot;session&quot;;
+    private static final String IN_APP = &quot;in-app&quot;;
+    private static final String EMAIL = &quot;email&quot;;
+    private static final String FAILED = &quot;failed&quot;;
+<span class="fc" id="L60">    private static final DateTimeFormatter DUE = DateTimeFormatter.ofPattern(&quot;HH:mm dd/MM/yyyy&quot;);</span>
+
+<span class="fc" id="L62">    private record Item(String kind, String id, String title, String due) {</span>
+    }
+
+    private final IReminderDao dao;
+    private final IClassInfoDao classDao;
+    private final IUserAccountDao userDao;
+    private final IStudySessionDao sessionDao;
+    private final IAssignmentDao assignmentDao;
+    private final IStudyProgressDao progressDao;
+    private final IAssessmentDao assessmentDao;
+    private final ILessonDao lessonDao;
+    private final INoticeDao noticeDao;
+    private final ObjectProvider&lt;JavaMailSender&gt; mail;
+    private final TransactionTemplate transaction;
+    private final LmsProperties.Reminder config;
+    private final ZoneId zone;
+
+    public ReminderServiceImpl(IReminderDao dao, IClassInfoDao classDao, IUserAccountDao userDao, IStudySessionDao sessionDao,
+            IAssignmentDao assignmentDao, IStudyProgressDao progressDao, IAssessmentDao assessmentDao, ILessonDao lessonDao,
+<span class="fc" id="L81">            INoticeDao noticeDao, ObjectProvider&lt;JavaMailSender&gt; mail, TransactionTemplate transaction, LmsProperties properties) {</span>
+<span class="fc" id="L82">        this.dao = dao;</span>
+<span class="fc" id="L83">        this.classDao = classDao;</span>
+<span class="fc" id="L84">        this.userDao = userDao;</span>
+<span class="fc" id="L85">        this.sessionDao = sessionDao;</span>
+<span class="fc" id="L86">        this.assignmentDao = assignmentDao;</span>
+<span class="fc" id="L87">        this.progressDao = progressDao;</span>
+<span class="fc" id="L88">        this.assessmentDao = assessmentDao;</span>
+<span class="fc" id="L89">        this.lessonDao = lessonDao;</span>
+<span class="fc" id="L90">        this.noticeDao = noticeDao;</span>
+<span class="fc" id="L91">        this.mail = mail;</span>
+<span class="fc" id="L92">        this.transaction = transaction;</span>
+<span class="fc" id="L93">        this.config = properties.getReminder();</span>
+<span class="fc" id="L94">        this.zone = ZoneId.of(properties.getTimeZone());</span>
+<span class="fc" id="L95">    }</span>
+
+    @Override
+    public List&lt;Map&lt;String, Object&gt;&gt; candidates(String at) {
+<span class="fc" id="L99">        LocalDateTime now = parse(at);</span>
+<span class="fc" id="L100">        return transaction.execute(s -&gt; findCandidates(now));</span>
+    }
+
+    private LocalDateTime parse(String at) {
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (!StringUtils.hasText(at)) {</span>
+<span class="fc" id="L105">            return LocalDateTime.now(zone);</span>
+        }
+        try {
+<span class="fc" id="L108">            return LocalDateTime.parse(at);</span>
+<span class="fc" id="L109">        } catch (DateTimeParseException e) {</span>
+<span class="fc" id="L110">            throw new BusinessRuleException(&quot;Thời điểm kiểm tra không hợp lệ.&quot;);</span>
+        }
+    }
+
+    private List&lt;Map&lt;String, Object&gt;&gt; findCandidates(LocalDateTime now) {
+<span class="fc" id="L115">        List&lt;Item&gt; due = dueItems(now);</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (due.isEmpty()) {</span>
+<span class="fc" id="L117">            return List.of();</span>
+        }
+<span class="pc bpc" id="L119" title="3 of 4 branches missed.">        int slides = lessonDao.findAll().stream().map(Lesson::getSlides).filter(list -&gt; list != null &amp;&amp; !list.isEmpty())</span>
+<span class="fc" id="L120">                .mapToInt(List::size).max().orElse(DEFAULT_SLIDES);</span>
+<span class="fc" id="L121">        List&lt;Map&lt;String, Object&gt;&gt; rows = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L122">        Set&lt;String&gt; seen = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        for (ClassInfo info : classDao.findAll()) {</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">            for (String studentId : info.getStudentIds()) {</span>
+<span class="fc" id="L125">                UserAccount student = userDao.findById(studentId).filter(UserAccount::isActive).orElse(null);</span>
+<span class="pc bpc" id="L126" title="2 of 4 branches missed.">                if (student == null || !StringUtils.hasText(student.getEmail())) {</span>
+<span class="nc" id="L127">                    continue;</span>
+                }
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                for (Item item : due) {</span>
+<span class="fc" id="L130">                    String progress = progressOf(studentId, item, slides);</span>
+<span class="pc bpc" id="L131" title="1 of 4 branches missed.">                    if (progress != null &amp;&amp; seen.add(studentId + &quot;:&quot; + item.kind() + &quot;:&quot; + item.id())) {</span>
+<span class="fc" id="L132">                        rows.add(candidate(student, info, item, progress));</span>
+                    }
+<span class="fc" id="L134">                }</span>
+<span class="fc" id="L135">            }</span>
+<span class="fc" id="L136">        }</span>
+<span class="fc" id="L137">        return rows;</span>
+    }
+
+    private List&lt;Item&gt; dueItems(LocalDateTime now) {
+<span class="fc" id="L141">        List&lt;Item&gt; items = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        for (StudySession session : sessionDao.findAll()) {</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            if (Boolean.TRUE.equals(session.getPublished())) {</span>
+<span class="fc" id="L144">                items.add(new Item(SESSION, session.getId(), session.getTitle(), session.getCloses()));</span>
+            }
+<span class="fc" id="L146">        }</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        for (Assignment assignment : assignmentDao.findAll()) {</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">            if (Boolean.TRUE.equals(assignment.getPublished())) {</span>
+<span class="fc" id="L149">                items.add(new Item(&quot;assignment&quot;, assignment.getId(), assignment.getTitle(), assignment.getCloses()));</span>
+            }
+<span class="fc" id="L151">        }</span>
+<span class="fc" id="L152">        return items.stream().filter(item -&gt; StringUtils.hasText(item.due())).filter(item -&gt; {</span>
+<span class="fc" id="L153">            LocalDateTime due = LocalDateTime.parse(item.due());</span>
+<span class="fc bfc" id="L154" title="All 4 branches covered.">            return due.isAfter(now) &amp;&amp; !due.isAfter(now.plus(WINDOW));</span>
+<span class="fc" id="L155">        }).toList();</span>
+    }
+
+    /** Null when the student already finished the item. */
+    private String progressOf(String studentId, Item item, int slides) {
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        if (!SESSION.equals(item.kind())) {</span>
+<span class="pc bpc" id="L161" title="3 of 4 branches missed.">            return assessmentDao.find(studentId, item.id()).filter(record -&gt; record.getScore() != null).isPresent()</span>
+<span class="pc" id="L162">                    ? null : &quot;Chưa nộp&quot;;</span>
+        }
+<span class="fc" id="L164">        StudyProgress record = progressDao.findByStudent(studentId).stream()</span>
+<span class="fc" id="L165">                .filter(progress -&gt; item.id().equals(progress.getSessionId())).findFirst().orElse(null);</span>
+<span class="pc bpc" id="L166" title="1 of 4 branches missed.">        if (record != null &amp;&amp; StringUtils.hasText(record.getCompletedAt())) {</span>
+<span class="fc" id="L167">            return null;</span>
+        }
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">        return (record == null ? 0 : Math.min(100, record.getProgress() * 100 / slides)) + &quot;% hoàn thành&quot;;</span>
+    }
+
+    private Map&lt;String, Object&gt; candidate(UserAccount student, ClassInfo info, Item item, String progress) {
+<span class="fc" id="L173">        Map&lt;String, Object&gt; row = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L174">        row.put(&quot;key&quot;, student.getId() + &quot;:&quot; + info.getId() + &quot;:&quot; + item.kind() + &quot;:&quot; + item.id() + &quot;:&quot; + item.due());</span>
+<span class="fc" id="L175">        row.put(&quot;studentId&quot;, student.getId());</span>
+<span class="fc" id="L176">        row.put(&quot;studentName&quot;, student.getName());</span>
+<span class="fc" id="L177">        row.put(&quot;email&quot;, student.getEmail());</span>
+<span class="fc" id="L178">        row.put(&quot;className&quot;, info.getName());</span>
+<span class="fc" id="L179">        row.put(&quot;kind&quot;, item.kind());</span>
+<span class="fc" id="L180">        row.put(&quot;itemId&quot;, item.id());</span>
+<span class="fc" id="L181">        row.put(&quot;title&quot;, item.title());</span>
+<span class="fc" id="L182">        row.put(&quot;due&quot;, item.due());</span>
+<span class="fc" id="L183">        row.put(&quot;progress&quot;, progress);</span>
+<span class="fc" id="L184">        return row;</span>
+    }
+
+    /** Mail goes out with no transaction open: a slow SMTP server must not hold a database connection. */
+    @Override
+    public List&lt;ReminderWrapper&gt; scan(String at) {
+<span class="fc" id="L190">        LocalDateTime now = parse(at);</span>
+<span class="fc" id="L191">        Set&lt;String&gt; done = transaction.execute(s -&gt; {</span>
+<span class="fc" id="L192">            Set&lt;String&gt; keys = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">            dao.findAll().stream().filter(reminder -&gt; !FAILED.equals(reminder.getStatus()))</span>
+<span class="fc" id="L194">                    .forEach(reminder -&gt; keys.add(reminder.getKey() + &quot;:&quot; + reminder.getChannel()));</span>
+<span class="fc" id="L195">            return keys;</span>
+        });
+<span class="fc" id="L197">        List&lt;ReminderWrapper&gt; created = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L198">        Set&lt;String&gt; noticed = new LinkedHashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        for (Map&lt;String, Object&gt; candidate : candidates(now.toString())) {</span>
+<span class="fc" id="L200">            String key = String.valueOf(candidate.get(&quot;key&quot;));</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">            if (done.add(key + &quot;:&quot; + IN_APP)) {</span>
+<span class="fc" id="L202">                noticed.add(candidate.get(&quot;title&quot;) + &quot; sắp đến hạn lúc &quot; + dueText(candidate) + &quot;.&quot;);</span>
+<span class="fc" id="L203">                created.add(record(key, candidate, IN_APP, &quot;recorded&quot;));</span>
+            }
+<span class="fc bfc" id="L205" title="All 2 branches covered.">            if (done.add(key + &quot;:&quot; + EMAIL)) {</span>
+<span class="fc" id="L206">                created.add(record(key, candidate, EMAIL, send(candidate)));</span>
+            }
+<span class="fc" id="L208">        }</span>
+<span class="fc" id="L209">        publishNotices(noticed);</span>
+<span class="fc" id="L210">        log.info(&quot;Deadline scan recorded {} reminders&quot;, created.size());</span>
+<span class="fc" id="L211">        return created;</span>
+    }
+
+    private String dueText(Map&lt;String, Object&gt; candidate) {
+<span class="fc" id="L215">        return LocalDateTime.parse(String.valueOf(candidate.get(&quot;due&quot;))).format(DUE);</span>
+    }
+
+    private String send(Map&lt;String, Object&gt; candidate) {
+<span class="fc" id="L219">        JavaMailSender sender = mail.getIfAvailable();</span>
+<span class="pc bpc" id="L220" title="2 of 4 branches missed.">        if (sender == null || !StringUtils.hasText(config.getSmtpHost())) {</span>
+<span class="nc" id="L221">            return &quot;skipped&quot;;</span>
+        }
+<span class="fc" id="L223">        SimpleMailMessage message = new SimpleMailMessage();</span>
+<span class="fc" id="L224">        message.setFrom(config.getMailFrom());</span>
+<span class="fc" id="L225">        message.setTo(String.valueOf(candidate.get(&quot;email&quot;)));</span>
+<span class="fc" id="L226">        boolean session = SESSION.equals(candidate.get(&quot;kind&quot;));</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        message.setSubject(&quot;Nhắc hạn &quot; + (session ? &quot;tự học&quot; : &quot;bài tập&quot;) + &quot; · &quot; + candidate.get(&quot;className&quot;));</span>
+<span class="fc" id="L228">        message.setText(&quot;Chào &quot; + candidate.get(&quot;studentName&quot;) + &quot;,\n\n&quot; + candidate.get(&quot;title&quot;) + &quot; của lớp &quot;</span>
+<span class="fc" id="L229">                + candidate.get(&quot;className&quot;) + &quot; đến hạn lúc &quot; + dueText(candidate) + &quot;.\nTiến độ hiện tại: &quot;</span>
+<span class="fc" id="L230">                + candidate.get(&quot;progress&quot;) + &quot;.\n\nVui lòng hoàn thành trước hạn.\nVJU Learning&quot;);</span>
+        try {
+<span class="fc" id="L232">            sender.send(message);</span>
+<span class="fc" id="L233">            return &quot;sent&quot;;</span>
+<span class="fc" id="L234">        } catch (MailException e) {</span>
+<span class="fc" id="L235">            log.warn(&quot;Reminder email failed: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L236">            return FAILED;</span>
+        }
+    }
+
+    private ReminderWrapper record(String key, Map&lt;String, Object&gt; candidate, String channel, String status) {
+<span class="fc" id="L241">        Reminder reminder = new Reminder();</span>
+<span class="fc" id="L242">        reminder.setId(UUID.randomUUID().toString());</span>
+<span class="fc" id="L243">        reminder.setKey(key);</span>
+<span class="fc" id="L244">        reminder.setCreatedAt(Instant.now().toString());</span>
+<span class="fc" id="L245">        reminder.setCandidate(candidate);</span>
+<span class="fc" id="L246">        reminder.setChannel(channel);</span>
+<span class="fc" id="L247">        reminder.setStatus(status);</span>
+<span class="fc" id="L248">        transaction.executeWithoutResult(s -&gt; dao.persist(reminder));</span>
+<span class="fc" id="L249">        return toWrapper(reminder);</span>
+    }
+
+    /** Notices go to all students, so they name the item but never a student. */
+    private void publishNotices(Set&lt;String&gt; messages) {
+<span class="fc" id="L254">        transaction.executeWithoutResult(s -&gt; messages.forEach(text -&gt; {</span>
+<span class="fc" id="L255">            Notice notice = new Notice();</span>
+<span class="fc" id="L256">            notice.setId(UUID.randomUUID().toString());</span>
+<span class="fc" id="L257">            notice.setAudience(&quot;student&quot;);</span>
+<span class="fc" id="L258">            notice.setMessage(text);</span>
+<span class="fc" id="L259">            noticeDao.persist(notice);</span>
+<span class="fc" id="L260">        }));</span>
+<span class="fc" id="L261">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, Reminder&gt; dao() {
+<span class="fc" id="L265">        return dao;</span>
+    }
+
+    @Override
+    protected Reminder newEntity() {
+<span class="fc" id="L270">        return new Reminder();</span>
+    }
+
+    @Override
+    protected ReminderWrapper toWrapper(Reminder entity) {
+<span class="fc" id="L275">        ReminderWrapper wrapper = new ReminderWrapper();</span>
+<span class="fc" id="L276">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L277">        wrapper.setKey(entity.getKey());</span>
+<span class="fc" id="L278">        wrapper.setCreatedAt(entity.getCreatedAt());</span>
+<span class="fc" id="L279">        wrapper.setCandidate(entity.getCandidate());</span>
+<span class="fc" id="L280">        wrapper.setChannel(entity.getChannel());</span>
+<span class="fc" id="L281">        wrapper.setStatus(entity.getStatus());</span>
+<span class="fc" id="L282">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(ReminderWrapper wrapper, Reminder entity) {
+<span class="pc bpc" id="L287" title="1 of 2 branches missed.">        if (wrapper.getKey() != null) {</span>
+<span class="fc" id="L288">            entity.setKey(wrapper.getKey());</span>
+        }
+<span class="fc bfc" id="L290" title="All 2 branches covered.">        if (wrapper.getCreatedAt() != null) {</span>
+<span class="fc" id="L291">            entity.setCreatedAt(wrapper.getCreatedAt());</span>
+        }
+<span class="fc bfc" id="L293" title="All 2 branches covered.">        if (wrapper.getCandidate() != null) {</span>
+<span class="fc" id="L294">            entity.setCandidate(wrapper.getCandidate());</span>
+        }
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        if (wrapper.getChannel() != null) {</span>
+<span class="fc" id="L297">            entity.setChannel(wrapper.getChannel());</span>
+        }
+<span class="fc bfc" id="L299" title="All 2 branches covered.">        if (wrapper.getStatus() != null) {</span>
+<span class="fc" id="L300">            entity.setStatus(wrapper.getStatus());</span>
+        }
+<span class="fc" id="L302">    }</span>
+
+    @Override
+    protected String wrapperId(ReminderWrapper wrapper) {
+<span class="fc" id="L306">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Reminder entity, String id) {
+<span class="fc" id="L311">        entity.setId(id);</span>
+<span class="fc" id="L312">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L316">        return &quot;Không tìm thấy nhắc hạn.&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExamOrder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service</a> &gt; <span class="el_source">ExamOrder.java</span></div><h1>ExamOrder.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
+import java.util.stream.IntStream;
+import vn.edu.vju.lms.entity.Assignment;
+
+/**
+ * UC-A03 AF-1 &quot;ngẫu nhiên hóa&quot;: with the assignment's random flag on, each student gets their own fixed question
+ * order. Everything is stored in the original order, so grading, the grade sheet and the lecturer's views are
+ * unchanged; only what a student sends and receives is mapped. {@code order[i]} is the original index of the
+ * question the student sees at position {@code i}.
+ */
+public final class ExamOrder {
+
+    private ExamOrder() {
+    }
+
+    public static int[] of(Assignment assignment, String studentId) {
+<span class="fc" id="L24">        int size = AssessmentGrader.questionsOf(assignment).size();</span>
+<span class="fc" id="L25">        List&lt;Integer&gt; order = new ArrayList&lt;&gt;(IntStream.range(0, size).boxed().toList());</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">        if (Boolean.TRUE.equals(assignment.getRandom())) {</span>
+            // Stable per student and assignment: reloading or a new attempt shows the same order.
+<span class="fc" id="L28">            long seed = UUID.nameUUIDFromBytes((studentId + &quot;:&quot; + assignment.getId()).getBytes(StandardCharsets.UTF_8))</span>
+<span class="fc" id="L29">                    .getMostSignificantBits();</span>
+<span class="fc" id="L30">            Collections.shuffle(order, new Random(seed));</span>
+        }
+<span class="fc" id="L32">        return order.stream().mapToInt(Integer::intValue).toArray();</span>
+    }
+
+    public static boolean identity(int[] order) {
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        return IntStream.range(0, order.length).allMatch(i -&gt; order[i] == i);</span>
+    }
+
+    /** Original order → the student's order. Lists of another length (old data) are returned unchanged. */
+    public static &lt;T&gt; List&lt;T&gt; toStudent(List&lt;T&gt; original, int[] order) {
+<span class="fc bfc" id="L41" title="All 6 branches covered.">        if (original == null || original.size() != order.length || identity(order)) {</span>
+<span class="fc" id="L42">            return original;</span>
+        }
+<span class="fc" id="L44">        List&lt;T&gt; shown = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        for (int position : order) {</span>
+<span class="fc" id="L46">            shown.add(original.get(position));</span>
+        }
+<span class="fc" id="L48">        return shown;</span>
+    }
+
+    /** The student's order → original order. */
+    public static &lt;T&gt; List&lt;T&gt; toOriginal(List&lt;T&gt; shown, int[] order) {
+<span class="fc bfc" id="L53" title="All 6 branches covered.">        if (shown == null || shown.size() != order.length || identity(order)) {</span>
+<span class="fc" id="L54">            return shown;</span>
+        }
+<span class="fc" id="L56">        List&lt;T&gt; original = new ArrayList&lt;&gt;(Collections.nCopies(order.length, null));</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        for (int i = 0; i &lt; order.length; i++) {</span>
+<span class="fc" id="L58">            original.set(order[i], shown.get(i));</span>
+        }
+<span class="fc" id="L60">        return original;</span>
+    }
+
+    public static int originalIndex(int shownIndex, int[] order) {
+<span class="pc bpc" id="L64" title="1 of 4 branches missed.">        return shownIndex &gt;= 0 &amp;&amp; shownIndex &lt; order.length ? order[shownIndex] : shownIndex;</span>
+    }
+
+    public static int shownIndex(int originalIndex, int[] order) {
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        for (int i = 0; i &lt; order.length; i++) {</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">            if (order[i] == originalIndex) {</span>
+<span class="fc" id="L70">                return i;</span>
+            }
+        }
+<span class="fc" id="L73">        return originalIndex;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

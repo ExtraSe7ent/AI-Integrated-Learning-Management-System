@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BootstrapServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">BootstrapServiceImpl.java</span></div><h1>BootstrapServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+import vn.edu.vju.lms.dao.ICoordinationCompletionDao;
+import vn.edu.vju.lms.dao.INoticeDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.CoordinationCompletion;
+import vn.edu.vju.lms.entity.Notice;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.AnalyticsService;
+import vn.edu.vju.lms.service.AppealService;
+import vn.edu.vju.lms.service.AssessmentService;
+import vn.edu.vju.lms.service.AssignmentService;
+import vn.edu.vju.lms.service.BootstrapService;
+import vn.edu.vju.lms.service.ChangeRequestService;
+import vn.edu.vju.lms.service.ChatService;
+import vn.edu.vju.lms.service.ClassInfoService;
+import vn.edu.vju.lms.service.CoordinationItemService;
+import vn.edu.vju.lms.service.CourseService;
+import vn.edu.vju.lms.service.FeedbackService;
+import vn.edu.vju.lms.service.KnowledgeGapService;
+import vn.edu.vju.lms.service.LessonService;
+import vn.edu.vju.lms.service.LiveService;
+import vn.edu.vju.lms.service.QuestionService;
+import vn.edu.vju.lms.service.ReferenceItemService;
+import vn.edu.vju.lms.service.ReminderService;
+import vn.edu.vju.lms.service.ResourceItemService;
+import vn.edu.vju.lms.service.StudyProgressService;
+import vn.edu.vju.lms.service.StudySessionService;
+import vn.edu.vju.lms.wrapper.AppealWrapper;
+import vn.edu.vju.lms.wrapper.ClassInfoWrapper;
+import vn.edu.vju.lms.wrapper.FeedbackWrapper;
+import vn.edu.vju.lms.wrapper.KnowledgeGapWrapper;
+import vn.edu.vju.lms.wrapper.LessonWrapper;
+import vn.edu.vju.lms.wrapper.UserAccountWrapper;
+
+@Service
+public class BootstrapServiceImpl implements BootstrapService {
+
+    private static final String STUDENT_AUDIENCE = &quot;student&quot;;
+    private static final String TEACHER_AUDIENCE = &quot;teacher&quot;;
+
+    private final IUserAccountDao userDao;
+    private final INoticeDao noticeDao;
+    private final ICoordinationCompletionDao completionDao;
+    private final CourseService courses;
+    private final ClassInfoService classes;
+    private final LessonService lessons;
+    private final QuestionService questions;
+    private final StudySessionService sessions;
+    private final AssignmentService assignments;
+    private final ResourceItemService resources;
+    private final KnowledgeGapService gaps;
+    private final FeedbackService feedback;
+    private final AppealService appeals;
+    private final ReminderService reminders;
+    private final CoordinationItemService coordinationItems;
+    private final ChangeRequestService changeRequests;
+    private final ReferenceItemService references;
+    private final AssessmentService assessments;
+    private final StudyProgressService studyProgress;
+    private final LiveService live;
+    private final ChatService chat;
+    private final AnalyticsService analytics;
+
+    public BootstrapServiceImpl(IUserAccountDao userDao, INoticeDao noticeDao, ICoordinationCompletionDao completionDao,
+            CourseService courses, ClassInfoService classes, LessonService lessons, QuestionService questions,
+            StudySessionService sessions, AssignmentService assignments, ResourceItemService resources,
+            KnowledgeGapService gaps, FeedbackService feedback, AppealService appeals, ReminderService reminders,
+            CoordinationItemService coordinationItems, ChangeRequestService changeRequests, ReferenceItemService references,
+            AssessmentService assessments, StudyProgressService studyProgress, LiveService live, ChatService chat,
+<span class="fc" id="L80">            AnalyticsService analytics) {</span>
+<span class="fc" id="L81">        this.userDao = userDao;</span>
+<span class="fc" id="L82">        this.noticeDao = noticeDao;</span>
+<span class="fc" id="L83">        this.completionDao = completionDao;</span>
+<span class="fc" id="L84">        this.courses = courses;</span>
+<span class="fc" id="L85">        this.classes = classes;</span>
+<span class="fc" id="L86">        this.lessons = lessons;</span>
+<span class="fc" id="L87">        this.questions = questions;</span>
+<span class="fc" id="L88">        this.sessions = sessions;</span>
+<span class="fc" id="L89">        this.assignments = assignments;</span>
+<span class="fc" id="L90">        this.resources = resources;</span>
+<span class="fc" id="L91">        this.gaps = gaps;</span>
+<span class="fc" id="L92">        this.feedback = feedback;</span>
+<span class="fc" id="L93">        this.appeals = appeals;</span>
+<span class="fc" id="L94">        this.reminders = reminders;</span>
+<span class="fc" id="L95">        this.coordinationItems = coordinationItems;</span>
+<span class="fc" id="L96">        this.changeRequests = changeRequests;</span>
+<span class="fc" id="L97">        this.references = references;</span>
+<span class="fc" id="L98">        this.assessments = assessments;</span>
+<span class="fc" id="L99">        this.studyProgress = studyProgress;</span>
+<span class="fc" id="L100">        this.live = live;</span>
+<span class="fc" id="L101">        this.chat = chat;</span>
+<span class="fc" id="L102">        this.analytics = analytics;</span>
+<span class="fc" id="L103">    }</span>
+
+    @Override
+    @Transactional
+    public Map&lt;String, Object&gt; load() {
+<span class="fc" id="L108">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L109">        UserAccount me = userDao.findById(user.id())</span>
+<span class="pc" id="L110">                .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy tài khoản.&quot;));</span>
+<span class="fc" id="L111">        Map&lt;String, Object&gt; data = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L112">        data.put(&quot;admin&quot;, administration(user));</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        data.put(&quot;aiReminders&quot;, user.isStudent() ? List.of() : reminders.listAll());</span>
+<span class="fc" id="L114">        data.put(&quot;lessons&quot;, lessonsFor(user));</span>
+<span class="fc" id="L115">        data.put(&quot;questions&quot;, questions.listAll());</span>
+<span class="fc" id="L116">        data.put(&quot;sessions&quot;, sessions.listAll());</span>
+<span class="fc" id="L117">        data.put(&quot;assignments&quot;, assignments.listAll());</span>
+<span class="fc" id="L118">        data.put(&quot;resources&quot;, resources.listAll());</span>
+<span class="fc" id="L119">        data.put(&quot;studySessions&quot;, studyProgress.visibleToCurrentUser());</span>
+<span class="fc" id="L120">        data.put(&quot;assessments&quot;, assessments.visibleToCurrentUser());</span>
+<span class="fc" id="L121">        data.put(&quot;gaps&quot;, ownedGaps(user));</span>
+<span class="fc" id="L122">        data.put(&quot;feedback&quot;, ownedFeedback(user));</span>
+<span class="fc" id="L123">        data.put(&quot;appeals&quot;, ownedAppeals(user));</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        data.put(&quot;notes&quot;, me.getNotes() == null ? &quot;&quot; : me.getNotes());</span>
+<span class="fc" id="L125">        data.put(&quot;chat&quot;, chat.mine());</span>
+<span class="fc" id="L126">        data.put(&quot;live&quot;, live.state());</span>
+<span class="fc" id="L127">        data.put(&quot;coordination&quot;, coordination(user));</span>
+<span class="fc" id="L128">        data.put(&quot;analytics&quot;, analytics.report());</span>
+<span class="fc" id="L129">        data.put(&quot;gradeHistory&quot;, List.of());</span>
+<span class="fc" id="L130">        data.put(&quot;notices&quot;, notices(STUDENT_AUDIENCE));</span>
+<span class="fc" id="L131">        data.put(&quot;teacherNotices&quot;, notices(TEACHER_AUDIENCE));</span>
+<span class="fc" id="L132">        data.putAll(profileAndReadFlags(me));</span>
+<span class="fc" id="L133">        return data;</span>
+    }
+
+    private Map&lt;String, Object&gt; administration(UserPrincipal user) {
+<span class="fc" id="L137">        Map&lt;String, Object&gt; admin = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L138">        admin.put(&quot;users&quot;, users(user));</span>
+<span class="fc" id="L139">        admin.put(&quot;courses&quot;, courses.listAll());</span>
+<span class="fc" id="L140">        admin.put(&quot;classes&quot;, classes.listAll().stream().map(info -&gt; visibleClass(info, user)).toList());</span>
+<span class="fc" id="L141">        return admin;</span>
+    }
+
+    /** Only admins see contact details; other roles get the directory data the screens need. */
+    private List&lt;UserAccountWrapper&gt; users(UserPrincipal user) {
+<span class="fc" id="L146">        return userDao.findAll().stream().map(UserAccountServiceImpl::toUserWrapper).map(wrapper -&gt; {</span>
+<span class="fc bfc" id="L147" title="All 4 branches covered.">            if (user.role() != Role.ADMIN &amp;&amp; !user.id().equals(wrapper.getId())) {</span>
+<span class="fc" id="L148">                wrapper.setEmail(&quot;&quot;);</span>
+<span class="fc" id="L149">                wrapper.setPhone(null);</span>
+            }
+<span class="fc" id="L151">            return wrapper;</span>
+<span class="fc" id="L152">        }).toList();</span>
+    }
+
+    /** A student must not learn who else is in a class. */
+    private ClassInfoWrapper visibleClass(ClassInfoWrapper info, UserPrincipal user) {
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        if (user.isStudent()) {</span>
+<span class="fc" id="L158">            info.setStudentIds(info.getStudentIds().stream().filter(user.id()::equals).toList());</span>
+        }
+<span class="fc" id="L160">        return info;</span>
+    }
+
+    private List&lt;LessonWrapper&gt; lessonsFor(UserPrincipal user) {
+<span class="fc" id="L164">        return lessons.listAll().stream()</span>
+<span class="fc bfc" id="L165" title="All 4 branches covered.">                .filter(lesson -&gt; !user.isStudent() || Boolean.TRUE.equals(lesson.getPublished())).toList();</span>
+    }
+
+    private List&lt;KnowledgeGapWrapper&gt; ownedGaps(UserPrincipal user) {
+<span class="fc bfc" id="L169" title="All 4 branches covered.">        return gaps.listAll().stream().filter(gap -&gt; !user.isStudent() || user.id().equals(gap.getOwnerId())).toList();</span>
+    }
+
+    private List&lt;FeedbackWrapper&gt; ownedFeedback(UserPrincipal user) {
+<span class="pc bpc" id="L173" title="1 of 4 branches missed.">        return feedback.listAll().stream().filter(item -&gt; !user.isStudent() || user.id().equals(item.getOwnerId())).toList();</span>
+    }
+
+    private List&lt;AppealWrapper&gt; ownedAppeals(UserPrincipal user) {
+<span class="pc bpc" id="L177" title="2 of 4 branches missed.">        return appeals.listAll().stream().filter(item -&gt; !user.isStudent() || user.id().equals(item.getOwnerId())).toList();</span>
+    }
+
+    private Map&lt;String, Object&gt; coordination(UserPrincipal user) {
+<span class="fc" id="L181">        Map&lt;String, Object&gt; coordination = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L182" title="All 2 branches covered.">        boolean staff = !user.isStudent();</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        coordination.put(&quot;items&quot;, staff ? coordinationItems.listAll() : List.of());</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        coordination.put(&quot;requests&quot;, staff ? changeRequests.listAll() : List.of());</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        coordination.put(&quot;completed&quot;, staff</span>
+<span class="fc" id="L186">                ? completionDao.findAll().stream().map(CoordinationCompletion::getClassId).toList() : List.of());</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        coordination.put(&quot;references&quot;, staff ? references.listAll() : List.of());</span>
+<span class="fc" id="L188">        return coordination;</span>
+    }
+
+    private List&lt;String&gt; notices(String audience) {
+<span class="fc" id="L192">        return new ArrayList&lt;&gt;(noticeDao.findAll().stream()</span>
+<span class="fc" id="L193">                .filter(notice -&gt; audience.equals(notice.getAudience())).map(Notice::getMessage).toList());</span>
+    }
+
+    private Map&lt;String, Object&gt; profileAndReadFlags(UserAccount me) {
+<span class="fc" id="L197">        Map&lt;String, Object&gt; profile = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L198">        profile.put(&quot;name&quot;, me.getName());</span>
+<span class="fc" id="L199">        profile.put(&quot;email&quot;, me.getEmail());</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">        profile.put(&quot;phone&quot;, me.getPhone() == null ? &quot;&quot; : me.getPhone());</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">        profile.put(&quot;major&quot;, me.getMajor() == null ? &quot;&quot; : me.getMajor());</span>
+<span class="fc" id="L202">        Map&lt;String, Object&gt; result = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L203" title="All 4 branches covered.">        switch (me.getRole()) {</span>
+            case LECTURER -&gt; {
+<span class="fc" id="L205">                result.put(&quot;teacherProfile&quot;, profile);</span>
+<span class="fc" id="L206">                result.put(&quot;readTeacherNotices&quot;, me.isNoticesRead());</span>
+<span class="fc" id="L207">            }</span>
+            case DEAN -&gt; {
+<span class="fc" id="L209">                result.put(&quot;deanProfile&quot;, profile);</span>
+<span class="fc" id="L210">                result.put(&quot;readDeanNotices&quot;, me.isNoticesRead());</span>
+<span class="fc" id="L211">            }</span>
+            case COURSE_LEADER -&gt; {
+<span class="fc" id="L213">                result.put(&quot;leaderProfile&quot;, profile);</span>
+<span class="fc" id="L214">                result.put(&quot;readLeaderNotices&quot;, me.isNoticesRead());</span>
+<span class="fc" id="L215">            }</span>
+            default -&gt; {
+<span class="fc" id="L217">                result.put(&quot;profile&quot;, profile);</span>
+<span class="fc" id="L218">                result.put(&quot;readNotices&quot;, me.isNoticesRead());</span>
+            }
+        }
+<span class="fc" id="L221">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

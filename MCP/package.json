@@ -1,0 +1,22 @@
+{
+  "name": "vju-lms-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/main.mjs",
+    "test": "node --test test/*.test.mjs",
+    "demo": "node demo.mjs",
+    "demo:local": "node demo.mjs --local-only"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "express": "5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "zod": "4.6.7"
+  }
+}

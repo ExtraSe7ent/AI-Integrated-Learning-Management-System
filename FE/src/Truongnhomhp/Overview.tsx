@@ -20,7 +20,7 @@ export function LeaderOverview({
 }: {
   standardization?: boolean;
 }) {
-  const { state, courseId, course, classrooms, link } = useLeaderScope();
+  const { state, courseId, course, classrooms, link, scope, label } = useLeaderScope();
   const items = state.items.filter((i) => i.courseId === course?.id);
   return (
     <>
@@ -73,7 +73,7 @@ export function LeaderOverview({
                   {classrooms.map((c) => (
                     <tr key={c.id}>
                       <td>
-                        <Link to={link("chuan-hoa/" + c.id)}>{c.id}</Link>
+                        <Link to={link("chuan-hoa/" + c.id)}>{label(c.id)}</Link>
                         {state.completed.includes(c.id) && (
                           <small className="leader-completed">
                             Đã hoàn thành chuẩn hoá
@@ -82,7 +82,7 @@ export function LeaderOverview({
                       </td>
                       <td>{c.teacher}</td>
                       {Object.keys(kinds).map((kind) => {
-                        const group = classItems(state, courseId, c.id).filter(
+                        const group = classItems(state, courseId, c.id, scope).filter(
                           (i) => i.kind === kind,
                         );
                         return (
@@ -106,7 +106,7 @@ export function LeaderOverview({
                       })}
                       <td>
                         <Link
-                          aria-label={`Rà soát lớp ${c.id}`}
+                          aria-label={`Rà soát lớp ${label(c.id)}`}
                           to={link("chuan-hoa/" + c.id)}
                         >
                           <LeaderIcon name="right" />
@@ -132,14 +132,14 @@ export function LeaderOverview({
 }
 export function LeaderClass() {
   const { classId = "" } = useParams();
-  const { state, courseId, course, link, act } = useLeaderScope();
-  const classroom = classFor(courseId, classId);
-  const items = classItems(state, courseId, classId),
+  const { state, courseId, course, link, act, scope, label } = useLeaderScope();
+  const classroom = classFor(courseId, classId, scope);
+  const items = classItems(state, courseId, classId, scope),
     done = state.completed.includes(classId);
   return (
     <>
       <PageHeader
-        title={`Chuẩn hoá lớp ${classId}`}
+        title={`Chuẩn hoá lớp ${label(classId)}`}
         description={
           classroom && course
             ? `${course.code} · ${course.title} · ${classroom.teacher}`
@@ -154,7 +154,7 @@ export function LeaderClass() {
           <nav className="leader-context" aria-label="Vị trí trong học phần">
             <Link to={link("chuan-hoa")}>Học phần</Link>
             <span>/</span>
-            <span>{classId}</span>
+            <span>{label(classId)}</span>
           </nav>
           <Panel title="Học liệu cần rà soát">
             <div className="table-wrap">
@@ -206,10 +206,10 @@ export function LeaderClass() {
           <div className="row-actions">
             <Button
               variant="secondary"
-              disabled={done || !canComplete(state, courseId, classId)}
+              disabled={done || !canComplete(state, courseId, classId, scope)}
               onClick={() =>
                 act(
-                  (s) => completeClass(s, courseId, classId),
+                  (s) => completeClass(s, courseId, classId, scope),
                   "Đã hoàn thành chuẩn hoá lớp.",
                 )
               }

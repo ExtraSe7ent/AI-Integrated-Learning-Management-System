@@ -1,0 +1,568 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StudyAiServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">StudyAiServiceImpl.java</span></div><h1>StudyAiServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.ai.AiClient;
+import vn.edu.vju.lms.ai.AiProviderException;
+import vn.edu.vju.lms.ai.ClassInsightsGenerator;
+import vn.edu.vju.lms.ai.LessonExplainer;
+import vn.edu.vju.lms.ai.MistakeCoach;
+import vn.edu.vju.lms.ai.RagAlgorithms;
+import vn.edu.vju.lms.ai.RagAnswerService;
+import vn.edu.vju.lms.ai.StudyAidGenerator;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+import vn.edu.vju.lms.dao.IAssessmentDao;
+import vn.edu.vju.lms.dao.IAssignmentDao;
+import vn.edu.vju.lms.dao.ICardReviewDao;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.IKnowledgeGapDao;
+import vn.edu.vju.lms.dao.ILearningAidDao;
+import vn.edu.vju.lms.dao.ILessonExplanationDao;
+import vn.edu.vju.lms.dao.IMistakeExplanationDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.Assessment;
+import vn.edu.vju.lms.entity.CardReview;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.entity.ExamQuestion;
+import vn.edu.vju.lms.entity.KnowledgeGap;
+import vn.edu.vju.lms.entity.LearningAid;
+import vn.edu.vju.lms.entity.LessonExplanation;
+import vn.edu.vju.lms.entity.MistakeExplanation;
+import vn.edu.vju.lms.entity.RagChunk;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.AnalyticsService;
+import vn.edu.vju.lms.service.AssessmentGrader;
+import vn.edu.vju.lms.service.StudyAiService;
+import vn.edu.vju.lms.wrapper.AnalyticsWrappers.PageReport;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.Aid;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.AidCreate;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.AidGenerateRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.AidUpdate;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.ExplainRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.Explanation;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.ExplanationUpdate;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.Insights;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.MistakeExplanationWrapper;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.MistakeRequest;
+import vn.edu.vju.lms.wrapper.StudyAiWrappers.ReviewState;
+
+/** Model calls run outside transactions: they can take a minute and must not hold a database connection. */
+@Service
+public class StudyAiServiceImpl implements StudyAiService {
+
+<span class="fc" id="L71">    private static final Logger log = LoggerFactory.getLogger(StudyAiServiceImpl.class);</span>
+    private static final String DEFAULT_COURSE = &quot;cs301&quot;;
+    private static final String NO_KEY = &quot;Chưa cấu hình khóa AI. Bạn vẫn có thể tự soạn nội dung.&quot;;
+    private static final String NO_MATERIAL = &quot;Chưa có học liệu đã lập chỉ mục cho học phần này.&quot;;
+    private static final String PROVIDER_DOWN = &quot;Trợ lý AI tạm thời không phản hồi. Bạn hãy thử lại sau.&quot;;
+    private static final int MAX_GAPS = 30;
+    private static final int MAX_INSIGHT_PAGES = 12;
+    private static final int MISTAKE_SOURCES = 5;
+<span class="fc" id="L79">    private static final int[] INTERVALS = {1, 3, 7, 14, 30};</span>
+<span class="fc" id="L80">    private static final Duration RETRY_FORGOTTEN = Duration.ofMinutes(10);</span>
+<span class="fc" id="L81">    private static final Pattern EMAIL = Pattern.compile(&quot;\\b[\\w.+-]+@[\\w.-]+\\.[a-zA-Z]{2,}\\b&quot;);</span>
+
+    private final AiClient client;
+    private final RagAnswerService rag;
+    private final LessonExplainer explainer;
+    private final ClassInsightsGenerator insightsGenerator;
+    private final StudyAidGenerator aidGenerator;
+    private final MistakeCoach coach;
+    private final AnalyticsService analytics;
+    private final IClassInfoDao classDao;
+    private final ILessonExplanationDao explanationDao;
+    private final ILearningAidDao aidDao;
+    private final ICardReviewDao reviewDao;
+    private final IMistakeExplanationDao mistakeDao;
+    private final IKnowledgeGapDao gapDao;
+    private final vn.edu.vju.lms.service.AssignmentPolicy assignmentPolicy;
+    private final IAssignmentDao assignmentDao;
+    private final IAssessmentDao assessmentDao;
+    private final IUserAccountDao userDao;
+    private final TransactionTemplate transaction;
+
+    @SuppressWarnings(&quot;java:S107&quot;)
+    public StudyAiServiceImpl(AiClient client, RagAnswerService rag, LessonExplainer explainer,
+            ClassInsightsGenerator insightsGenerator, StudyAidGenerator aidGenerator, MistakeCoach coach,
+            AnalyticsService analytics, IClassInfoDao classDao, ILessonExplanationDao explanationDao, ILearningAidDao aidDao,
+            ICardReviewDao reviewDao, IMistakeExplanationDao mistakeDao, IKnowledgeGapDao gapDao,
+            IAssignmentDao assignmentDao, IAssessmentDao assessmentDao, IUserAccountDao userDao,
+<span class="fc" id="L108">            TransactionTemplate transaction, vn.edu.vju.lms.service.AssignmentPolicy assignmentPolicy) {</span>
+<span class="fc" id="L109">        this.assignmentPolicy=assignmentPolicy;</span>
+<span class="fc" id="L110">        this.client = client;</span>
+<span class="fc" id="L111">        this.rag = rag;</span>
+<span class="fc" id="L112">        this.explainer = explainer;</span>
+<span class="fc" id="L113">        this.insightsGenerator = insightsGenerator;</span>
+<span class="fc" id="L114">        this.aidGenerator = aidGenerator;</span>
+<span class="fc" id="L115">        this.coach = coach;</span>
+<span class="fc" id="L116">        this.analytics = analytics;</span>
+<span class="fc" id="L117">        this.classDao = classDao;</span>
+<span class="fc" id="L118">        this.explanationDao = explanationDao;</span>
+<span class="fc" id="L119">        this.aidDao = aidDao;</span>
+<span class="fc" id="L120">        this.reviewDao = reviewDao;</span>
+<span class="fc" id="L121">        this.mistakeDao = mistakeDao;</span>
+<span class="fc" id="L122">        this.gapDao = gapDao;</span>
+<span class="fc" id="L123">        this.assignmentDao = assignmentDao;</span>
+<span class="fc" id="L124">        this.assessmentDao = assessmentDao;</span>
+<span class="fc" id="L125">        this.userDao = userDao;</span>
+<span class="fc" id="L126">        this.transaction = transaction;</span>
+<span class="fc" id="L127">    }</span>
+
+    // Bài giảng AI
+
+    @Override
+    public List&lt;Explanation&gt; explanations(String courseId) {
+<span class="fc" id="L133">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L134">        String course = course(courseId);</span>
+<span class="fc bfc" id="L135" title="All 4 branches covered.">        if (user.isStudent() &amp;&amp; scope(user, course).isEmpty()) {</span>
+<span class="fc" id="L136">            return List.of();</span>
+        }
+<span class="fc" id="L138">        return transaction.execute(s -&gt; explanationDao.findByCourse(course).stream()</span>
+<span class="fc bfc" id="L139" title="All 4 branches covered.">                .filter(e -&gt; !user.isStudent() || e.isPublished()).map(this::toWrapper).toList());</span>
+    }
+
+    @Override
+    public List&lt;Explanation&gt; generateExplanations(String courseId, ExplainRequest request) {
+<span class="fc" id="L144">        String course = course(courseId);</span>
+<span class="fc" id="L145">        requireModel();</span>
+<span class="fc" id="L146">        Map&lt;Integer, String&gt; pages = RagAlgorithms.pageTexts(chunks(UserPrincipal.current(), course));</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        if (pages.isEmpty()) {</span>
+<span class="fc" id="L148">            throw new BusinessRuleException(NO_MATERIAL);</span>
+        }
+<span class="fc bfc" id="L150" title="All 4 branches covered.">        boolean overwrite = request != null &amp;&amp; request.overwriteEdited();</span>
+<span class="pc bpc" id="L151" title="1 of 4 branches missed.">        List&lt;Integer&gt; requested = request == null || request.pages() == null ? null : request.pages();</span>
+<span class="fc" id="L152">        Map&lt;String, LessonExplanation&gt; existing = transaction.execute(s -&gt; explanationDao.findByCourse(course).stream()</span>
+<span class="fc" id="L153">                .collect(Collectors.toMap(LessonExplanation::getId, Function.identity())));</span>
+<span class="fc" id="L154">        List&lt;Integer&gt; targets = pages.keySet().stream()</span>
+<span class="fc bfc" id="L155" title="All 4 branches covered.">                .filter(page -&gt; requested == null || requested.contains(page))</span>
+<span class="fc bfc" id="L156" title="All 4 branches covered.">                .filter(page -&gt; overwrite || !isEdited(existing.get(LessonExplanation.key(course, page))))</span>
+<span class="fc" id="L157">                .toList();</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        if (targets.isEmpty()) {</span>
+<span class="fc" id="L159">            throw new BusinessRuleException(&quot;Không có trang nào cần soạn: các trang đã chọn đều do giảng viên chỉnh sửa.&quot;);</span>
+        }
+        Map&lt;Integer, String&gt; drafts;
+        try {
+<span class="fc" id="L163">            drafts = explainer.explain(pages, targets);</span>
+<span class="fc" id="L164">        } catch (AiProviderException e) {</span>
+<span class="fc" id="L165">            throw new BusinessRuleException(e.getMessage());</span>
+<span class="fc" id="L166">        }</span>
+<span class="fc" id="L167">        log.info(&quot;Drafted {} lesson explanations for course {}&quot;, drafts.size(), course);</span>
+<span class="fc" id="L168">        return transaction.execute(s -&gt; {</span>
+<span class="fc" id="L169">            drafts.forEach((page, content) -&gt; {</span>
+<span class="fc" id="L170">                LessonExplanation row = explanationDao.findById(LessonExplanation.key(course, page)).orElse(null);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">                boolean created = row == null;</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">                if (created) {</span>
+<span class="fc" id="L173">                    row = new LessonExplanation();</span>
+<span class="fc" id="L174">                    row.setId(LessonExplanation.key(course, page));</span>
+<span class="fc" id="L175">                    row.setCourseId(course);</span>
+<span class="fc" id="L176">                    row.setPage(page);</span>
+                }
+                // A new draft is unreviewed again, so it leaves the students' view until it is republished.
+<span class="fc" id="L179">                row.setContent(content);</span>
+<span class="fc" id="L180">                row.setEdited(false);</span>
+<span class="fc" id="L181">                row.setPublished(false);</span>
+<span class="fc" id="L182">                row.setUpdatedAt(Instant.now());</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">                if (created) {</span>
+<span class="fc" id="L184">                    explanationDao.persist(row);</span>
+                }
+<span class="fc" id="L186">            });</span>
+<span class="fc" id="L187">            return explanationDao.findByCourse(course).stream().map(this::toWrapper).toList();</span>
+        });
+    }
+
+    private boolean isEdited(LessonExplanation row) {
+<span class="fc bfc" id="L192" title="All 4 branches covered.">        return row != null &amp;&amp; row.isEdited();</span>
+    }
+
+    @Override
+    public Explanation updateExplanation(String courseId, int page, ExplanationUpdate update) {
+<span class="fc" id="L197">        String course = course(courseId);</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        if (page &lt; 1) {</span>
+<span class="fc" id="L199">            throw new BusinessRuleException(&quot;Số trang không hợp lệ.&quot;);</span>
+        }
+<span class="fc" id="L201">        return transaction.execute(s -&gt; {</span>
+<span class="fc" id="L202">            LessonExplanation row = explanationDao.findById(LessonExplanation.key(course, page)).orElse(null);</span>
+<span class="fc" id="L203">            boolean hasContent = StringUtils.hasText(update.content());</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">            if (row == null) {</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">                if (!hasContent) {</span>
+<span class="fc" id="L206">                    throw new BusinessRuleException(&quot;Nhập nội dung bài giảng cho trang này.&quot;);</span>
+                }
+<span class="fc" id="L208">                row = new LessonExplanation();</span>
+<span class="fc" id="L209">                row.setId(LessonExplanation.key(course, page));</span>
+<span class="fc" id="L210">                row.setCourseId(course);</span>
+<span class="fc" id="L211">                row.setPage(page);</span>
+<span class="fc" id="L212">                row.setContent(update.content().strip());</span>
+<span class="fc" id="L213">                explanationDao.persist(row);</span>
+            }
+<span class="fc bfc" id="L215" title="All 4 branches covered.">            if (hasContent &amp;&amp; !update.content().strip().equals(row.getContent())) {</span>
+<span class="fc" id="L216">                row.setContent(update.content().strip());</span>
+<span class="fc" id="L217">                row.setEdited(true);</span>
+            }
+<span class="fc bfc" id="L219" title="All 2 branches covered.">            if (update.published() != null) {</span>
+<span class="fc" id="L220">                row.setPublished(update.published());</span>
+            }
+<span class="fc" id="L222">            row.setUpdatedAt(Instant.now());</span>
+<span class="fc" id="L223">            return toWrapper(row);</span>
+        });
+    }
+
+    private Explanation toWrapper(LessonExplanation row) {
+<span class="fc" id="L228">        return new Explanation(row.getId(), row.getCourseId(), row.getPage(), row.getContent(), row.isPublished(),</span>
+<span class="fc" id="L229">                row.isEdited(), row.getUpdatedAt().toString());</span>
+    }
+
+    // Gợi ý buổi học
+
+    @Override
+    public Insights insights(String courseId) {
+<span class="fc" id="L236">        String course = course(courseId);</span>
+<span class="fc" id="L237">        List&lt;PageReport&gt; stats = analytics.report().pages();</span>
+<span class="fc" id="L238">        Insights rules = ClassInsightsGenerator.fromStatistics(stats);</span>
+<span class="fc" id="L239">        List&lt;ClassInsightsGenerator.Gap&gt; gaps = transaction.execute(s -&gt; openGaps().stream()</span>
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">                .map(gap -&gt; new ClassInsightsGenerator.Gap(gap.getPage() == null ? 0 : gap.getPage(), redact(gap.getBody())))</span>
+<span class="fc" id="L241">                .toList());</span>
+<span class="pc bpc" id="L242" title="3 of 6 branches missed.">        if (!client.chatConfigured() || (rules.themes().isEmpty() &amp;&amp; gaps.isEmpty())) {</span>
+<span class="fc" id="L243">            return rules;</span>
+        }
+<span class="fc" id="L245">        Set&lt;Integer&gt; relevant = new LinkedHashSet&lt;&gt;();</span>
+<span class="fc" id="L246">        rules.themes().forEach(theme -&gt; relevant.addAll(theme.pages()));</span>
+<span class="fc" id="L247">        gaps.forEach(gap -&gt; relevant.add(gap.page()));</span>
+<span class="fc" id="L248">        Map&lt;Integer, String&gt; pages = RagAlgorithms.pageTexts(chunks(UserPrincipal.current(), course));</span>
+<span class="fc" id="L249">        pages.keySet().retainAll(relevant.stream().limit(MAX_INSIGHT_PAGES).toList());</span>
+        try {
+<span class="fc" id="L251">            return insightsGenerator.generate(stats, gaps, pages);</span>
+<span class="fc" id="L252">        } catch (AiProviderException e) {</span>
+<span class="fc" id="L253">            log.warn(&quot;Class insights fell back to statistics: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L254">            return rules;</span>
+        }
+    }
+
+    private List&lt;KnowledgeGap&gt; openGaps() {
+<span class="pc bpc" id="L259" title="1 of 4 branches missed.">        return gapDao.findAll().stream().filter(gap -&gt; !StringUtils.hasText(gap.getResponse()) &amp;&amp; StringUtils.hasText(gap.getBody()))</span>
+<span class="fc" id="L260">                .limit(MAX_GAPS).toList();</span>
+    }
+
+    /** Student names, ids and email addresses never reach the model, as in study_support.redact_identities. */
+    private String redact(String body) {
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">        String text = body.length() &gt; 500 ? body.substring(0, 500) : body;</span>
+<span class="fc" id="L266">        List&lt;String&gt; identities = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        for (UserAccount account : userDao.findAll()) {</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">            if (account.getRole() == Role.STUDENT) {</span>
+<span class="fc bfc" id="L269" title="All 2 branches covered.">                for (String value : new String[] {account.getName(), account.getId(), account.getEmail()}) {</span>
+<span class="pc bpc" id="L270" title="2 of 4 branches missed.">                    if (value != null &amp;&amp; value.length() &gt;= 3) {</span>
+<span class="fc" id="L271">                        identities.add(value);</span>
+                    }
+                }
+            }
+<span class="fc" id="L275">        }</span>
+<span class="fc" id="L276">        identities.sort(Comparator.comparingInt(String::length).reversed());</span>
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        for (String identity : identities) {</span>
+<span class="fc" id="L278">            text = Pattern.compile(Pattern.quote(identity), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)</span>
+<span class="fc" id="L279">                    .matcher(text).replaceAll(&quot;[ẩn danh]&quot;);</span>
+<span class="fc" id="L280">        }</span>
+<span class="fc" id="L281">        return EMAIL.matcher(text).replaceAll(&quot;[ẩn danh]&quot;);</span>
+    }
+
+    // Giải thích câu sai
+
+    @Override
+    public MistakeExplanationWrapper explainMistake(MistakeRequest request) {
+<span class="fc" id="L288">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L289">        record Work(ExamQuestion question, String answer, int attempts) {</span>
+        }
+<span class="fc" id="L291">        Work work = transaction.execute(s -&gt; {</span>
+<span class="fc" id="L292">            Assessment record = assessmentDao.find(user.id(), request.assignmentId())</span>
+<span class="pc bpc" id="L293" title="2 of 4 branches missed.">                    .filter(r -&gt; r.getAnswers() != null &amp;&amp; StringUtils.hasText(r.getSubmitted()))</span>
+<span class="fc" id="L294">                    .orElseThrow(() -&gt; new BusinessRuleException(&quot;Chỉ giải thích được câu của bài đã nộp.&quot;));</span>
+<span class="fc" id="L295">            vn.edu.vju.lms.entity.Assignment assignment = assignmentDao.findById(request.assignmentId())</span>
+<span class="pc" id="L296">                    .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy bài tập.&quot;));</span>
+<span class="fc" id="L297">            assignmentPolicy.requireRead(assignment);</span>
+<span class="fc bfc" id="L298" title="All 2 branches covered.">            if(!Boolean.TRUE.equals(assignment.getAnswersReleased())) throw new BusinessRuleException(&quot;Chờ công bố đáp án để xem giải thích.&quot;);</span>
+<span class="fc" id="L299">            List&lt;ExamQuestion&gt; questions = AssessmentGrader.questionsOf(assignment);</span>
+            // The student numbers questions in their own, possibly shuffled, order.
+<span class="fc" id="L301">            int index = vn.edu.vju.lms.service.ExamOrder.originalIndex(request.questionIndex(),</span>
+<span class="fc" id="L302">                    vn.edu.vju.lms.service.ExamOrder.of(assignment, user.id()));</span>
+<span class="pc bpc" id="L303" title="1 of 4 branches missed.">            if (index &lt; 0 || index &gt;= questions.size()) {</span>
+<span class="fc" id="L304">                throw new BusinessRuleException(&quot;Câu hỏi không hợp lệ.&quot;);</span>
+            }
+<span class="pc bpc" id="L306" title="1 of 2 branches missed.">            String answer = index &lt; record.getAnswers().size() ? record.getAnswers().get(index) : null;</span>
+<span class="fc" id="L307">            return new Work(questions.get(index), answer, record.getAttempts());</span>
+        });
+<span class="fc" id="L309">        ExamQuestion question = work.question();</span>
+<span class="pc bpc" id="L310" title="1 of 4 branches missed.">        if (question.isEssay() || AssessmentGrader.isCorrect(question, work.answer())) {</span>
+<span class="fc" id="L311">            throw new BusinessRuleException(&quot;Chỉ giải thích câu trắc nghiệm hoặc điền trống đã trả lời sai.&quot;);</span>
+        }
+<span class="fc" id="L313">        String key = String.join(&quot;:&quot;, user.id(), request.assignmentId(), String.valueOf(work.attempts()),</span>
+<span class="fc" id="L314">                String.valueOf(request.questionIndex()));</span>
+<span class="fc" id="L315">        MistakeExplanation cached = transaction.execute(s -&gt; mistakeDao.findById(key).orElse(null));</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">        if (cached != null) {</span>
+<span class="fc" id="L317">            return new MistakeExplanationWrapper(cached.getAnswer(), cached.getPages(), cached.getMode());</span>
+        }
+<span class="fc" id="L319">        String correct = shown(question, question.getCorrect().split(&quot;\\|&quot;)[0]);</span>
+<span class="fc" id="L320">        String given = shown(question, work.answer());</span>
+<span class="fc" id="L321">        List&lt;RagChunk&gt; sources = rag.search(question.getText() + &quot; &quot; + correct, chunks(user, course(request.courseId())), MISTAKE_SOURCES);</span>
+<span class="fc bfc" id="L322" title="All 4 branches covered.">        if (client.chatConfigured() &amp;&amp; !sources.isEmpty()) {</span>
+            try {
+<span class="fc" id="L324">                RagAlgorithms.ValidatedAnswer valid = coach.explain(question.getText(), question.getOptions(), correct, given, sources);</span>
+<span class="fc bfc" id="L325" title="All 2 branches covered.">                if (!valid.answer().isEmpty()) {</span>
+<span class="fc" id="L326">                    List&lt;Integer&gt; pages = valid.citations().stream().map(RagChunk::getPage).distinct().toList();</span>
+<span class="fc" id="L327">                    MistakeExplanation saved = new MistakeExplanation();</span>
+<span class="fc" id="L328">                    saved.setId(key);</span>
+<span class="fc" id="L329">                    saved.setAnswer(valid.answer());</span>
+<span class="fc" id="L330">                    saved.setPages(pages);</span>
+<span class="fc" id="L331">                    saved.setMode(&quot;ai&quot;);</span>
+<span class="fc" id="L332">                    transaction.executeWithoutResult(s -&gt; mistakeDao.persist(saved));</span>
+<span class="fc" id="L333">                    return new MistakeExplanationWrapper(valid.answer(), pages, &quot;ai&quot;);</span>
+                }
+<span class="fc" id="L335">            } catch (AiProviderException e) {</span>
+<span class="fc" id="L336">                log.warn(&quot;Mistake explanation fell back to the passage: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L337">            }</span>
+        }
+<span class="fc" id="L339">        return extractive(question, correct, sources);</span>
+    }
+
+    private MistakeExplanationWrapper extractive(ExamQuestion question, String correct, List&lt;RagChunk&gt; sources) {
+<span class="fc" id="L343">        StringBuilder text = new StringBuilder(&quot;Đáp án đúng là \&quot;&quot;).append(correct).append(&quot;\&quot;.&quot;);</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">        if (StringUtils.hasText(question.getExplanation())) {</span>
+<span class="fc" id="L345">            text.append(' ').append(question.getExplanation().strip());</span>
+        }
+<span class="fc bfc" id="L347" title="All 2 branches covered.">        if (sources.isEmpty()) {</span>
+<span class="fc" id="L348">            return new MistakeExplanationWrapper(text.toString(), List.of(), &quot;extractive&quot;);</span>
+        }
+<span class="fc" id="L350">        RagChunk best = sources.get(0);</span>
+<span class="fc" id="L351">        text.append(&quot;\n\nĐoạn liên quan trong \&quot;&quot;).append(best.getMaterialTitle()).append(&quot;\&quot;, trang &quot;).append(best.getPage())</span>
+<span class="fc" id="L352">                .append(&quot;: &quot;).append(best.getText().strip());</span>
+<span class="fc" id="L353">        return new MistakeExplanationWrapper(text.toString(), List.of(best.getPage()), &quot;extractive&quot;);</span>
+    }
+
+    private static String shown(ExamQuestion question, String answer) {
+<span class="pc bpc" id="L357" title="1 of 4 branches missed.">        if (answer == null || answer.isBlank()) {</span>
+<span class="fc" id="L358">            return &quot;(bỏ trống)&quot;;</span>
+        }
+<span class="pc bpc" id="L360" title="1 of 4 branches missed.">        if (ExamQuestion.CHOICE.equals(question.getType()) &amp;&amp; question.getOptions() != null) {</span>
+            try {
+<span class="fc" id="L362">                int index = Integer.parseInt(answer.strip());</span>
+<span class="pc bpc" id="L363" title="1 of 4 branches missed.">                return index &gt;= 0 &amp;&amp; index &lt; question.getOptions().size() ? question.getOptions().get(index) : answer;</span>
+<span class="fc" id="L364">            } catch (NumberFormatException e) {</span>
+<span class="fc" id="L365">                return answer;</span>
+            }
+        }
+<span class="fc" id="L368">        return answer;</span>
+    }
+
+    // Thẻ ôn và FAQ
+
+    @Override
+    public List&lt;Aid&gt; aids(String courseId, String kind) {
+<span class="fc" id="L375">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L376">        String course = course(courseId);</span>
+<span class="fc bfc" id="L377" title="All 4 branches covered.">        if (user.isStudent() &amp;&amp; scope(user, course).isEmpty()) {</span>
+<span class="fc" id="L378">            return List.of();</span>
+        }
+<span class="fc" id="L380">        return transaction.execute(s -&gt; {</span>
+<span class="fc bfc" id="L381" title="All 2 branches covered.">            Map&lt;String, CardReview&gt; reviews = user.isStudent()</span>
+<span class="fc" id="L382">                    ? reviewDao.findByStudent(user.id()).stream().collect(Collectors.toMap(CardReview::getAidId, Function.identity()))</span>
+<span class="fc" id="L383">                    : Map.of();</span>
+<span class="fc" id="L384">            return aidDao.findByCourse(course).stream()</span>
+<span class="fc bfc" id="L385" title="All 6 branches covered.">                    .filter(aid -&gt; kind == null || kind.isBlank() || kind.equals(aid.getKind()))</span>
+<span class="fc bfc" id="L386" title="All 4 branches covered.">                    .filter(aid -&gt; !user.isStudent() || aid.isPublished())</span>
+<span class="fc" id="L387">                    .map(aid -&gt; toWrapper(aid, reviews.get(aid.getId()))).toList();</span>
+        });
+    }
+
+    @Override
+    public List&lt;Aid&gt; generateAids(AidGenerateRequest request) {
+<span class="fc" id="L393">        String kind = kind(request.kind());</span>
+<span class="fc" id="L394">        String course = course(request.courseId());</span>
+<span class="fc" id="L395">        requireModel();</span>
+<span class="fc" id="L396">        List&lt;RagChunk&gt; chunks = chunks(UserPrincipal.current(), course);</span>
+<span class="fc bfc" id="L397" title="All 2 branches covered.">        if (chunks.isEmpty()) {</span>
+<span class="fc" id="L398">            throw new BusinessRuleException(NO_MATERIAL);</span>
+        }
+<span class="fc" id="L400">        List&lt;String&gt; gaps = List.of();</span>
+        List&lt;RagChunk&gt; sources;
+<span class="fc bfc" id="L402" title="All 2 branches covered.">        if (LearningAid.FAQ.equals(kind)) {</span>
+<span class="fc" id="L403">            List&lt;KnowledgeGap&gt; open = transaction.execute(s -&gt; openGaps());</span>
+<span class="fc bfc" id="L404" title="All 2 branches covered.">            if (open.isEmpty()) {</span>
+<span class="fc" id="L405">                throw new BusinessRuleException(&quot;Chưa có kiến thức mờ nào cần giải đáp để soạn FAQ.&quot;);</span>
+            }
+<span class="fc" id="L407">            gaps = transaction.execute(s -&gt; open.stream().map(gap -&gt; redact(gap.getBody())).toList());</span>
+<span class="pc bpc" id="L408" title="1 of 2 branches missed.">            Set&lt;Integer&gt; pages = open.stream().map(KnowledgeGap::getPage).filter(p -&gt; p != null).collect(Collectors.toSet());</span>
+<span class="fc" id="L409">            List&lt;RagChunk&gt; onPages = chunks.stream().filter(chunk -&gt; pages.contains(chunk.getPage())).limit(12).toList();</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">            sources = onPages.isEmpty() ? StudyAidGenerator.spread(chunks) : onPages;</span>
+<span class="fc" id="L411">        } else {</span>
+<span class="fc" id="L412">            sources = StudyAidGenerator.spread(chunks);</span>
+        }
+        List&lt;StudyAidGenerator.Draft&gt; drafts;
+        try {
+<span class="fc" id="L416">            drafts = aidGenerator.generate(kind, sources, gaps);</span>
+<span class="fc" id="L417">        } catch (AiProviderException e) {</span>
+<span class="fc" id="L418">            throw new BusinessRuleException(PROVIDER_DOWN);</span>
+<span class="fc" id="L419">        }</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">        if (drafts.isEmpty()) {</span>
+<span class="fc" id="L421">            throw new BusinessRuleException(&quot;Model chưa trả nội dung có nguồn hợp lệ. Chưa tạo bản nháp.&quot;);</span>
+        }
+<span class="fc" id="L423">        return transaction.execute(s -&gt; drafts.stream().map(draft -&gt; {</span>
+<span class="fc" id="L424">            LearningAid aid = newAid(course, kind, draft.front(), draft.back(), draft.topic(), draft.page(), &quot;ai&quot;);</span>
+<span class="fc" id="L425">            aidDao.persist(aid);</span>
+<span class="fc" id="L426">            return toWrapper(aid, null);</span>
+<span class="fc" id="L427">        }).toList());</span>
+    }
+
+    @Override
+    public Aid createAid(AidCreate request) {
+<span class="fc" id="L432">        String kind = kind(request.kind());</span>
+<span class="fc" id="L433">        LearningAid aid = newAid(course(request.courseId()), kind, request.front().strip(), request.back().strip(),</span>
+<span class="fc bfc" id="L434" title="All 2 branches covered.">                request.topic() == null ? &quot;&quot; : request.topic().strip(), request.page(), &quot;manual&quot;);</span>
+<span class="fc" id="L435">        transaction.executeWithoutResult(s -&gt; aidDao.persist(aid));</span>
+<span class="fc" id="L436">        return toWrapper(aid, null);</span>
+    }
+
+    @Override
+    public Aid updateAid(String id, AidUpdate update) {
+<span class="fc" id="L441">        return transaction.execute(s -&gt; {</span>
+<span class="fc" id="L442">            LearningAid aid = findAid(id);</span>
+<span class="pc bpc" id="L443" title="1 of 2 branches missed.">            if (StringUtils.hasText(update.front())) {</span>
+<span class="fc" id="L444">                aid.setFront(update.front().strip());</span>
+            }
+<span class="pc bpc" id="L446" title="1 of 2 branches missed.">            if (StringUtils.hasText(update.back())) {</span>
+<span class="fc" id="L447">                aid.setBack(update.back().strip());</span>
+            }
+<span class="pc bpc" id="L449" title="1 of 2 branches missed.">            if (update.topic() != null) {</span>
+<span class="fc" id="L450">                aid.setTopic(update.topic().strip());</span>
+            }
+<span class="pc bpc" id="L452" title="1 of 2 branches missed.">            if (update.published() != null) {</span>
+<span class="fc" id="L453">                aid.setPublished(update.published());</span>
+            }
+<span class="fc" id="L455">            return toWrapper(aid, null);</span>
+        });
+    }
+
+    @Override
+    public void deleteAid(String id) {
+<span class="fc" id="L461">        transaction.executeWithoutResult(s -&gt; {</span>
+<span class="fc" id="L462">            LearningAid aid = findAid(id);</span>
+<span class="fc" id="L463">            reviewDao.deleteByAid(id);</span>
+<span class="fc" id="L464">            aidDao.remove(aid);</span>
+<span class="fc" id="L465">        });</span>
+<span class="fc" id="L466">    }</span>
+
+    @Override
+    public ReviewState review(String aidId, boolean remembered) {
+<span class="fc" id="L470">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc" id="L471">        LearningAid aid = transaction.execute(s -&gt; aidDao.findById(aidId)</span>
+<span class="pc bpc" id="L472" title="1 of 4 branches missed.">                .filter(a -&gt; a.isPublished() &amp;&amp; LearningAid.CARD.equals(a.getKind()))</span>
+<span class="fc" id="L473">                .orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy thẻ ôn.&quot;)));</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">        if (scope(user, aid.getCourseId()).isEmpty()) {</span>
+<span class="fc" id="L475">            throw new ResourceNotFoundException(&quot;Không tìm thấy thẻ ôn.&quot;);</span>
+        }
+<span class="fc" id="L477">        Instant now = Instant.now();</span>
+<span class="fc" id="L478">        return transaction.execute(s -&gt; {</span>
+<span class="fc" id="L479">            String key = CardReview.key(user.id(), aidId);</span>
+<span class="fc" id="L480">            CardReview review = reviewDao.findById(key).orElse(null);</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">            if (review == null) {</span>
+<span class="fc" id="L482">                review = new CardReview();</span>
+<span class="fc" id="L483">                review.setId(key);</span>
+<span class="fc" id="L484">                review.setStudentId(user.id());</span>
+<span class="fc" id="L485">                review.setAidId(aidId);</span>
+<span class="fc" id="L486">                review.setDueAt(now);</span>
+<span class="fc" id="L487">                reviewDao.persist(review);</span>
+            }
+<span class="fc" id="L489">            schedule(review, remembered, now);</span>
+<span class="fc" id="L490">            return state(review, now);</span>
+        });
+    }
+
+    /** Fixed intervals are transparent and cheap, as in study_support.review_card. */
+    static void schedule(CardReview review, boolean remembered, Instant now) {
+<span class="fc bfc" id="L496" title="All 2 branches covered.">        if (remembered) {</span>
+<span class="fc" id="L497">            review.setIntervalDays(INTERVALS[Math.min(review.getRepetitions(), INTERVALS.length - 1)]);</span>
+<span class="fc" id="L498">            review.setRepetitions(review.getRepetitions() + 1);</span>
+<span class="fc" id="L499">            review.setDueAt(now.plus(Duration.ofDays(review.getIntervalDays())));</span>
+        } else {
+<span class="fc" id="L501">            review.setIntervalDays(0);</span>
+<span class="fc" id="L502">            review.setRepetitions(0);</span>
+<span class="fc" id="L503">            review.setDueAt(now.plus(RETRY_FORGOTTEN));</span>
+        }
+<span class="fc" id="L505">        review.setReviewedAt(now);</span>
+<span class="fc" id="L506">    }</span>
+
+    private static ReviewState state(CardReview review, Instant now) {
+<span class="fc" id="L509">        return new ReviewState(review.getRepetitions(), review.getIntervalDays(), review.getDueAt().toString(),</span>
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">                !review.getDueAt().isAfter(now));</span>
+    }
+
+    private LearningAid findAid(String id) {
+<span class="fc" id="L514">        return aidDao.findById(id).orElseThrow(() -&gt; new ResourceNotFoundException(&quot;Không tìm thấy nội dung ôn tập.&quot;));</span>
+    }
+
+    private static LearningAid newAid(String course, String kind, String front, String back, String topic, Integer page,
+            String origin) {
+<span class="fc" id="L519">        LearningAid aid = new LearningAid();</span>
+<span class="fc" id="L520">        aid.setId(UUID.randomUUID().toString());</span>
+<span class="fc" id="L521">        aid.setCourseId(course);</span>
+<span class="fc" id="L522">        aid.setKind(kind);</span>
+<span class="fc" id="L523">        aid.setFront(front);</span>
+<span class="fc" id="L524">        aid.setBack(back);</span>
+<span class="fc" id="L525">        aid.setTopic(topic);</span>
+<span class="fc" id="L526">        aid.setPage(page);</span>
+<span class="fc" id="L527">        aid.setOrigin(origin);</span>
+<span class="fc" id="L528">        aid.setPublished(false);</span>
+<span class="fc" id="L529">        return aid;</span>
+    }
+
+    private Aid toWrapper(LearningAid aid, CardReview review) {
+<span class="fc" id="L533">        return new Aid(aid.getId(), aid.getCourseId(), aid.getKind(), aid.getFront(), aid.getBack(), aid.getTopic(),</span>
+<span class="fc bfc" id="L534" title="All 2 branches covered.">                aid.getPage(), aid.isPublished(), aid.getOrigin(), review == null ? null : state(review, Instant.now()));</span>
+    }
+
+    private static String kind(String kind) {
+<span class="fc bfc" id="L538" title="All 4 branches covered.">        if (!LearningAid.CARD.equals(kind) &amp;&amp; !LearningAid.FAQ.equals(kind)) {</span>
+<span class="fc" id="L539">            throw new BusinessRuleException(&quot;Loại nội dung phải là card hoặc faq.&quot;);</span>
+        }
+<span class="fc" id="L541">        return kind;</span>
+    }
+
+    // Phạm vi
+
+    private void requireModel() {
+<span class="fc bfc" id="L547" title="All 2 branches covered.">        if (!client.chatConfigured()) {</span>
+<span class="fc" id="L548">            throw new BusinessRuleException(NO_KEY);</span>
+        }
+<span class="fc" id="L550">    }</span>
+
+    private static String course(String courseId) {
+<span class="fc bfc" id="L553" title="All 2 branches covered.">        return StringUtils.hasText(courseId) ? courseId : DEFAULT_COURSE;</span>
+    }
+
+    /** Students only reach classes they are enrolled in; staff reach every class of the course. */
+    private List&lt;String&gt; scope(UserPrincipal user, String courseId) {
+<span class="fc" id="L558">        return transaction.execute(s -&gt; classDao.findByCourse(courseId).stream()</span>
+<span class="fc bfc" id="L559" title="All 4 branches covered.">                .filter(info -&gt; !user.isStudent() || info.getStudentIds().contains(user.id()))</span>
+<span class="fc" id="L560">                .map(ClassInfo::getId).toList());</span>
+    }
+
+    private List&lt;RagChunk&gt; chunks(UserPrincipal user, String courseId) {
+<span class="fc" id="L564">        List&lt;String&gt; classes = scope(user, courseId);</span>
+<span class="pc bpc" id="L565" title="1 of 2 branches missed.">        return classes.isEmpty() ? List.of() : rag.candidates(classes);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

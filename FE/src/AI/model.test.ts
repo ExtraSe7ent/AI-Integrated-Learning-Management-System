@@ -1,10 +1,5 @@
 import { it, expect } from "vitest";
-import {
-  answerFromMaterial,
-  practiceSet,
-  deadlineCandidates,
-  reminderRecords,
-} from "./model";
+import { answerFromMaterial, reminderEmail } from "./model";
 it("never attaches invented sources outside available course material", () => {
   expect(answerFromMaterial("cs204", "Giải thích API").sources).toEqual([]);
   expect(answerFromMaterial("cs301", "Thời tiết hôm nay").sources).toEqual([]);
@@ -13,36 +8,21 @@ it("never attaches invented sources outside available course material", () => {
   );
 });
 import { initialData } from "../data/fixtures";
-it("selects a new practice set within the requested slide scope", () => {
-  const first = practiceSet("http", 0),
-    next = practiceSet("http", 1);
-  expect(first.every((q) => [2, 3].includes(q.page))).toBe(true);
-  expect(first.map((q) => q.id)).not.toEqual(next.map((q) => q.id));
-});
-it("only reminds incomplete work due within 24h and deduplicates each channel", () => {
-  const data = {
-    ...initialData,
-    sessions: [{ ...initialData.sessions[0], closes: "2026-10-31T18:00:00" }],
-    assignments: [],
-  };
-  const now = Date.parse("2026-10-30T19:00:00"),
-    c = deadlineCandidates(data, now);
-  expect(c).toHaveLength(1);
-  const once = reminderRecords([], c, now);
-  expect(once).toHaveLength(2);
-  expect(reminderRecords(once, c, now)).toHaveLength(2);
-  expect(deadlineCandidates(data, now - 86400000)).toHaveLength(0);
-  expect(
-    deadlineCandidates(
-      {
-        ...data,
-        studySessions: {
-          s1: { progress: 4, answers: {}, completedAt: "2026-10-30T18:00:00" },
-        },
-      },
-      now,
-    ),
-  ).toHaveLength(0);
+it("writes the reminder email from the server's candidate", () => {
+  const email = reminderEmail({
+    key: "k",
+    studentId: "sv",
+    studentName: "An",
+    email: "an@example.edu",
+    className: "CSE301.01",
+    kind: "session",
+    itemId: "s1",
+    title: "RESTful API",
+    due: "2026-10-31T18:00:00",
+    progress: "50% hoàn thành",
+  });
+  expect(email.subject).toBe("Nhắc hạn tự học · CSE301.01");
+  expect(email.body).toContain("Tiến độ hiện tại: 50% hoàn thành");
 });
 import { materialSourceAvailable, recordChatFeedback } from "./model";
 it("stops citing the old slide source after material structure changes and persists reports", () => {

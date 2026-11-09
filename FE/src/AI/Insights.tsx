@@ -1,28 +1,100 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Panel, Empty, Badge } from "../shared/UI";
+import { Sparkles } from "lucide-react";
+import { Panel, Empty, Button, Badge } from "../shared/UI";
 import { useDemo } from "../data/DemoProvider";
-import { essayDraft } from "./model";
+import { classInsights } from "../api/studyAi";
+import type { Insights } from "../api/studyAi";
+
+/** AI plan for the next in-class session, from wrong answers and open knowledge gaps. */
+export function ClassInsights({ courseId = "cs301" }: { courseId?: string }) {
+  const { notify } = useDemo();
+  const [plan, setPlan] = useState<Insights>(),
+    [busy, setBusy] = useState(false);
+  async function load() {
+    setBusy(true);
+    try {
+      setPlan(await classInsights(courseId));
+    } catch (e) {
+      notify((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Panel
+      title="Gợi ý buổi học trên lớp"
+      action={
+        <Button variant="secondary" disabled={busy} onClick={load}>
+          <Sparkles size={16} />
+          {busy ? "Đang phân tích…" : plan ? "Phân tích lại" : "Tạo gợi ý"}
+        </Button>
+      }
+    >
+      {!plan ? (
+        <p className="muted">
+          Gom câu trả lời sai và kiến thức mờ (đã ẩn danh) thành chủ đề, câu hỏi
+          thảo luận và hoạt động cho buổi học tới.
+        </p>
+      ) : (
+        <div className="ai-insights">
+          <p>
+            <Badge tone={plan.mode === "ai" ? "green" : "neutral"}>
+              {plan.mode === "ai" ? "AI" : "Thống kê"}
+            </Badge>{" "}
+            {plan.summary}
+          </p>
+          {plan.themes.length > 0 && (
+            <>
+              <h3>Chủ đề cần giảng lại</h3>
+              <ul>
+                {plan.themes.map((t, i) => (
+                  <li key={i}>
+                    <strong>{t.title}</strong>
+                    {t.pages.length > 0 && ` · Trang ${t.pages.join(", ")}`}
+                    {t.explanation && <p className="muted">{t.explanation}</p>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {plan.discussion.length > 0 && (
+            <>
+              <h3>Câu hỏi thảo luận</h3>
+              <ol>
+                {plan.discussion.map((d, i) => (
+                  <li key={i}>
+                    {d.question}
+                    {d.why && <p className="muted">{d.why}</p>}
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+          {plan.activities.length > 0 && (
+            <>
+              <h3>Hoạt động trên lớp</h3>
+              <ul>
+                {plan.activities.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="ai-safety-note">
+            {plan.mode === "ai"
+              ? "AI đề xuất từ dữ liệu lớp và nội dung học liệu; giảng viên quyết định nội dung buổi học."
+              : "Chưa có dịch vụ AI hoặc AI không phản hồi: đề xuất theo quy tắc thống kê."}
+          </p>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 export function LearningInsights() {
   const { data } = useDemo();
-  const pages = [1, 2, 3, 4]
-    .map((page) => {
-      const questions = data.questions.filter((q) => q.page === page);
-      let wrong = 0,
-        answered = 0;
-      for (const session of data.sessions)
-        for (const q of questions) {
-          const a = data.studySessions[session.id]?.answers[q.id];
-          if (a !== undefined) {
-            answered++;
-            if (a !== q.correct) wrong++;
-          }
-        }
-      const gaps = data.gaps.filter(
-        (g) => g.page === page && !g.response,
-      ).length;
-      return { page, wrong, answered, gaps };
-    })
-    .filter((p) => p.wrong || p.gaps);
+  const pages = data.analytics.pages.filter((p) => p.wrong || p.gaps);
   return (
     <Panel title="Phân tích học tập từ dữ liệu hiện có">
       {pages.length ? (
@@ -62,33 +134,9 @@ export function LearningInsights() {
         />
       )}
       <p className="ai-safety-note">
-        Phạm vi: dữ liệu phiên tự học CSE301 của tài khoản sinh viên trong bản
-        FE. Phân tích quy tắc cục bộ; chưa gọi mô hình AI.
+        Tổng hợp từ câu trả lời quiz và kiến thức mờ của mọi sinh viên, theo
+        quy tắc thống kê.
       </p>
     </Panel>
-  );
-}
-export function EssayDraft({ answer }: { answer: string }) {
-  const draft = essayDraft(answer);
-  return (
-    <div className="reply-block">
-      <div className="panel-heading">
-        <h3>Gợi ý chấm nháp theo tiêu chí</h3>
-        <Badge tone="amber">Chờ giảng viên duyệt</Badge>
-      </div>
-      <p>Điểm đề xuất: {draft.score}/3</p>
-      <ul>
-        {draft.checks.map((c) => (
-          <li key={c.label}>
-            {c.met ? "Đã ghi nhận" : "Cần bổ sung"}: {c.label}
-          </li>
-        ))}
-      </ul>
-      <p>{draft.feedback}</p>
-      <small>
-        Gợi ý cục bộ hỗ trợ rà soát; giảng viên quyết định điểm và phản hồi
-        trước khi công bố.
-      </small>
-    </div>
   );
 }

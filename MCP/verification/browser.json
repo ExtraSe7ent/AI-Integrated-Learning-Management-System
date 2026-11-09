@@ -1,0 +1,22 @@
+{
+  "at": "2026-11-06T21:08:56.824Z",
+  "results": [
+    {
+      "name": "Public OAuth consent renders on desktop and mobile, no overflow",
+      "status": "PASS"
+    },
+    {
+      "name": "Real browser login and consent produce valid PKCE token",
+      "status": "PASS"
+    },
+    {
+      "name": "Browser management revokes actual remote token",
+      "status": "PASS"
+    },
+    {
+      "name": "Lecturer FE displays lesson drafts created through MCP",
+      "status": "PASS"
+    }
+  ],
+  "pageErrors": []
+}

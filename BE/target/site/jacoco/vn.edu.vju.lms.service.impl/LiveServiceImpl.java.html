@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LiveServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">LiveServiceImpl.java</span></div><h1>LiveServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ForbiddenOperationException;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.ILiveResultDao;
+import vn.edu.vju.lms.dao.ILiveStateDao;
+import vn.edu.vju.lms.dao.IQuestionDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.entity.LiveResult;
+import vn.edu.vju.lms.entity.LiveState;
+import vn.edu.vju.lms.entity.Question;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.security.TeachingScope;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.LiveService;
+import vn.edu.vju.lms.wrapper.LiveWrappers.LiveControl;
+import vn.edu.vju.lms.wrapper.LiveWrappers.LiveQuestion;
+import vn.edu.vju.lms.wrapper.LiveWrappers.LiveResponse;
+import vn.edu.vju.lms.wrapper.LiveWrappers.LiveResultWrapper;
+import vn.edu.vju.lms.wrapper.LiveWrappers.LiveStudentAnswer;
+import vn.edu.vju.lms.wrapper.LiveWrappers.LiveStateWrapper;
+
+/**
+ * UC-C01–C03. The lecturer opens a session for one of their classes and one approved question; each start gets
+ * a new six-digit code. The code, every answer and the key stay on the server until the question is revealed.
+ */
+@Service
+public class LiveServiceImpl implements LiveService {
+
+    private static final int NO_ANSWER = -1;
+<span class="fc" id="L45">    private static final SecureRandom RANDOM = new SecureRandom();</span>
+
+    private final ILiveStateDao liveDao;
+    private final IQuestionDao questionDao;
+    private final IClassInfoDao classDao;
+    private final TeachingScope scope;
+    private final ILiveResultDao resultDao;
+    private final IUserAccountDao userDao;
+
+    public LiveServiceImpl(ILiveStateDao liveDao, IQuestionDao questionDao, IClassInfoDao classDao, TeachingScope scope,
+<span class="fc" id="L55">            ILiveResultDao resultDao, IUserAccountDao userDao) {</span>
+<span class="fc" id="L56">        this.liveDao = liveDao;</span>
+<span class="fc" id="L57">        this.questionDao = questionDao;</span>
+<span class="fc" id="L58">        this.classDao = classDao;</span>
+<span class="fc" id="L59">        this.scope = scope;</span>
+<span class="fc" id="L60">        this.resultDao = resultDao;</span>
+<span class="fc" id="L61">        this.userDao = userDao;</span>
+<span class="fc" id="L62">    }</span>
+
+    @Override
+    @Transactional
+    public LiveStateWrapper state() {
+<span class="fc" id="L67">        LiveState live = current();</span>
+<span class="fc" id="L68">        record(live);</span>
+<span class="fc" id="L69">        return toWrapper(live);</span>
+    }
+
+    @Override
+    @Transactional
+    public LiveStateWrapper control(LiveControl control) {
+<span class="fc" id="L75">        LiveState live = current();</span>
+<span class="pc bpc" id="L76" title="1 of 4 branches missed.">        boolean starting = Boolean.TRUE.equals(control.active()) &amp;&amp; !live.isActive();</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        String classId = control.classId() != null ? control.classId() : live.getClassId();</span>
+<span class="pc bpc" id="L78" title="1 of 4 branches missed.">        if (starting || live.isActive()) {</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">            if (StringUtils.hasText(classId)) {</span>
+<span class="fc" id="L80">                scope.requireClass(classId);</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">            } else if (starting) {</span>
+<span class="fc" id="L82">                throw new BusinessRuleException(&quot;Chọn lớp học phần cho phiên hỏi trên lớp.&quot;);</span>
+            }
+        }
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (starting) {</span>
+<span class="fc" id="L86">            live.setCode(String.format(&quot;%06d&quot;, RANDOM.nextInt(1_000_000)));</span>
+<span class="fc" id="L87">            live.setRunId(UUID.randomUUID().toString());</span>
+<span class="fc" id="L88">            live.setClassId(classId);</span>
+<span class="fc" id="L89">            live.setParticipants(new ArrayList&lt;&gt;());</span>
+<span class="fc" id="L90">            live.setAnswers(new HashMap&lt;&gt;());</span>
+<span class="fc" id="L91">            live.setRevealed(false);</span>
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">            if (control.questionId() == null &amp;&amp; live.getQuestionId() == null) {</span>
+<span class="fc" id="L93">                throw new BusinessRuleException(&quot;Chọn câu hỏi đã duyệt để chiếu.&quot;);</span>
+            }
+        }
+<span class="pc bpc" id="L96" title="1 of 4 branches missed.">        if (control.questionId() != null &amp;&amp; !control.questionId().equals(live.getQuestionId())) {</span>
+<span class="fc" id="L97">            requireQuestion(control.questionId());</span>
+<span class="fc" id="L98">            live.setQuestionId(control.questionId());</span>
+<span class="fc" id="L99">            live.setQuestion(live.getQuestion() + 1);</span>
+<span class="fc" id="L100">            live.setAnswers(new HashMap&lt;&gt;());</span>
+<span class="fc" id="L101">            live.setRevealed(false);</span>
+        }
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        if (Boolean.TRUE.equals(control.reset())) {</span>
+<span class="nc" id="L104">            live.setAnswers(new HashMap&lt;&gt;());</span>
+<span class="nc" id="L105">            live.setRevealed(false);</span>
+        }
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (control.active() != null) {</span>
+<span class="fc" id="L108">            live.setActive(control.active());</span>
+        }
+<span class="pc bpc" id="L110" title="3 of 4 branches missed.">        if (control.question() != null &amp;&amp; control.questionId() == null) {</span>
+<span class="nc" id="L111">            live.setQuestion(control.question());</span>
+        }
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">        if (control.revealed() != null) {</span>
+<span class="nc" id="L114">            live.setRevealed(control.revealed());</span>
+        }
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (control.expiresAt() != null) {</span>
+<span class="fc" id="L117">            live.setExpiresAt(control.expiresAt());</span>
+        }
+<span class="fc" id="L119">        record(live);</span>
+<span class="fc" id="L120">        return toWrapper(live);</span>
+    }
+
+    @Override
+    @Transactional
+    public LiveStateWrapper respond(LiveResponse response) {
+<span class="fc" id="L126">        LiveState live = current();</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        if (!live.isActive()) {</span>
+<span class="fc" id="L128">            throw new BusinessRuleException(&quot;Phiên chưa mở.&quot;);</span>
+        }
+<span class="fc" id="L130">        String studentId = UserPrincipal.current().id();</span>
+<span class="pc bpc" id="L131" title="1 of 4 branches missed.">        if (response.join() &amp;&amp; !live.getParticipants().contains(studentId)) {</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            if (!live.getCode().equals(response.code())) {</span>
+<span class="fc" id="L133">                throw new BusinessRuleException(&quot;Mã phiên không đúng hoặc đã hết hạn. Hãy kiểm tra lại với giảng viên.&quot;);</span>
+            }
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">            boolean enrolled = !StringUtils.hasText(live.getClassId()) || classDao.findById(live.getClassId())</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">                    .map(info -&gt; info.getStudentIds().contains(studentId)).orElse(false);</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">            if (!enrolled) {</span>
+<span class="fc" id="L138">                throw new ForbiddenOperationException(&quot;Phiên này dành cho lớp &quot; + live.getClassId() + &quot;.&quot;);</span>
+            }
+<span class="fc" id="L140">            live.setParticipants(append(live, studentId));</span>
+        }
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (response.answer() != null) {</span>
+<span class="pc bpc" id="L143" title="1 of 4 branches missed.">            if (live.isRevealed() || !live.getParticipants().contains(studentId)</span>
+<span class="pc bpc" id="L144" title="2 of 4 branches missed.">                    || (live.getExpiresAt() &gt; 0 &amp;&amp; System.currentTimeMillis() &gt;= live.getExpiresAt())) {</span>
+<span class="fc" id="L145">                throw new BusinessRuleException(&quot;Câu hỏi đã đóng.&quot;);</span>
+            }
+<span class="fc" id="L147">            Map&lt;String, Integer&gt; answers = new HashMap&lt;&gt;(live.getAnswers());</span>
+<span class="fc" id="L148">            answers.putIfAbsent(studentId, response.answer());</span>
+<span class="fc" id="L149">            live.setAnswers(answers);</span>
+        }
+<span class="fc" id="L151">        revealIfDue(live);</span>
+<span class="fc" id="L152">        record(live);</span>
+<span class="fc" id="L153">        return toWrapper(live);</span>
+    }
+
+    /** Keeps the current question's result once someone has joined, so it survives the next question and the end. */
+    private void record(LiveState live) {
+<span class="pc bpc" id="L158" title="1 of 6 branches missed.">        if (live.getRunId() == null || live.getQuestionId() == null || live.getParticipants().isEmpty()) {</span>
+<span class="fc" id="L159">            return;</span>
+        }
+<span class="fc" id="L161">        Question question = questionDao.findById(live.getQuestionId()).orElse(null);</span>
+<span class="pc bpc" id="L162" title="1 of 2 branches missed.">        if (question == null) {</span>
+<span class="nc" id="L163">            return;</span>
+        }
+<span class="fc" id="L165">        String id = live.getRunId() + &quot;:&quot; + live.getQuestion();</span>
+<span class="fc" id="L166">        LiveResult result = resultDao.findById(id).orElseGet(() -&gt; {</span>
+<span class="fc" id="L167">            LiveResult created = new LiveResult();</span>
+<span class="fc" id="L168">            created.setId(id);</span>
+<span class="fc" id="L169">            created.setRunId(live.getRunId());</span>
+<span class="fc" id="L170">            created.setAskedAt(System.currentTimeMillis());</span>
+<span class="fc" id="L171">            return resultDao.persist(created);</span>
+        });
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        if (!UserPrincipal.callerIsStudent()) {</span>
+<span class="fc" id="L174">            result.setTeacherId(UserPrincipal.current().id());</span>
+        }
+<span class="fc" id="L176">        result.setClassId(live.getClassId());</span>
+<span class="fc" id="L177">        result.setQuestionId(question.getId());</span>
+<span class="fc" id="L178">        result.setQuestionText(question.getText());</span>
+<span class="fc" id="L179">        result.setOptions(new ArrayList&lt;&gt;(question.getOptions()));</span>
+<span class="fc" id="L180">        result.setCorrect(question.getCorrect());</span>
+<span class="fc" id="L181">        result.setAnswers(new HashMap&lt;&gt;(live.getAnswers()));</span>
+<span class="fc" id="L182">        result.setParticipants(new ArrayList&lt;&gt;(live.getParticipants()));</span>
+<span class="fc" id="L183">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;LiveResultWrapper&gt; results(String classId) {
+<span class="fc" id="L188">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        if (StringUtils.hasText(classId)) {</span>
+<span class="fc" id="L190">            scope.requireClass(classId);</span>
+        }
+<span class="fc" id="L192">        return resultDao.findAll().stream()</span>
+<span class="pc bpc" id="L193" title="1 of 4 branches missed.">                .filter(r -&gt; !StringUtils.hasText(classId) || classId.equals(r.getClassId()))</span>
+<span class="fc" id="L194">                .filter(r -&gt; visible(r, user))</span>
+<span class="fc" id="L195">                .sorted(Comparator.comparingLong(LiveResult::getAskedAt).reversed())</span>
+<span class="fc" id="L196">                .map(this::toResult).toList();</span>
+    }
+
+    private boolean visible(LiveResult result, UserPrincipal user) {
+<span class="pc bpc" id="L200" title="2 of 4 branches missed.">        if (user.role() == Role.ADMIN || user.role() == Role.DEAN) {</span>
+<span class="nc" id="L201">            return true;</span>
+        }
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">        ClassInfo info = result.getClassId() == null ? null : classDao.findById(result.getClassId()).orElse(null);</span>
+<span class="pc bpc" id="L204" title="1 of 2 branches missed.">        if (info == null) {</span>
+<span class="nc" id="L205">            return user.id().equals(result.getTeacherId());</span>
+        }
+<span class="pc bpc" id="L207" title="3 of 4 branches missed.">        return user.id().equals(info.getTeacherId()) || user.id().equals(info.getLeaderId());</span>
+    }
+
+    private LiveResultWrapper toResult(LiveResult result) {
+<span class="fc" id="L211">        Map&lt;String, Integer&gt; answers = result.getAnswers();</span>
+<span class="fc" id="L212">        List&lt;Integer&gt; distribution = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        for (int i = 0; i &lt; result.getOptions().size(); i++) {</span>
+<span class="fc" id="L214">            final int option = i;</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">            distribution.add((int) answers.values().stream().filter(v -&gt; v == option).count());</span>
+        }
+<span class="fc" id="L217">        Integer key = result.getCorrect();</span>
+<span class="fc" id="L218">        List&lt;LiveStudentAnswer&gt; students = result.getParticipants().stream().map(id -&gt; {</span>
+<span class="fc" id="L219">            int answer = answers.getOrDefault(id, NO_ANSWER);</span>
+<span class="fc" id="L220">            String name = userDao.findById(id).map(UserAccount::getName).orElse(id);</span>
+<span class="pc bpc" id="L221" title="1 of 4 branches missed.">            return new LiveStudentAnswer(id, name, answer, key != null &amp;&amp; answer == key);</span>
+<span class="fc" id="L222">        }).toList();</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">        int answered = (int) answers.values().stream().filter(v -&gt; v &gt;= 0).count();</span>
+<span class="fc" id="L224">        int correctCount = (int) students.stream().filter(LiveStudentAnswer::correct).count();</span>
+<span class="fc" id="L225">        return new LiveResultWrapper(result.getId(), result.getRunId(), result.getClassId(), result.getQuestionId(),</span>
+<span class="fc" id="L226">                result.getQuestionText(), result.getOptions(), key, result.getAskedAt(),</span>
+<span class="fc" id="L227">                result.getParticipants().size(), answered, correctCount, distribution, students);</span>
+    }
+
+    private Question requireQuestion(String id) {
+<span class="fc" id="L231">        return questionDao.findById(id).filter(q -&gt; Boolean.TRUE.equals(q.getApproved()))</span>
+<span class="fc" id="L232">                .orElseThrow(() -&gt; new BusinessRuleException(&quot;Chỉ chiếu được câu hỏi đã duyệt.&quot;));</span>
+    }
+
+    private ArrayList&lt;String&gt; append(LiveState live, String studentId) {
+<span class="fc" id="L236">        ArrayList&lt;String&gt; participants = new ArrayList&lt;&gt;(live.getParticipants());</span>
+<span class="fc" id="L237">        participants.add(studentId);</span>
+<span class="fc" id="L238">        return participants;</span>
+    }
+
+    private LiveState current() {
+<span class="fc" id="L242">        LiveState live = liveDao.findById(LiveState.SINGLETON_ID).orElseGet(() -&gt; liveDao.persist(new LiveState()));</span>
+<span class="fc" id="L243">        revealIfDue(live);</span>
+<span class="fc" id="L244">        return live;</span>
+    }
+
+    /** AF-3 of UC-C02: when time is up, a participant who did not answer is recorded as &quot;không trả lời&quot;. */
+    private void revealIfDue(LiveState live) {
+<span class="pc bpc" id="L249" title="1 of 6 branches missed.">        if (!live.isActive() || live.isRevealed() || live.getExpiresAt() == 0) {</span>
+<span class="fc" id="L250">            return;</span>
+        }
+<span class="fc bfc" id="L252" title="All 2 branches covered.">        boolean expired = System.currentTimeMillis() &gt;= live.getExpiresAt();</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">        boolean allAnswered = !live.getParticipants().isEmpty()</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                &amp;&amp; live.getParticipants().stream().allMatch(live.getAnswers()::containsKey);</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">        if (expired) {</span>
+<span class="fc" id="L256">            Map&lt;String, Integer&gt; answers = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L257">            live.getParticipants().forEach(id -&gt; answers.put(id, live.getAnswers().getOrDefault(id, NO_ANSWER)));</span>
+<span class="fc" id="L258">            live.setAnswers(answers);</span>
+        }
+<span class="fc bfc" id="L260" title="All 4 branches covered.">        live.setRevealed(expired || allAnswered);</span>
+<span class="fc" id="L261">    }</span>
+
+    private LiveStateWrapper toWrapper(LiveState live) {
+<span class="fc" id="L264">        boolean student = UserPrincipal.callerIsStudent();</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">        Question question = live.getQuestionId() == null ? null : questionDao.findById(live.getQuestionId()).orElse(null);</span>
+<span class="fc bfc" id="L266" title="All 2 branches covered.">        LiveQuestion current = question == null ? null : new LiveQuestion(question.getId(), question.getText(), question.getOptions());</span>
+<span class="fc bfc" id="L267" title="All 4 branches covered.">        boolean showKey = live.isRevealed() || !student;</span>
+<span class="fc" id="L268">        List&lt;Integer&gt; distribution = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L269" title="All 4 branches covered.">        if (question != null &amp;&amp; showKey) {</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">            for (int i = 0; i &lt; question.getOptions().size(); i++) {</span>
+<span class="fc" id="L271">                final int option = i;</span>
+<span class="fc bfc" id="L272" title="All 2 branches covered.">                distribution.add((int) live.getAnswers().values().stream().filter(v -&gt; v == option).count());</span>
+            }
+        }
+<span class="fc bfc" id="L275" title="All 2 branches covered.">        int answered = (int) live.getAnswers().values().stream().filter(v -&gt; v &gt;= 0).count();</span>
+<span class="fc" id="L276">        Map&lt;String, Integer&gt; answers = live.getAnswers();</span>
+<span class="fc" id="L277">        List&lt;String&gt; participants = live.getParticipants();</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">        if (student) {</span>
+<span class="fc" id="L279">            String me = UserPrincipal.current().id();</span>
+<span class="fc bfc" id="L280" title="All 2 branches covered.">            answers = live.getAnswers().containsKey(me) ? Map.of(me, live.getAnswers().get(me)) : Map.of();</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">            participants = live.getParticipants().contains(me) ? List.of(me) : Collections.emptyList();</span>
+        }
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        return new LiveStateWrapper(live.isActive(), student ? null : live.getCode(), live.getQuestion(), live.isRevealed(),</span>
+<span class="fc" id="L284">                live.getExpiresAt(), answers, participants, live.getClassId(), live.getQuestionId(), current,</span>
+<span class="fc bfc" id="L285" title="All 4 branches covered.">                showKey &amp;&amp; question != null ? question.getCorrect() : null,</span>
+<span class="fc bfc" id="L286" title="All 4 branches covered.">                showKey &amp;&amp; question != null ? question.getExplanation() : null, distribution, answered);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

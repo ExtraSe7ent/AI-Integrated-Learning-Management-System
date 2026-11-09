@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StudyProgressService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service</a> &gt; <span class="el_source">StudyProgressService.java</span></div><h1>StudyProgressService.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service;
+
+import java.util.Map;
+import vn.edu.vju.lms.wrapper.StudyProgressWrapper;
+
+public interface StudyProgressService {
+
+    /** A student gets their own progress; staff get the most advanced record per session. */
+    Map&lt;String, StudyProgressWrapper&gt; visibleToCurrentUser();
+
+    /** UC-B01/B02: the server decides how far the student got and when the session was completed. */
+    StudyProgressWrapper save(String sessionId, StudyProgressWrapper wrapper);
+
+    /** UC-B03: grades one pre-class quiz answer; the first answer counts, as AF-1 records wrong answers too. */
+    QuizResult answer(String sessionId, String questionId, int choice);
+
+<span class="fc" id="L17">    record QuizResult(boolean correct, int correctIndex, String explanation, StudyProgressWrapper progress) {</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

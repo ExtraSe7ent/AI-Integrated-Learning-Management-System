@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReminderRestImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.rest.impl</a> &gt; <span class="el_source">ReminderRestImpl.java</span></div><h1>ReminderRestImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.rest.impl;
+
+import java.util.List;
+import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.vju.lms.common.web.PageResponse;
+import vn.edu.vju.lms.rest.ReminderRest;
+import vn.edu.vju.lms.service.ReminderService;
+import vn.edu.vju.lms.wrapper.ReminderWrapper;
+
+@RestController
+public class ReminderRestImpl implements ReminderRest {
+
+    private final ReminderService service;
+
+<span class="fc" id="L18">    public ReminderRestImpl(ReminderService service) {</span>
+<span class="fc" id="L19">        this.service = service;</span>
+<span class="fc" id="L20">    }</span>
+
+    @Override
+    public ResponseEntity&lt;ReminderWrapper&gt; get(String id) {
+<span class="fc" id="L24">        return ResponseEntity.ok(service.get(id));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;List&lt;ReminderWrapper&gt;&gt; list() {
+<span class="fc" id="L29">        return ResponseEntity.ok(service.listAll());</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;PageResponse&lt;ReminderWrapper&gt;&gt; search(String search, int page, int size, String sort) {
+<span class="fc" id="L34">        return ResponseEntity.ok(service.search(search, page, size, sort));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;ReminderWrapper&gt; create(ReminderWrapper wrapper) {
+<span class="fc" id="L39">        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(wrapper));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;ReminderWrapper&gt; update(String id, ReminderWrapper wrapper) {
+<span class="fc" id="L44">        return ResponseEntity.ok(service.update(id, wrapper));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Void&gt; delete(String id) {
+<span class="fc" id="L49">        service.delete(id);</span>
+<span class="fc" id="L50">        return ResponseEntity.noContent().build();</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Long&gt; count() {
+<span class="fc" id="L55">        return ResponseEntity.ok(service.count());</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt; candidates(String at) {
+<span class="fc" id="L60">        return ResponseEntity.ok(service.candidates(at));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;List&lt;ReminderWrapper&gt;&gt; scan(String at) {
+<span class="fc" id="L65">        return ResponseEntity.ok(service.scan(at));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

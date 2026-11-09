@@ -1,0 +1,17 @@
+{
+  "backend_tests": 266,
+  "frontend_tests": 48,
+  "mcp_tests": 15,
+  "browser_cases": 7,
+  "coverage": {
+    "line": 97.33,
+    "branch": 83.55
+  },
+  "host_status": "stopped",
+  "figma": {
+    "ready": "170:2468",
+    "unavailable": "172:2566",
+    "confirm": "172:2782"
+  },
+  "runtime": "Loopback only. No public tunnel during QA. Ready URL is explicit example.test configuration; not a public URL."
+}

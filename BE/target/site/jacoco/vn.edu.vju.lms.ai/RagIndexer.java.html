@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RagIndexer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.ai</a> &gt; <span class="el_source">RagIndexer.java</span></div><h1>RagIndexer.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.ai;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.crypto.AesService;
+import vn.edu.vju.lms.dao.IMaterialDao;
+import vn.edu.vju.lms.dao.IMaterialVersionDao;
+import vn.edu.vju.lms.dao.IRagChunkDao;
+import vn.edu.vju.lms.entity.Material;
+import vn.edu.vju.lms.entity.MaterialVersion;
+import vn.edu.vju.lms.entity.RagChunk;
+
+/**
+ * Port of rag.index_material for PDF text. Without an embedding key the chunks are stored with no vector and
+ * only keyword search uses them; indexing again after adding a key fills the vectors in.
+ */
+@Service
+public class RagIndexer {
+
+<span class="fc" id="L34">    private static final Logger log = LoggerFactory.getLogger(RagIndexer.class);</span>
+<span class="fc" id="L35">    private static final Duration STALE_AFTER = Duration.ofMinutes(20);</span>
+
+    private final IMaterialDao materialDao;
+    private final IMaterialVersionDao versionDao;
+    private final IRagChunkDao chunkDao;
+    private final AesService aesService;
+    private final AiClient client;
+    private final TransactionTemplate transaction;
+    private final LmsProperties properties;
+
+    public RagIndexer(IMaterialDao materialDao, IMaterialVersionDao versionDao, IRagChunkDao chunkDao,
+<span class="fc" id="L46">            AesService aesService, AiClient client, TransactionTemplate transaction, LmsProperties properties) {</span>
+<span class="fc" id="L47">        this.materialDao = materialDao;</span>
+<span class="fc" id="L48">        this.versionDao = versionDao;</span>
+<span class="fc" id="L49">        this.chunkDao = chunkDao;</span>
+<span class="fc" id="L50">        this.aesService = aesService;</span>
+<span class="fc" id="L51">        this.client = client;</span>
+<span class="fc" id="L52">        this.transaction = transaction;</span>
+<span class="fc" id="L53">        this.properties = properties;</span>
+<span class="fc" id="L54">    }</span>
+
+    public void index(String materialId) {
+<span class="fc" id="L57">        Instant now = Instant.now();</span>
+<span class="fc" id="L58">        Boolean claimed = transaction.execute(s -&gt; materialDao.claimForIndexing(materialId, now, now.minus(STALE_AFTER)));</span>
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">        if (!Boolean.TRUE.equals(claimed)) {</span>
+<span class="nc" id="L60">            log.info(&quot;Material {} is already being indexed&quot;, materialId);</span>
+<span class="nc" id="L61">            return;</span>
+        }
+        try {
+<span class="fc" id="L64">            Material material = materialDao.findById(materialId).orElseThrow();</span>
+<span class="fc" id="L65">            MaterialVersion version = versionDao.find(materialId, material.getCurrentVersion()).orElseThrow();</span>
+<span class="fc" id="L66">            List&lt;RagChunk&gt; chunks = readChunks(material, version);</span>
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">            if (client.embeddingConfigured()) {</span>
+<span class="nc" id="L68">                List&lt;String&gt; texts = chunks.stream().map(c -&gt; material.getTitle() + &quot;\n&quot; + c.getText()).toList();</span>
+<span class="nc" id="L69">                List&lt;List&lt;Double&gt;&gt; vectors = client.embed(texts);</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">                for (int i = 0; i &lt; chunks.size(); i++) {</span>
+<span class="nc" id="L71">                    chunks.get(i).setEmbedding(vectors.get(i));</span>
+<span class="nc" id="L72">                    chunks.get(i).setEmbeddingModel(client.embeddingSignature());</span>
+                }
+            }
+<span class="fc" id="L75">            transaction.executeWithoutResult(s -&gt; {</span>
+<span class="fc" id="L76">                chunkDao.deleteByMaterial(materialId);</span>
+<span class="fc" id="L77">                chunks.forEach(chunkDao::persist);</span>
+<span class="fc" id="L78">                materialDao.findById(materialId).ifPresent(m -&gt; m.setIndexStatus(Material.INDEX_READY));</span>
+<span class="fc" id="L79">            });</span>
+<span class="fc" id="L80">            log.info(&quot;Indexed material {}: {} chunks&quot;, materialId, chunks.size());</span>
+<span class="fc" id="L81">        } catch (RuntimeException | IOException e) {</span>
+<span class="fc" id="L82">            log.warn(&quot;Indexing material {} failed&quot;, materialId, e);</span>
+<span class="pc bpc" id="L83" title="2 of 4 branches missed.">            String reason = e instanceof BusinessRuleException || e instanceof AiProviderException</span>
+<span class="pc" id="L84">                    ? e.getMessage() : &quot;Không đọc hoặc lập chỉ mục được tệp. Kiểm tra tệp rồi thử lại.&quot;;</span>
+<span class="fc" id="L85">            transaction.executeWithoutResult(s -&gt; materialDao.findById(materialId).ifPresent(m -&gt; {</span>
+<span class="fc" id="L86">                m.setIndexStatus(Material.INDEX_FAILED);</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">                m.setIndexError(reason.length() &gt; 500 ? reason.substring(0, 500) : reason);</span>
+<span class="fc" id="L88">            }));</span>
+<span class="fc" id="L89">        }</span>
+<span class="fc" id="L90">    }</span>
+
+    private List&lt;RagChunk&gt; readChunks(Material material, MaterialVersion version) throws IOException {
+<span class="fc" id="L93">        ByteArrayOutputStream bytes = new ByteArrayOutputStream();</span>
+<span class="fc" id="L94">        aesService.decryptFile(Path.of(properties.getStorage().getRoot()).resolve(version.getStoredPath()), bytes);</span>
+<span class="fc" id="L95">        List&lt;RagChunk&gt; chunks = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L96">        try (PDDocument document = Loader.loadPDF(bytes.toByteArray())) {</span>
+<span class="fc" id="L97">            PDFTextStripper stripper = new PDFTextStripper();</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">            for (int page = 1; page &lt;= document.getNumberOfPages(); page++) {</span>
+<span class="fc" id="L99">                stripper.setStartPage(page);</span>
+<span class="fc" id="L100">                stripper.setEndPage(page);</span>
+<span class="fc" id="L101">                List&lt;String&gt; passages = RagAlgorithms.passages(stripper.getText(document), 1400, 200);</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">                for (int i = 0; i &lt; passages.size(); i++) {</span>
+<span class="fc" id="L103">                    chunks.add(chunk(material, version, page, i, passages.get(i)));</span>
+                }
+            }
+        }
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (chunks.isEmpty()) {</span>
+<span class="nc" id="L108">            throw new BusinessRuleException(&quot;Không có nội dung chữ để lập chỉ mục.&quot;);</span>
+        }
+<span class="fc" id="L110">        int maximum = properties.getAi().getMaxChunks();</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">        if (chunks.size() &gt; maximum) {</span>
+<span class="nc" id="L112">            throw new BusinessRuleException(&quot;Tài liệu vượt giới hạn &quot; + maximum + &quot; đoạn.&quot;);</span>
+        }
+<span class="fc" id="L114">        return chunks;</span>
+    }
+
+    private RagChunk chunk(Material material, MaterialVersion version, int page, int index, String text) {
+<span class="fc" id="L118">        RagChunk chunk = new RagChunk();</span>
+<span class="fc" id="L119">        chunk.setVersionId(version.getId());</span>
+<span class="fc" id="L120">        chunk.setMaterialId(material.getId());</span>
+<span class="fc" id="L121">        chunk.setMaterialTitle(material.getTitle());</span>
+<span class="fc" id="L122">        chunk.setChunkKey(&quot;m&quot; + material.getId() + &quot;-v&quot; + version.getNumber() + &quot;-p&quot; + page + &quot;-&quot; + index);</span>
+<span class="fc" id="L123">        chunk.setPage(page);</span>
+<span class="fc" id="L124">        chunk.setText(text);</span>
+<span class="fc" id="L125">        return chunk;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

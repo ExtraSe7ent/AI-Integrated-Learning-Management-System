@@ -46,119 +46,6 @@ export function answerFromMaterial(
     sources: [1],
   };
 }
-export interface PracticeQuestion {
-  id: string;
-  type: "choice" | "blank";
-  page: number;
-  title: string;
-  options?: string[];
-  answer: string;
-  explanation: string;
-}
-const bank: PracticeQuestion[] = [
-  {
-    id: "uri",
-    type: "choice",
-    page: 1,
-    title: "Tài nguyên REST được định danh bằng gì?",
-    options: ["URI", "Kết nối TCP", "Cookie", "Phiên đăng nhập"],
-    answer: "URI",
-    explanation: "URI định danh tài nguyên; method chỉ thao tác.",
-  },
-  {
-    id: "resource",
-    type: "blank",
-    page: 1,
-    title: "Điền tên viết tắt của định danh tài nguyên thống nhất.",
-    answer: "URI",
-    explanation: "URI là định danh của tài nguyên.",
-  },
-  {
-    id: "post",
-    type: "blank",
-    page: 2,
-    title: "HTTP method thường dùng để tạo tài nguyên mới?",
-    answer: "POST",
-    explanation: "POST được dùng để tạo mới trong collection.",
-  },
-  {
-    id: "patch",
-    type: "choice",
-    page: 2,
-    title: "HTTP method cập nhật một phần tài nguyên?",
-    options: ["GET", "PATCH", "HEAD", "POST"],
-    answer: "PATCH",
-    explanation: "PATCH cập nhật một phần, PUT thay thế toàn bộ biểu diễn.",
-  },
-  {
-    id: "put",
-    type: "blank",
-    page: 2,
-    title: "HTTP method thay thế toàn bộ biểu diễn của tài nguyên?",
-    answer: "PUT",
-    explanation: "PUT thay thế toàn bộ; PATCH chỉ cập nhật một phần.",
-  },
-  {
-    id: "created",
-    type: "choice",
-    page: 3,
-    title: "Mã phản hồi khi tạo thành công tài nguyên?",
-    options: ["404", "201", "500", "401"],
-    answer: "201",
-    explanation: "201 Created cho biết tài nguyên đã được tạo.",
-  },
-  {
-    id: "missing",
-    type: "blank",
-    page: 3,
-    title: "Mã trạng thái khi không tìm thấy tài nguyên?",
-    answer: "404",
-    explanation: "404 Not Found dành cho tài nguyên không tìm thấy.",
-  },
-  {
-    id: "success",
-    type: "choice",
-    page: 3,
-    title: "Nhóm mã HTTP biểu thị thành công?",
-    options: ["2xx", "4xx", "5xx", "1xx"],
-    answer: "2xx",
-    explanation: "2xx biểu thị thành công; 4xx lỗi yêu cầu và 5xx lỗi máy chủ.",
-  },
-];
-export function practiceSet(scope: string, round: number) {
-  const pool = bank.filter(
-    (q) => scope !== "http" || q.page === 2 || q.page === 3,
-  );
-  const start = round % pool.length;
-  return Array.from(
-    { length: Math.min(3, pool.length) },
-    (_, i) => pool[(start + i) % pool.length],
-  );
-}
-export function essayDraft(answer: string) {
-  const text = answer.toLowerCase();
-  const checks = [
-    {
-      label: "Có endpoint cho lượt mượn",
-      met: /\/(api\/)?loans|\/(api\/)?borrow/.test(text),
-    },
-    { label: "Chọn method POST", met: /\bpost\b/.test(text) },
-    {
-      label: "Nêu mã phản hồi và lý do",
-      met: /201|created/.test(text) && /vì|tạo|thành công|create/.test(text),
-    },
-  ];
-  return {
-    checks,
-    score: checks.filter((c) => c.met).length,
-    feedback:
-      checks
-        .filter((c) => !c.met)
-        .map((c) => c.label)
-        .join("; ") ||
-      "Đã nêu các tiêu chí cơ bản. Giảng viên cần đọc nội dung và duyệt điểm.",
-  };
-}
 export interface DeadlineCandidate {
   key: string;
   studentId: string;
@@ -177,87 +64,13 @@ export interface ReminderRecord {
   createdAt: string;
   candidate: DeadlineCandidate;
   channel: "in-app" | "email";
-  status: "recorded" | "simulated";
-}
-export function deadlineCandidates(
-  data: DemoData,
-  now: number,
-): DeadlineCandidate[] {
-  const items = [
-    ...data.sessions
-      .filter((s) => s.published)
-      .map((s) => ({
-        kind: "session" as const,
-        itemId: s.id,
-        title: s.title,
-        due: s.closes,
-      })),
-    ...data.assignments
-      .filter((a) => a.published)
-      .map((a) => ({
-        kind: "assignment" as const,
-        itemId: a.id,
-        title: a.title,
-        due: a.closes,
-      })),
-  ].filter(
-    (i) => Date.parse(i.due) > now && Date.parse(i.due) - now <= 86400000,
-  );
-  const cls = data.admin.classes.find((c) => c.id === "CSE301.01");
-  if (!cls) return [];
-  return cls.studentIds.flatMap((id) => {
-    const u = data.admin.users.find((u) => u.id === id && u.active);
-    if (!u) return [];
-    return items
-      .filter(
-        (i) =>
-          id !== "23110149" ||
-          (i.kind === "session"
-            ? !data.studySessions[i.itemId]?.completedAt
-            : !data.assessments[i.itemId]?.result),
-      )
-      .map((i) => ({
-        ...i,
-        key: `${id}:${cls.id}:${i.kind}:${i.itemId}:${i.due}`,
-        studentId: id,
-        studentName: u.name,
-        email: u.email,
-        className: cls.name,
-        progress:
-          i.kind === "session"
-            ? `${id === "23110149" ? Math.min(100, Math.round(((data.studySessions[i.itemId]?.progress || 0) / (data.lessons.find((l) => l.id === "l2")?.slides?.length || 4)) * 100)) : 0}% hoàn thành`
-            : "Chưa nộp",
-      }));
-  });
+  status: "recorded" | "sent" | "skipped" | "failed";
 }
 export function reminderEmail(c: DeadlineCandidate) {
   return {
     subject: `Nhắc hạn ${c.kind === "session" ? "tự học" : "bài tập"} · ${c.className}`,
     body: `Chào ${c.studentName},\n\n${c.title} của lớp ${c.className} đến hạn lúc ${new Date(c.due).toLocaleString("vi-VN")}.\nTiến độ hiện tại: ${c.progress}.\n\nVui lòng mở ${c.kind === "session" ? "phiên tự học" : "bài tập"} để hoàn thành trước hạn.\nVJU Learning`,
   };
-}
-export function reminderRecords(
-  existing: ReminderRecord[],
-  candidates: DeadlineCandidate[],
-  now: number,
-) {
-  const keys = new Set(existing.map((r) => r.key + ":" + r.channel));
-  const added: ReminderRecord[] = [];
-  for (const c of candidates)
-    for (const channel of ["in-app", "email"] as const) {
-      const key = c.key + ":" + channel;
-      if (keys.has(key)) continue;
-      keys.add(key);
-      added.push({
-        id: key,
-        key: c.key,
-        createdAt: new Date(now).toISOString(),
-        candidate: c,
-        channel,
-        status: channel === "in-app" ? "recorded" : "simulated",
-      });
-    }
-  return [...existing, ...added];
 }
 export function materialSourceAvailable(data: DemoData) {
   const l = data.lessons.find((l) => l.id === "l2");

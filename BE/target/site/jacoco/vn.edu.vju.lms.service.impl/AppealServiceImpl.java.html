@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AppealServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">AppealServiceImpl.java</span></div><h1>AppealServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.ForbiddenOperationException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IAppealDao;
+import vn.edu.vju.lms.entity.Appeal;
+import vn.edu.vju.lms.security.UserPrincipal;
+import vn.edu.vju.lms.service.AppealService;
+import vn.edu.vju.lms.service.AssessmentService;
+import vn.edu.vju.lms.wrapper.AppealWrapper;
+
+@Service
+public class AppealServiceImpl extends AbstractCrudService&lt;Appeal, AppealWrapper&gt; implements AppealService {
+
+    private final vn.edu.vju.lms.service.AssignmentPolicy policy;
+    private final IAppealDao dao;
+    private final AssessmentService assessments;
+    private final vn.edu.vju.lms.dao.IAssignmentDao assignmentDao;
+
+<span class="fc" id="L23">    public AppealServiceImpl(IAppealDao dao, AssessmentService assessments, vn.edu.vju.lms.dao.IAssignmentDao assignmentDao, vn.edu.vju.lms.service.AssignmentPolicy policy) {</span>
+<span class="fc" id="L24">        this.policy=policy;</span>
+<span class="fc" id="L25">        this.dao = dao;</span>
+<span class="fc" id="L26">        this.assessments = assessments;</span>
+<span class="fc" id="L27">        this.assignmentDao = assignmentDao;</span>
+<span class="fc" id="L28">    }</span>
+
+    /** A student refers to questions in their own (possibly shuffled) order; appeals store the original index. */
+    private int[] studentOrder(String assignmentId, String studentId) {
+<span class="fc" id="L32">        return assignmentDao.findById(String.valueOf(assignmentId))</span>
+<span class="fc" id="L33">                .map(assignment -&gt; vn.edu.vju.lms.service.ExamOrder.of(assignment, studentId)).orElse(new int[0]);</span>
+    }
+
+    private vn.edu.vju.lms.entity.Assignment assignment(String id) {
+<span class="pc" id="L37">        return assignmentDao.findById(String.valueOf(id)).orElseThrow(() -&gt; new vn.edu.vju.lms.common.exception.ResourceNotFoundException(&quot;Bài tập không tồn tại.&quot;));</span>
+    }
+    private boolean readable(Appeal a) {
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        return assignmentDao.findById(String.valueOf(a.getAssignmentId())).filter(policy::canRead).isPresent()</span>
+<span class="pc bpc" id="L41" title="1 of 4 branches missed.">            &amp;&amp; (!UserPrincipal.callerIsStudent() || UserPrincipal.current().id().equals(a.getOwnerId()));</span>
+    }
+    @Override
+    protected org.springframework.data.jpa.domain.Specification&lt;Appeal&gt; readScope() {
+<span class="fc" id="L45">        var ids=dao.findAll().stream().filter(this::readable).map(Appeal::getId).toList();</span>
+<span class="fc" id="L46">        return (root,query,builder)-&gt;root.get(&quot;id&quot;).in(ids);</span>
+    }
+    @Override
+    protected void checkRead(Appeal a) {
+<span class="fc bfc" id="L50" title="All 2 branches covered.">        if(!readable(a)) throw new ForbiddenOperationException(&quot;Bạn không được xem phúc khảo này.&quot;);</span>
+<span class="fc" id="L51">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, Appeal&gt; dao() {
+<span class="fc" id="L55">        return dao;</span>
+    }
+
+    @Override
+    protected Appeal newEntity() {
+<span class="fc" id="L60">        return new Appeal();</span>
+    }
+
+    @Override
+    protected AppealWrapper toWrapper(Appeal entity) {
+<span class="fc" id="L65">        AppealWrapper wrapper = new AppealWrapper();</span>
+<span class="fc" id="L66">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L67">        wrapper.setOwnerId(entity.getOwnerId());</span>
+<span class="fc" id="L68">        wrapper.setAssignmentId(entity.getAssignmentId());</span>
+<span class="fc" id="L69">        wrapper.setQuestion(entity.getQuestion());</span>
+<span class="fc" id="L70">        wrapper.setReason(entity.getReason());</span>
+<span class="fc" id="L71">        wrapper.setResponse(entity.getResponse());</span>
+<span class="fc" id="L72">        wrapper.setGrade(entity.getGrade());</span>
+<span class="fc" id="L73">        wrapper.setStatus(entity.getStatus());</span>
+<span class="fc bfc" id="L74" title="All 4 branches covered.">        wrapper.setQuestionIndex(entity.getQuestionIndex() != null &amp;&amp; UserPrincipal.callerIsStudent()</span>
+<span class="fc" id="L75">                ? (Integer) vn.edu.vju.lms.service.ExamOrder.shownIndex(entity.getQuestionIndex(),</span>
+<span class="fc" id="L76">                        studentOrder(entity.getAssignmentId(), entity.getOwnerId()))</span>
+<span class="fc" id="L77">                : entity.getQuestionIndex());</span>
+<span class="fc" id="L78">        wrapper.setAnswer(entity.getAnswer());</span>
+<span class="fc" id="L79">        wrapper.setPreviousPoints(entity.getPreviousPoints());</span>
+<span class="fc" id="L80">        wrapper.setMaxPoints(entity.getMaxPoints());</span>
+<span class="fc" id="L81">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(AppealWrapper wrapper, Appeal entity) {
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (wrapper.getAssignmentId() != null) {</span>
+<span class="fc" id="L87">            entity.setAssignmentId(wrapper.getAssignmentId());</span>
+        }
+<span class="fc bfc" id="L89" title="All 2 branches covered.">        if (wrapper.getQuestion() != null) {</span>
+<span class="fc" id="L90">            entity.setQuestion(wrapper.getQuestion());</span>
+        }
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        if (wrapper.getReason() != null) {</span>
+<span class="fc" id="L93">            entity.setReason(wrapper.getReason());</span>
+        }
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        if (wrapper.getResponse() != null) {</span>
+<span class="fc" id="L96">            entity.setResponse(wrapper.getResponse());</span>
+        }
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (wrapper.getGrade() != null) {</span>
+<span class="fc" id="L99">            entity.setGrade(wrapper.getGrade());</span>
+        }
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        if (wrapper.getStatus() != null) {</span>
+<span class="fc" id="L102">            entity.setStatus(wrapper.getStatus());</span>
+        }
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (wrapper.getQuestionIndex() != null) {</span>
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">            entity.setQuestionIndex(UserPrincipal.callerIsStudent()</span>
+<span class="fc" id="L106">                    ? (Integer) vn.edu.vju.lms.service.ExamOrder.originalIndex(wrapper.getQuestionIndex(),</span>
+<span class="fc" id="L107">                            studentOrder(entity.getAssignmentId(), UserPrincipal.current().id()))</span>
+<span class="nc" id="L108">                    : wrapper.getQuestionIndex());</span>
+        }
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        if (wrapper.getAnswer() != null) {</span>
+<span class="fc" id="L111">            entity.setAnswer(wrapper.getAnswer());</span>
+        }
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        if (wrapper.getPreviousPoints() != null) {</span>
+<span class="fc" id="L114">            entity.setPreviousPoints(wrapper.getPreviousPoints());</span>
+        }
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (wrapper.getMaxPoints() != null) {</span>
+<span class="fc" id="L117">            entity.setMaxPoints(wrapper.getMaxPoints());</span>
+        }
+<span class="fc" id="L119">    }</span>
+
+    @Override
+    protected String wrapperId(AppealWrapper wrapper) {
+<span class="fc" id="L123">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Appeal entity, String id) {
+<span class="fc" id="L128">        entity.setId(id);</span>
+<span class="fc" id="L129">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L133">        return &quot;Không tìm thấy yêu cầu phúc khảo.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeCreate(AppealWrapper wrapper, Appeal entity) {
+<span class="fc" id="L138">        policy.requireRead(assignment(entity.getAssignmentId()));</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">        if (entity.getStatus() == null) {</span>
+<span class="fc" id="L140">            entity.setStatus(&quot;pending&quot;);</span>
+        }
+<span class="fc" id="L142">        entity.setOwnerId(UserPrincipal.current().id());</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">        if (UserPrincipal.current().isStudent()) {</span>
+<span class="fc" id="L144">            entity.setStatus(&quot;pending&quot;);</span>
+        }
+<span class="fc" id="L146">    }</span>
+
+    @Override
+    @Transactional
+    public AppealWrapper update(String id, AppealWrapper wrapper) {
+<span class="fc" id="L151">        Appeal appeal = require(id);</span>
+<span class="fc" id="L152">        requireOwnerOrStaff(appeal);</span>
+<span class="pc bpc" id="L153" title="3 of 4 branches missed.">        if(wrapper.getAssignmentId()!=null&amp;&amp;!wrapper.getAssignmentId().equals(appeal.getAssignmentId())) throw new vn.edu.vju.lms.common.exception.BusinessRuleException(&quot;Không đổi bài tập của phúc khảo.&quot;);</span>
+<span class="fc" id="L154">        wrapper.setQuestionIndex(null);wrapper.setAnswer(null);wrapper.setPreviousPoints(null);wrapper.setMaxPoints(null);</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        if (UserPrincipal.current().isStudent()) {</span>
+<span class="fc" id="L156">            wrapper.setResponse(null);</span>
+<span class="fc" id="L157">            wrapper.setGrade(null);</span>
+<span class="fc" id="L158">            wrapper.setStatus(null);</span>
+<span class="fc bfc" id="L159" title="All 4 branches covered.">        } else if (&quot;accepted&quot;.equals(wrapper.getStatus()) &amp;&amp; &quot;pending&quot;.equals(appeal.getStatus())</span>
+<span class="pc bpc" id="L160" title="2 of 4 branches missed.">                &amp;&amp; wrapper.getGrade() != null &amp;&amp; appeal.getQuestionIndex() != null) {</span>
+<span class="fc" id="L161">            assessments.regrade(appeal.getOwnerId(), appeal.getAssignmentId(), appeal.getQuestionIndex(), wrapper.getGrade());</span>
+        }
+<span class="fc" id="L163">        return super.update(id, wrapper);</span>
+    }
+
+    @Override
+    @Transactional
+    public void delete(String id) {
+<span class="fc" id="L169">        requireOwnerOrStaff(require(id));</span>
+<span class="fc" id="L170">        super.delete(id);</span>
+<span class="fc" id="L171">    }</span>
+
+    private void requireOwnerOrStaff(Appeal entity) {
+<span class="fc" id="L174">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">        if(!user.isStudent()) policy.requireTeaching(assignment(entity.getAssignmentId()));</span>
+<span class="fc bfc" id="L176" title="All 4 branches covered.">        if (user.isStudent() &amp;&amp; !user.id().equals(entity.getOwnerId())) {</span>
+<span class="fc" id="L177">            throw new ForbiddenOperationException(&quot;Bạn chỉ được thao tác trên dữ liệu của mình.&quot;);</span>
+        }
+<span class="fc" id="L179">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

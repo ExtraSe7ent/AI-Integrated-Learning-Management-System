@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScheduleServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">ScheduleServiceImpl.java</span></div><h1>ScheduleServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import org.springframework.stereotype.Service;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IScheduleDao;
+import vn.edu.vju.lms.entity.Schedule;
+import vn.edu.vju.lms.service.ScheduleService;
+import vn.edu.vju.lms.wrapper.ScheduleWrapper;
+
+@Service
+public class ScheduleServiceImpl extends AbstractCrudService&lt;Schedule, ScheduleWrapper&gt; implements ScheduleService {
+
+    private final IScheduleDao dao;
+
+<span class="fc" id="L17">    public ScheduleServiceImpl(IScheduleDao dao) {</span>
+<span class="fc" id="L18">        this.dao = dao;</span>
+<span class="fc" id="L19">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, Schedule&gt; dao() {
+<span class="fc" id="L23">        return dao;</span>
+    }
+
+    @Override
+    protected Schedule newEntity() {
+<span class="fc" id="L28">        return new Schedule();</span>
+    }
+
+    @Override
+    protected ScheduleWrapper toWrapper(Schedule entity) {
+<span class="fc" id="L33">        ScheduleWrapper wrapper = new ScheduleWrapper();</span>
+<span class="fc" id="L34">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L35">        wrapper.setClassId(entity.getClassId());</span>
+<span class="fc" id="L36">        wrapper.setDayOfWeek(entity.getDayOfWeek());</span>
+<span class="fc" id="L37">        wrapper.setStartTime(entity.getStartTime());</span>
+<span class="fc" id="L38">        wrapper.setEndTime(entity.getEndTime());</span>
+<span class="fc" id="L39">        wrapper.setRoom(entity.getRoom());</span>
+<span class="fc" id="L40">        wrapper.setPeriodCount(entity.getPeriodCount());</span>
+<span class="fc" id="L41">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(ScheduleWrapper wrapper, Schedule entity) {
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">        if (wrapper.getClassId() != null) {</span>
+<span class="fc" id="L47">            entity.setClassId(wrapper.getClassId());</span>
+        }
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (wrapper.getDayOfWeek() != null) {</span>
+<span class="fc" id="L50">            entity.setDayOfWeek(wrapper.getDayOfWeek());</span>
+        }
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (wrapper.getStartTime() != null) {</span>
+<span class="fc" id="L53">            entity.setStartTime(wrapper.getStartTime());</span>
+        }
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (wrapper.getEndTime() != null) {</span>
+<span class="fc" id="L56">            entity.setEndTime(wrapper.getEndTime());</span>
+        }
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        if (wrapper.getRoom() != null) {</span>
+<span class="fc" id="L59">            entity.setRoom(wrapper.getRoom());</span>
+        }
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (wrapper.getPeriodCount() != null) {</span>
+<span class="fc" id="L62">            entity.setPeriodCount(wrapper.getPeriodCount());</span>
+        }
+<span class="fc" id="L64">    }</span>
+
+    @Override
+    protected String wrapperId(ScheduleWrapper wrapper) {
+<span class="fc" id="L68">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Schedule entity, String id) {
+<span class="fc" id="L73">        entity.setId(id);</span>
+<span class="fc" id="L74">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L78">        return &quot;Không tìm thấy lịch học.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeSave(Schedule entity) {
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        if (entity.getEndTime().compareTo(entity.getStartTime()) &lt;= 0) {</span>
+<span class="fc" id="L84">            throw new BusinessRuleException(&quot;Giờ kết thúc phải sau giờ bắt đầu.&quot;);</span>
+        }
+<span class="fc" id="L86">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

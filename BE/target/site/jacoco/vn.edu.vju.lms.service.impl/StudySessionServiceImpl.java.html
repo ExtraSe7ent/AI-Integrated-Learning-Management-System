@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StudySessionServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">StudySessionServiceImpl.java</span></div><h1>StudySessionServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Objects;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IStudySessionDao;
+import vn.edu.vju.lms.entity.StudySession;
+import vn.edu.vju.lms.security.TeachingScope;
+import vn.edu.vju.lms.service.StudySessionService;
+import vn.edu.vju.lms.wrapper.StudySessionWrapper;
+
+/**
+ * UC-A02. A session opens and closes by itself from its times (BR-01). Once published, students rely on it, so
+ * only its end may move, and only later (AF-1 gia hạn).
+ */
+@Service
+public class StudySessionServiceImpl extends AbstractCrudService&lt;StudySession, StudySessionWrapper&gt; implements StudySessionService {
+
+    static final int TITLE_MAX = 200;
+
+    private final IStudySessionDao dao;
+    private final TeachingScope scope;
+
+<span class="fc" id="L30">    public StudySessionServiceImpl(IStudySessionDao dao, TeachingScope scope) {</span>
+<span class="fc" id="L31">        this.dao = dao;</span>
+<span class="fc" id="L32">        this.scope = scope;</span>
+<span class="fc" id="L33">    }</span>
+
+    @Override
+    protected org.springframework.data.jpa.domain.Specification&lt;StudySession&gt; readScope() {
+<span class="fc" id="L37">        var lessons=scope.readableLessonIds();</span>
+<span class="fc" id="L38">        return (root, query, builder) -&gt; {</span>
+<span class="fc" id="L39">            var owner=builder.or(root.get(&quot;lessonId&quot;).in(lessons),</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">                lessons.contains(TeachingScope.DEFAULT_LESSON)?builder.isNull(root.get(&quot;lessonId&quot;)):builder.disjunction());</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">            return vn.edu.vju.lms.security.UserPrincipal.callerIsStudent()?builder.and(owner,builder.isTrue(root.get(&quot;published&quot;))):owner;</span>
+        };
+    }
+    @Override
+    protected void checkRead(StudySession entity) {
+<span class="fc" id="L46">        scope.requireReadLesson(entity.getLessonId());</span>
+<span class="pc bpc" id="L47" title="3 of 4 branches missed.">        if(vn.edu.vju.lms.security.UserPrincipal.callerIsStudent()&amp;&amp;!Boolean.TRUE.equals(entity.getPublished()))</span>
+<span class="nc" id="L48">            throw new vn.edu.vju.lms.common.exception.ForbiddenOperationException(&quot;Phiên chưa công bố.&quot;);</span>
+<span class="fc" id="L49">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, StudySession&gt; dao() {
+<span class="fc" id="L53">        return dao;</span>
+    }
+
+    @Override
+    protected StudySession newEntity() {
+<span class="fc" id="L58">        return new StudySession();</span>
+    }
+
+    @Override
+    protected StudySessionWrapper toWrapper(StudySession entity) {
+<span class="fc" id="L63">        StudySessionWrapper wrapper = new StudySessionWrapper();</span>
+<span class="fc" id="L64">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L65">        wrapper.setTitle(entity.getTitle());</span>
+<span class="fc" id="L66">        wrapper.setOpens(entity.getOpens());</span>
+<span class="fc" id="L67">        wrapper.setCloses(entity.getCloses());</span>
+<span class="fc" id="L68">        wrapper.setPublished(entity.getPublished());</span>
+<span class="fc" id="L69">        wrapper.setLate(entity.getLate());</span>
+<span class="fc" id="L70">        wrapper.setLessonId(TeachingScope.lessonOr(entity.getLessonId()));</span>
+<span class="fc" id="L71">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(StudySessionWrapper wrapper, StudySession entity) {
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (wrapper.getTitle() != null) {</span>
+<span class="fc" id="L77">            entity.setTitle(wrapper.getTitle().trim());</span>
+        }
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        if (wrapper.getOpens() != null) {</span>
+<span class="fc" id="L80">            entity.setOpens(wrapper.getOpens());</span>
+        }
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (wrapper.getCloses() != null) {</span>
+<span class="fc" id="L83">            entity.setCloses(wrapper.getCloses());</span>
+        }
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (wrapper.getPublished() != null) {</span>
+<span class="fc" id="L86">            entity.setPublished(wrapper.getPublished());</span>
+        }
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        if (wrapper.getLate() != null) {</span>
+<span class="fc" id="L89">            entity.setLate(wrapper.getLate());</span>
+        }
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        if (wrapper.getLessonId() != null) {</span>
+<span class="fc" id="L92">            entity.setLessonId(wrapper.getLessonId().trim());</span>
+        }
+<span class="fc" id="L94">    }</span>
+
+    @Override
+    protected String wrapperId(StudySessionWrapper wrapper) {
+<span class="fc" id="L98">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(StudySession entity, String id) {
+<span class="fc" id="L103">        entity.setId(id);</span>
+<span class="fc" id="L104">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L108">        return &quot;Không tìm thấy phiên tự học.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeCreate(StudySessionWrapper wrapper, StudySession entity) {
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        if (!StringUtils.hasText(entity.getLessonId())) {</span>
+<span class="fc" id="L114">            entity.setLessonId(TeachingScope.DEFAULT_LESSON);</span>
+        }
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (entity.getPublished() == null) {</span>
+<span class="fc" id="L117">            entity.setPublished(false);</span>
+        }
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        if (entity.getLate() == null) {</span>
+<span class="fc" id="L120">            entity.setLate(false);</span>
+        }
+<span class="fc" id="L122">    }</span>
+
+    @Override
+    protected void beforeSave(StudySession entity) {
+<span class="pc bpc" id="L126" title="1 of 4 branches missed.">        if (!StringUtils.hasText(entity.getTitle()) || entity.getTitle().length() &gt; TITLE_MAX) {</span>
+<span class="fc" id="L127">            throw new BusinessRuleException(&quot;Tên phiên tự học bắt buộc và tối đa &quot; + TITLE_MAX + &quot; ký tự.&quot;);</span>
+        }
+<span class="fc" id="L129">        LocalDateTime opens = parse(entity.getOpens(), &quot;bắt đầu&quot;);</span>
+<span class="fc" id="L130">        LocalDateTime closes = parse(entity.getCloses(), &quot;kết thúc&quot;);</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (!closes.isAfter(opens)) {</span>
+<span class="fc" id="L132">            throw new BusinessRuleException(&quot;Thời điểm đóng phải sau thời điểm mở.&quot;);</span>
+        }
+<span class="fc" id="L134">        scope.requireLesson(entity.getLessonId());</span>
+<span class="fc" id="L135">    }</span>
+
+    @Override
+    @Transactional
+    public StudySessionWrapper update(String id, StudySessionWrapper wrapper) {
+<span class="fc" id="L140">        StudySession current = require(id);</span>
+<span class="fc" id="L141">        scope.requireLesson(current.getLessonId());</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (Boolean.TRUE.equals(current.getPublished())) {</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            boolean changed = changes(wrapper.getTitle(), current.getTitle())</span>
+<span class="fc bfc" id="L144" title="All 2 branches covered.">                    || changes(wrapper.getOpens(), current.getOpens())</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">                    || changes(wrapper.getLessonId(), TeachingScope.lessonOr(current.getLessonId()))</span>
+<span class="fc bfc" id="L146" title="All 4 branches covered.">                    || (wrapper.getLate() != null &amp;&amp; !wrapper.getLate().equals(current.getLate()));</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">            if (changed) {</span>
+<span class="fc" id="L148">                throw new BusinessRuleException(&quot;Phiên đã công bố chỉ được gia hạn thời gian kết thúc.&quot;);</span>
+            }
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">            if (wrapper.getCloses() != null</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">                    &amp;&amp; parse(wrapper.getCloses(), &quot;kết thúc&quot;).isBefore(parse(current.getCloses(), &quot;kết thúc&quot;))) {</span>
+<span class="fc" id="L152">                throw new BusinessRuleException(&quot;Phiên đã công bố chỉ được gia hạn, không rút ngắn.&quot;);</span>
+            }
+        }
+<span class="fc" id="L155">        return super.update(id, wrapper);</span>
+    }
+
+    @Override
+    protected void checkDelete(StudySession entity) {
+<span class="fc" id="L160">        scope.requireLesson(entity.getLessonId());</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        if (scope.sessionStarted(entity.getId())) {</span>
+<span class="fc" id="L162">            throw new BusinessRuleException(&quot;Phiên đã có sinh viên học, không thể xóa. Hãy ẩn phiên nếu cần.&quot;);</span>
+        }
+<span class="fc" id="L164">    }</span>
+
+    private static boolean changes(String requested, String current) {
+<span class="fc bfc" id="L167" title="All 4 branches covered.">        return requested != null &amp;&amp; !Objects.equals(requested.trim(), current);</span>
+    }
+
+    /** The frontend sends datetime-local values such as 2026-10-16T08:00. */
+    private static LocalDateTime parse(String value, String label) {
+<span class="fc bfc" id="L172" title="All 2 branches covered.">        if (!StringUtils.hasText(value)) {</span>
+<span class="fc" id="L173">            throw new BusinessRuleException(&quot;Thiếu thời điểm &quot; + label + &quot;.&quot;);</span>
+        }
+        try {
+<span class="fc" id="L176">            return LocalDateTime.parse(value);</span>
+<span class="fc" id="L177">        } catch (DateTimeParseException e) {</span>
+<span class="fc" id="L178">            throw new BusinessRuleException(&quot;Thời điểm &quot; + label + &quot; không hợp lệ: &quot; + value);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

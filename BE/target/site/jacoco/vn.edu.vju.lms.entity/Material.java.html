@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Material.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.entity</a> &gt; <span class="el_source">Material.java</span></div><h1>Material.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import lombok.Getter;
+import lombok.Setter;
+
+/** Uploaded teaching file (Django's TeachingMaterial); the bytes live encrypted in private storage. */
+@Entity
+@Table(name = &quot;materials&quot;)
+@Getter
+@Setter
+<span class="fc" id="L16">public class Material {</span>
+
+    public static final String DRAFT = &quot;draft&quot;;
+    public static final String PUBLISHED = &quot;published&quot;;
+    public static final String INDEX_NOT_STARTED = &quot;not_started&quot;;
+    public static final String INDEX_QUEUED = &quot;queued&quot;;
+    public static final String INDEX_PROCESSING = &quot;processing&quot;;
+    public static final String INDEX_READY = &quot;ready&quot;;
+    public static final String INDEX_FAILED = &quot;failed&quot;;
+
+    @Id
+    @Column(length = 100)
+    private String id;
+
+    @Column(name = &quot;class_id&quot;, nullable = false, length = 50)
+    private String classId;
+
+<span class="fc" id="L33">    @Column(name = &quot;week_number&quot;)</span>
+    private int weekNumber = 1;
+
+<span class="fc" id="L36">    @Column(length = 10)</span>
+    private String kind = &quot;pdf&quot;;
+
+    @Column(nullable = false)
+    private String title;
+
+<span class="fc" id="L42">    @Column(length = 20)</span>
+    private String status = DRAFT;
+
+<span class="fc" id="L45">    @Column(name = &quot;index_status&quot;, length = 20)</span>
+    private String indexStatus = INDEX_NOT_STARTED;
+
+    @Column(name = &quot;index_started_at&quot;)
+    private Instant indexStartedAt;
+
+<span class="fc" id="L51">    @Column(name = &quot;index_error&quot;, length = 500)</span>
+    private String indexError = &quot;&quot;;
+
+    @Column(name = &quot;current_version&quot;)
+    private int currentVersion;
+
+    @Column(name = &quot;uploaded_by&quot;, length = 50)
+    private String uploadedBy;
+
+    @Column(name = &quot;published_at&quot;)
+    private Instant publishedAt;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HibernateGenericDao.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.common.dao</a> &gt; <span class="el_source">HibernateGenericDao.java</span></div><h1>HibernateGenericDao.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.common.dao;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.query.QueryUtils;
+
+/** EntityManager-based DAO shared by every entity; subclasses add their own JPQL queries. */
+public abstract class HibernateGenericDao&lt;K, T&gt; implements IGenericDao&lt;K, T&gt; {
+
+    @PersistenceContext
+    protected EntityManager entityManager;
+
+    private final Class&lt;T&gt; type;
+
+<span class="fc" id="L28">    protected HibernateGenericDao(Class&lt;T&gt; type) {</span>
+<span class="fc" id="L29">        this.type = type;</span>
+<span class="fc" id="L30">    }</span>
+
+    @Override
+    public Optional&lt;T&gt; findById(K id) {
+<span class="fc" id="L34">        return Optional.ofNullable(entityManager.find(type, id));</span>
+    }
+
+    @Override
+    public List&lt;T&gt; findAll() {
+<span class="fc" id="L39">        return entityManager.createQuery(&quot;SELECT e FROM &quot; + type.getSimpleName() + &quot; e&quot;, type).getResultList();</span>
+    }
+
+    @Override
+    public Page&lt;T&gt; findAll(Specification&lt;T&gt; specification, Pageable pageable) {
+<span class="fc" id="L44">        CriteriaBuilder builder = entityManager.getCriteriaBuilder();</span>
+<span class="fc" id="L45">        CriteriaQuery&lt;T&gt; query = builder.createQuery(type);</span>
+<span class="fc" id="L46">        Root&lt;T&gt; root = query.from(type);</span>
+<span class="fc" id="L47">        Predicate predicate = specification.toPredicate(root, query, builder);</span>
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">        if (predicate != null) {</span>
+<span class="fc" id="L49">            query.where(predicate);</span>
+        }
+<span class="fc" id="L51">        query.orderBy(QueryUtils.toOrders(pageable.getSort(), root, builder));</span>
+<span class="fc" id="L52">        TypedQuery&lt;T&gt; typed = entityManager.createQuery(query);</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        if (pageable.isPaged()) {</span>
+<span class="fc" id="L54">            typed.setFirstResult((int) pageable.getOffset()).setMaxResults(pageable.getPageSize());</span>
+        }
+<span class="fc" id="L56">        return new PageImpl&lt;&gt;(typed.getResultList(), pageable, count(specification));</span>
+    }
+
+    private long count(Specification&lt;T&gt; specification) {
+<span class="fc" id="L60">        CriteriaBuilder builder = entityManager.getCriteriaBuilder();</span>
+<span class="fc" id="L61">        CriteriaQuery&lt;Long&gt; query = builder.createQuery(Long.class);</span>
+<span class="fc" id="L62">        Root&lt;T&gt; root = query.from(type);</span>
+<span class="fc" id="L63">        Predicate predicate = specification.toPredicate(root, query, builder);</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        if (predicate != null) {</span>
+<span class="fc" id="L65">            query.where(predicate);</span>
+        }
+<span class="fc" id="L67">        return entityManager.createQuery(query.select(builder.count(root))).getSingleResult();</span>
+    }
+
+    @Override
+    public T persist(T entity) {
+<span class="fc" id="L72">        entityManager.persist(entity);</span>
+<span class="fc" id="L73">        return entity;</span>
+    }
+
+    @Override
+    public T merge(T entity) {
+<span class="fc" id="L78">        return entityManager.merge(entity);</span>
+    }
+
+    @Override
+    public void remove(T entity) {
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        entityManager.remove(entityManager.contains(entity) ? entity : entityManager.merge(entity));</span>
+<span class="fc" id="L84">    }</span>
+
+    @Override
+    public long count() {
+<span class="fc" id="L88">        return entityManager.createQuery(&quot;SELECT COUNT(e) FROM &quot; + type.getSimpleName() + &quot; e&quot;, Long.class)</span>
+<span class="fc" id="L89">                .getSingleResult();</span>
+    }
+
+    protected List&lt;T&gt; list(String jpql, Map&lt;String, ?&gt; parameters) {
+<span class="fc" id="L93">        TypedQuery&lt;T&gt; query = entityManager.createQuery(jpql, type);</span>
+<span class="fc" id="L94">        parameters.forEach(query::setParameter);</span>
+<span class="fc" id="L95">        return query.getResultList();</span>
+    }
+
+    protected Optional&lt;T&gt; single(String jpql, Map&lt;String, ?&gt; parameters) {
+<span class="fc" id="L99">        TypedQuery&lt;T&gt; query = entityManager.createQuery(jpql, type).setMaxResults(1);</span>
+<span class="fc" id="L100">        parameters.forEach(query::setParameter);</span>
+        try {
+<span class="fc" id="L102">            return Optional.of(query.getSingleResult());</span>
+<span class="fc" id="L103">        } catch (NoResultException e) {</span>
+<span class="fc" id="L104">            return Optional.empty();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

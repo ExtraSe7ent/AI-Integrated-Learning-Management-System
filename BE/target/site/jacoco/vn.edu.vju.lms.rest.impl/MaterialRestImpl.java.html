@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MaterialRestImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.rest.impl</a> &gt; <span class="el_source">MaterialRestImpl.java</span></div><h1>MaterialRestImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.rest.impl;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import vn.edu.vju.lms.rest.MaterialRest;
+import vn.edu.vju.lms.service.MaterialService;
+import vn.edu.vju.lms.wrapper.MaterialWrapper;
+
+@RestController
+public class MaterialRestImpl implements MaterialRest {
+
+    private final MaterialService service;
+
+<span class="fc" id="L25">    public MaterialRestImpl(MaterialService service) {</span>
+<span class="fc" id="L26">        this.service = service;</span>
+<span class="fc" id="L27">    }</span>
+
+    @Override
+    public ResponseEntity&lt;MaterialWrapper&gt; upload(String classId, String title, int weekNumber, MultipartFile file) {
+<span class="fc" id="L31">        return ResponseEntity.status(HttpStatus.CREATED).body(service.upload(classId, title, weekNumber, file));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;MaterialWrapper&gt; addVersion(String id, MultipartFile file) {
+<span class="fc" id="L36">        return ResponseEntity.status(HttpStatus.CREATED).body(service.addVersion(id, file));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;List&lt;MaterialWrapper&gt;&gt; list(String classId) {
+<span class="fc" id="L41">        return ResponseEntity.ok(service.listByClass(classId));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;MaterialWrapper&gt; publish(String id) {
+<span class="fc" id="L46">        return ResponseEntity.ok(service.publish(id));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;MaterialWrapper&gt; unpublish(String id) {
+<span class="fc" id="L51">        return ResponseEntity.ok(service.unpublish(id));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;MaterialWrapper&gt; index(String id) {
+<span class="fc" id="L56">        return ResponseEntity.accepted().body(service.requestIndex(id));</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;StreamingResponseBody&gt; file(String id) {
+<span class="fc" id="L61">        String name = service.fileName(id);</span>
+        // The body runs on another thread, which does not inherit the caller's security context.
+<span class="fc" id="L63">        SecurityContext context = SecurityContextHolder.getContext();</span>
+<span class="fc" id="L64">        StreamingResponseBody body = out -&gt; {</span>
+<span class="fc" id="L65">            SecurityContextHolder.setContext(context);</span>
+            try {
+<span class="fc" id="L67">                service.writeFile(id, out);</span>
+            } finally {
+<span class="fc" id="L69">                SecurityContextHolder.clearContext();</span>
+            }
+<span class="fc" id="L71">        };</span>
+<span class="fc" id="L72">        return ResponseEntity.ok()</span>
+<span class="fc" id="L73">                .contentType(MediaTypeFactory.getMediaType(name).orElse(MediaType.APPLICATION_OCTET_STREAM))</span>
+<span class="fc" id="L74">                .header(HttpHeaders.CONTENT_DISPOSITION,</span>
+<span class="fc" id="L75">                        ContentDisposition.inline().filename(name, StandardCharsets.UTF_8).build().toString())</span>
+<span class="fc" id="L76">                .body(body);</span>
+    }
+
+    @Override
+    public ResponseEntity&lt;Void&gt; delete(String id) {
+<span class="fc" id="L81">        service.delete(id);</span>
+<span class="fc" id="L82">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

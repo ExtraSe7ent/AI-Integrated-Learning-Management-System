@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Plus,
   CalendarDays,
@@ -11,10 +11,14 @@ import {
 import { useDemo } from "../data/DemoProvider";
 import type { Session } from "../data/fixtures";
 import { sessionState } from "../data/rules";
+import { lessonOf, lessonTitle, pagesOf, questionsOf } from "../data/content";
+import { useScope } from "../shared/useScope";
 import { PageHeader, Panel, Button, Badge, Field, Dialog } from "../shared/UI";
 import { CourseContext } from "../shared/CourseComponents";
 export function PhienTuHoc() {
   const { data, setData, notify } = useDemo();
+  const { lessons } = useScope();
+  const [params] = useSearchParams();
   const [edit, setEdit] = useState<Session | null>(null);
   const [error, setError] = useState("");
   return (
@@ -33,6 +37,7 @@ export function PhienTuHoc() {
                 closes: "2026-10-23T23:59",
                 published: false,
                 late: false,
+                lessonId: lessons.find(l => l.id === params.get("bai"))?.id ?? lessons[0]?.id ?? "l2",
               });
             }}
           >
@@ -63,7 +68,11 @@ export function PhienTuHoc() {
                   <tr key={s.id}>
                     <td>
                       <strong>{s.title}</strong>
-                      <p>4 trang · 3 câu hỏi · CSE301</p>
+                      <p>
+                        {lessonTitle(data, lessonOf(s))} ·{" "}
+                        {pagesOf(data.lessons.find((l) => l.id === lessonOf(s))).length} trang ·{" "}
+                        {questionsOf(data.questions, lessonOf(s)).length} câu hỏi
+                      </p>
                     </td>
                     <td>
                       <div className="date-lines">
@@ -113,10 +122,12 @@ export function PhienTuHoc() {
                           onClick={() => {
                             if (
                               !s.published &&
-                              data.questions.some((q) => !q.approved)
+                              questionsOf(data.questions, lessonOf(s)).some(
+                                (q) => !q.approved,
+                              )
                             ) {
                               notify(
-                                "Cần duyệt câu hỏi AI trước khi công bố phiên.",
+                                "Cần duyệt câu hỏi của bài học trước khi công bố phiên.",
                               );
                               return;
                             }
@@ -196,8 +207,17 @@ export function PhienTuHoc() {
               />
             </Field>
             <Field label="Bài học">
-              <select disabled={edit.published}>
-                <option>Thiết kế RESTful API</option>
+              <select
+                aria-label="Bài học của phiên"
+                disabled={edit.published}
+                value={lessonOf(edit)}
+                onChange={(e) => setEdit({ ...edit, lessonId: e.target.value })}
+              >
+                {lessons.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.title}
+                  </option>
+                ))}
               </select>
             </Field>
             <div className="form-grid">

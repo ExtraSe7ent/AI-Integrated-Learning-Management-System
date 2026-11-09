@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JsonConverters.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.common.jpa</a> &gt; <span class="el_source">JsonConverters.java</span></div><h1>JsonConverters.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.common.jpa;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
+import java.util.List;
+import java.util.Map;
+import vn.edu.vju.lms.entity.ExamQuestion;
+
+/** JSON-in-TEXT columns, the same way the Django models used JSONField (and portable to H2). */
+public final class JsonConverters {
+
+<span class="fc" id="L15">    private static final ObjectMapper MAPPER = new ObjectMapper();</span>
+
+    private JsonConverters() {
+    }
+
+    private abstract static class Base&lt;T&gt; implements AttributeConverter&lt;T, String&gt; {
+
+        private final TypeReference&lt;T&gt; type;
+
+<span class="fc" id="L24">        Base(TypeReference&lt;T&gt; type) {</span>
+<span class="fc" id="L25">            this.type = type;</span>
+<span class="fc" id="L26">        }</span>
+
+        @Override
+        public String convertToDatabaseColumn(T value) {
+            try {
+<span class="fc bfc" id="L31" title="All 2 branches covered.">                return value == null ? null : MAPPER.writeValueAsString(value);</span>
+<span class="nc" id="L32">            } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L33">                throw new IllegalArgumentException(&quot;Không ghi được JSON&quot;, e);</span>
+            }
+        }
+
+        @Override
+        public T convertToEntityAttribute(String json) {
+            try {
+<span class="fc bfc" id="L40" title="All 2 branches covered.">                return json == null ? null : MAPPER.readValue(json, type);</span>
+<span class="nc" id="L41">            } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L42">                throw new IllegalArgumentException(&quot;Không đọc được JSON&quot;, e);</span>
+            }
+        }
+    }
+
+    @Converter
+    public static class StringList extends Base&lt;List&lt;String&gt;&gt; {
+        public StringList() {
+<span class="fc" id="L50">            super(new TypeReference&lt;&gt;() { });</span>
+<span class="fc" id="L51">        }</span>
+    }
+
+    @Converter
+    public static class IntegerList extends Base&lt;List&lt;Integer&gt;&gt; {
+        public IntegerList() {
+<span class="fc" id="L57">            super(new TypeReference&lt;&gt;() { });</span>
+<span class="fc" id="L58">        }</span>
+    }
+
+    @Converter
+    public static class DoubleList extends Base&lt;List&lt;Double&gt;&gt; {
+        public DoubleList() {
+<span class="fc" id="L64">            super(new TypeReference&lt;&gt;() { });</span>
+<span class="fc" id="L65">        }</span>
+    }
+
+    @Converter
+    public static class ExamQuestionList extends Base&lt;List&lt;ExamQuestion&gt;&gt; {
+        public ExamQuestionList() {
+<span class="fc" id="L71">            super(new TypeReference&lt;&gt;() { });</span>
+<span class="fc" id="L72">        }</span>
+    }
+
+    @Converter
+    public static class PracticeAttemptList extends Base&lt;List&lt;vn.edu.vju.lms.entity.PracticeAttempt&gt;&gt; {
+<span class="fc" id="L77">        public PracticeAttemptList() { super(new TypeReference&lt;&gt;() { }); }</span>
+    }
+
+    @Converter
+    public static class IntegerMap extends Base&lt;Map&lt;String, Integer&gt;&gt; {
+        public IntegerMap() {
+<span class="fc" id="L83">            super(new TypeReference&lt;&gt;() { });</span>
+<span class="fc" id="L84">        }</span>
+    }
+
+    @Converter
+    public static class ObjectMap extends Base&lt;Map&lt;String, Object&gt;&gt; {
+        public ObjectMap() {
+<span class="fc" id="L90">            super(new TypeReference&lt;&gt;() { });</span>
+<span class="fc" id="L91">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

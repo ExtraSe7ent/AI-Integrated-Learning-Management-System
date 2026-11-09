@@ -1,5 +1,9 @@
 import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { lessonOf, pagesOf } from "../data/content";
+import { useScope } from "../shared/useScope";
 import {
+  ArrowLeft,
   Plus,
   Sparkles,
   Upload,
@@ -10,6 +14,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
+import { suggestQuestions } from "../api/learning";
 import type { Question } from "../data/fixtures";
 import {
   PageHeader,
@@ -24,8 +29,16 @@ import { CourseContext } from "../shared/CourseComponents";
 import { exportWorkbook } from "../shared/Grades";
 export function CauHoi() {
   const { data, setData, notify } = useDemo();
+  const [params] = useSearchParams();
+  const { lessons } = useScope();
+  const [lessonId, setLessonId] = useState(params.get("bai") || lessons[0]?.id || "l2");
   const [query, setQuery] = useState(""),
     [edit, setEdit] = useState<Question | null>(null);
+  const lesson = data.lessons.find((l) => l.id === lessonId);
+  // 0 means the lesson has no slide titles yet, so any page number is accepted (as on the server).
+  const pageCount = pagesOf(lesson).length;
+  const pageOk = (page: number) =>
+    Number.isInteger(page) && page >= 1 && (!pageCount || page <= pageCount);
   function create() {
     setEdit({
       id: "new",
@@ -35,6 +48,7 @@ export function CauHoi() {
       explanation: "",
       page: 1,
       approved: true,
+      lessonId,
     });
   }
   async function exportQuestions() {
@@ -42,7 +56,7 @@ export function CauHoi() {
       await exportWorkbook(
         "Cau-hoi",
         ["Câu hỏi", "A", "B", "C", "D", "Đáp án (0–3)", "Trang", "Giải thích"],
-        data.questions.map((q) => [
+        data.questions.filter((q) => lessonOf(q) === lessonId).map((q) => [
           q.text,
           ...q.options,
           q.correct,
@@ -92,6 +106,7 @@ export function CauHoi() {
           page: Number(r[6]),
           explanation: String(r[7] || ""),
           approved: false,
+          lessonId,
         }));
       if (
         !imported.length ||
@@ -102,9 +117,7 @@ export function CauHoi() {
             !Number.isInteger(q.correct) ||
             q.correct < 0 ||
             q.correct > 3 ||
-            !Number.isInteger(q.page) ||
-            q.page < 1 ||
-            q.page > 4,
+            !pageOk(q.page),
         )
       )
         throw Error("format");
@@ -118,11 +131,21 @@ export function CauHoi() {
       );
     }
   }
-  const items = data.questions.filter((q) =>
-    q.text.toLowerCase().includes(query.toLowerCase()),
+  const items = data.questions.filter(
+    (q) =>
+      lessonOf(q) === lessonId &&
+      q.text.toLowerCase().includes(query.toLowerCase()),
   );
+  const currentLesson = data.lessons.find((l) => l.id === lessonId);
   return (
     <>
+      {currentLesson && (
+        <div className="back-link">
+          <Link to={`/giang-vien/soan-bai?bai=${currentLesson.id}`}>
+            <ArrowLeft size={14} /> Quay lại soạn bài “{currentLesson.title}”
+          </Link>
+        </div>
+      )}
       <PageHeader
         title="Ngân hàng câu hỏi"
         description="Soạn câu hỏi theo trang, dùng lại cho tự học và hỏi trên lớp."
@@ -130,30 +153,41 @@ export function CauHoi() {
           <div className="row-actions">
             <Button
               variant="secondary"
-              onClick={() => {
-                setData((d) => ({
-                  ...d,
-                  questions: [
-                    ...d.questions,
-                    {
-                      id: crypto.randomUUID(),
-                      text: "Khi cập nhật một phần tài nguyên, HTTP method nào phù hợp?",
-                      options: ["GET", "PATCH", "HEAD", "OPTIONS"],
-                      correct: 1,
-                      explanation:
-                        "PATCH cập nhật một phần biểu diễn tài nguyên.",
-                      page: 4,
-                      approved: false,
-                    },
-                  ],
-                }));
-                notify(
-                  "Đã thêm câu gợi ý mẫu. Hãy rà soát trước khi duyệt; chưa gọi AI thật.",
-                );
+              onClick={async () => {
+                try {
+                  const items = await suggestQuestions({
+                    courseId:
+                      data.admin.classes.find((c) => c.id === currentLesson?.classId)?.courseId ??
+                      data.admin.courses[0]?.id ??
+                      "",
+                    fromPage: 1,
+                    toPage: pageCount || undefined,
+                    round: data.questions.length,
+                  });
+                  setData((d) => ({
+                    ...d,
+                    questions: [
+                      ...d.questions,
+                      ...items.map((q) => ({
+                        id: crypto.randomUUID(),
+                        text: q.title,
+                        options: q.options ?? [],
+                        correct: q.options?.indexOf(q.answer) ?? 0,
+                        explanation: q.explanation,
+                        page: q.page,
+                        approved: false,
+                        lessonId,
+                      })),
+                    ],
+                  }));
+                  notify("Đã thêm câu AI gợi ý. Hãy rà soát trước khi duyệt.");
+                } catch (e) {
+                  notify((e as Error).message);
+                }
               }}
             >
               <Sparkles size={17} />
-              AI gợi ý mẫu
+              AI gợi ý câu hỏi
             </Button>
             <Button onClick={create}>
               <Plus size={17} />
@@ -164,6 +198,19 @@ export function CauHoi() {
       />
       <CourseContext />
       <div className="toolbar">
+        <Field label="Bài học">
+          <select
+            aria-label="Bài học"
+            value={lessonId}
+            onChange={(e) => setLessonId(e.target.value)}
+          >
+            {lessons.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.title}
+              </option>
+            ))}
+          </select>
+        </Field>
         <SearchField
           value={query}
           onChange={setQuery}
@@ -263,6 +310,14 @@ export function CauHoi() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              if (new Set(edit.options.map((o) => o.trim().toLowerCase())).size !== 4) {
+                notify("Bốn đáp án A–D không được trùng nhau.");
+                return;
+              }
+              if (!pageOk(edit.page)) {
+                notify(`Trang phải từ 1 đến ${pageCount}.`);
+                return;
+              }
               setData((d) => ({
                 ...d,
                 questions:
@@ -318,7 +373,7 @@ export function CauHoi() {
                 <input
                   type="number"
                   min={1}
-                  max={4}
+                  max={pageCount || undefined}
                   required
                   value={edit.page}
                   onChange={(e) =>

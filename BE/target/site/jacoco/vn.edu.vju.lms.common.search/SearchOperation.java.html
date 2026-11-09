@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SearchOperation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.common.search</a> &gt; <span class="el_source">SearchOperation.java</span></div><h1>SearchOperation.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.common.search;
+
+<span class="fc" id="L3">public enum SearchOperation {</span>
+<span class="fc" id="L4">    EQUALITY, NEGATION, GREATER_THAN, LESS_THAN, LIKE;</span>
+
+    public static SearchOperation fromSymbol(char symbol) {
+<span class="fc bfc" id="L7" title="All 6 branches covered.">        return switch (symbol) {</span>
+<span class="fc" id="L8">            case ':' -&gt; EQUALITY;</span>
+<span class="fc" id="L9">            case '!' -&gt; NEGATION;</span>
+<span class="fc" id="L10">            case '&gt;' -&gt; GREATER_THAN;</span>
+<span class="fc" id="L11">            case '&lt;' -&gt; LESS_THAN;</span>
+<span class="fc" id="L12">            case '~' -&gt; LIKE;</span>
+<span class="fc" id="L13">            default -&gt; throw new IllegalArgumentException(&quot;Toán tử tìm kiếm không hợp lệ: &quot; + symbol);</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

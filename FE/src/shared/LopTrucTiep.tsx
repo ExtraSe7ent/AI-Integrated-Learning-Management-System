@@ -12,27 +12,49 @@ import {
   SkipForward,
   BarChart3,
   WifiOff,
+  Square,
 } from "lucide-react";
 import { useDemo } from "../data/DemoProvider";
+import { useAccount } from "./AccountProvider";
+import { useScope } from "./useScope";
+import { questionsOf } from "../data/content";
+import { answerLive, joinLive, revealLive, showQuestion, startLive, stopLive } from "../api/live";
+import type { LiveState } from "../api/live";
 import { PageHeader, Panel, Button, Badge, Field, Journey } from "./UI";
 import { CourseContext } from "./CourseComponents";
+import { LiveResults } from "./LiveResults";
+
+const SECONDS = 45;
+
+/** UC-C01–C03. The server owns the code, the timer, who may join and every answer; this screen only shows them. */
 export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
   const { data, setData, notify } = useDemo();
+  const { account } = useAccount();
+  const { classes, lessons } = useScope();
   const [params] = useSearchParams();
+  const live = data.live;
+  const me = account?.id ?? "";
   const [code, setCode] = useState(params.get("code") || ""),
-    [joined, setJoined] = useState(false),
     [error, setError] = useState(""),
     [selected, setSelected] = useState<number>(),
     [qr, setQr] = useState(""),
     [now, setNow] = useState(Date.now()),
-    [offline, setOffline] = useState(!navigator.onLine);
-  const live = data.live,
-    questions = data.questions.filter((q) => q.approved),
-    q = questions[live.question % Math.max(questions.length, 1)];
+    [busy, setBusy] = useState(false),
+    [offline, setOffline] = useState(!navigator.onLine),
+    [classId, setClassId] = useState(live.classId || classes[0]?.id || ""),
+    [questionId, setQuestionId] = useState("");
+  // Approved questions of the lessons of the chosen class (UC-C01 "chọn câu hỏi từ danh sách đã tạo").
+  const lessonIds = lessons.filter((l) => (l.classId || "CSE301.01") === classId).map((l) => l.id);
+  const bank = lessonIds.flatMap((id) => questionsOf(data.questions, id)).filter((q) => q.approved);
+  const nextQuestion = questionId || bank.find((q) => q.id !== live.questionId)?.id || bank[0]?.id || "";
+  const q = live.current;
   const left = Math.max(0, Math.ceil((live.expiresAt - now) / 1000));
-  const own = live.answers.sv1;
-  const participants=live.participants||[];
-  useEffect(()=>setSelected(undefined),[live.question,live.expiresAt]);
+  const own = live.answers[me];
+  const joined = (live.participants || []).includes(me);
+  const answered = live.answered ?? 0;
+  const className = (id?: string) => data.admin.classes.find((c) => c.id === id)?.name ?? id ?? "";
+
+  useEffect(() => setSelected(undefined), [live.question, live.expiresAt]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -47,71 +69,38 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
     };
   }, []);
   useEffect(() => {
+    if (!teacher || !live.code) return;
     let active = true;
-    void QRCode.toDataURL(
-      `${location.origin}/sinh-vien/tren-lop?code=${live.code}`,
-      { margin: 1, width: 150, color: { dark: "#87252c" } },
-    ).then((url) => {
+    void QRCode.toDataURL(`${location.origin}/sinh-vien/tren-lop?code=${live.code}`, {
+      margin: 1,
+      width: 150,
+      color: { dark: "#87252c" },
+    }).then((url) => {
       if (active) setQr(url);
     });
     return () => {
       active = false;
     };
-  }, [live.code]);
-  useEffect(() => {
-    if (!live.active || live.revealed) return;
-    if (left === 0 && live.expiresAt) {
-      setData((d) => ({
-        ...d,
-        live: {
-          ...d.live,
-          revealed: true,
-          answers:Object.fromEntries((d.live.participants||[]).map(id=>[id,d.live.answers[id]??-1])),
-        },
-      }));
-    } else if (participants.length>0&&participants.every(id=>live.answers[id]!==undefined))
-      setData((d) => ({ ...d, live: { ...d.live, revealed: true } }));
-  }, [
-    left,
-    live.active,
-    live.revealed,
-    live.expiresAt,
-    live.answers,
-    joined,
-    teacher,
-    setData,
-  ]);
-  function start() {
-    if (!questions.length) {
-      notify("Cần ít nhất một câu hỏi đã duyệt.");
-      return;
+  }, [live.code, teacher]);
+
+  /** Server replies replace the local copy; the 2-second poll in DemoProvider keeps every device in step. */
+  async function run(action: () => Promise<LiveState>) {
+    setBusy(true);
+    try {
+      const next = await action();
+      setData((d) => ({ ...d, live: next }));
+      setError("");
+      return true;
+    } catch (e) {
+      const message = (e as Error).message;
+      if (teacher) notify(message);
+      else setError(message);
+      return false;
+    } finally {
+      setBusy(false);
     }
-    setData((d) => ({
-      ...d,
-      live: {
-        ...d.live,
-        active: true,
-        participants:[],
-        revealed: false,
-        answers: {},
-        expiresAt: Date.now() + 45000,
-      },
-    }));
-    setSelected(undefined);
   }
-  function next() {
-    setData((d) => ({
-      ...d,
-      live: {
-        ...d.live,
-        question: d.live.question + 1,
-        revealed: false,
-        answers: {},
-        expiresAt: Date.now() + 45000,
-      },
-    }));
-    setSelected(undefined);
-  }
+
   return (
     <>
       <PageHeader
@@ -127,7 +116,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
       {offline && (
         <div className="info-line" role="status">
           <WifiOff size={17} />
-          Bạn đang ngoại tuyến. Kiểm tra kết nối trước khi tiếp tục.
+          Bạn đang ngoại tuyến. Kết nối lại trước khi hết giờ vẫn trả lời được.
         </div>
       )}
       {!teacher && !joined ? (
@@ -141,15 +130,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (code !== live.code || !live.active) {
-                  setError(
-                    "Mã phiên không đúng hoặc phiên chưa mở. Hãy kiểm tra lại với giảng viên.",
-                  );
-                  return;
-                }
-                setData(d=>({...d,live:{...d.live,participants:[...new Set([...(d.live.participants||[]),"sv1"])]}}));
-                setJoined(true);
-                setError("");
+                void run(() => joinLive(code));
               }}
             >
               <Field label="Mã phiên gồm 6 chữ số">
@@ -169,7 +150,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
                   {error}
                 </p>
               )}
-              <Button>
+              <Button disabled={busy}>
                 Tham gia phiên
                 <ArrowRight size={17} />
               </Button>
@@ -182,10 +163,7 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
               <br />
               qua từng câu hỏi.
             </h3>
-            <p>
-              Chọn câu trả lời của bạn. Cả lớp cùng nhìn lại kết quả sau mỗi
-              lượt.
-            </p>
+            <p>Chọn câu trả lời của bạn. Cả lớp cùng nhìn lại kết quả sau mỗi lượt.</p>
           </div>
         </div>
       ) : (
@@ -197,146 +175,184 @@ export function LopTrucTiep({ teacher = false }: { teacher?: boolean }) {
               </Badge>
               <span>
                 <Clock3 size={18} />
-                {left}s
+                {live.active ? left : 0}s
               </span>
               {teacher && (
                 <button
                   className="icon-button"
                   aria-label="Toàn màn hình câu hỏi"
-                  onClick={() =>
-                    document.querySelector(".live-board")?.requestFullscreen()
-                  }
+                  onClick={() => document.querySelector(".live-board")?.requestFullscreen()}
                 >
                   <Maximize2 size={18} />
                 </button>
               )}
             </div>
-            <span className="muted">Câu {live.question + 1} · CSE301</span>
-            <h2>{q?.text || "Chưa có câu hỏi được duyệt"}</h2>
+            <span className="muted">
+              Câu {live.question || 1}
+              {live.classId && ` · ${className(live.classId)}`}
+            </span>
+            <h2>{q?.text || (teacher ? "Chọn lớp và câu hỏi rồi bấm Bắt đầu phiên" : "Chờ giảng viên chiếu câu hỏi")}</h2>
             <div className="live-options">
               {q?.options.map((o, i) => (
                 <button
                   key={i}
-                  disabled={
-                    teacher ||
-                    !live.active ||
-                    live.revealed ||
-                    own !== undefined ||
-                    !left
-                  }
-                  className={`${selected === i ? "chosen" : ""} ${live.revealed && q.correct === i ? "correct-option" : ""}`}
+                  disabled={teacher || !live.active || live.revealed || own !== undefined || !left}
+                  className={`${selected === i || own === i ? "chosen" : ""} ${live.revealed && live.correct === i ? "correct-option" : ""}`}
                   onClick={() => setSelected(i)}
                 >
                   <b>{String.fromCharCode(65 + i)}</b>
                   <span>{o}</span>
-                  {live.revealed && q.correct === i && (
-                    <CheckCircle2 size={20} />
-                  )}
+                  {live.revealed && live.correct === i && <CheckCircle2 size={20} />}
                 </button>
               ))}
             </div>
             {teacher ? (
-              <div className="row-actions">
-                {!live.active ? (
-                  <Button onClick={start}>
-                    <Play size={17} />
-                    Bắt đầu phiên
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        setData((d) => ({
-                          ...d,
-                          live: { ...d.live, revealed: true },
-                        }))
-                      }
-                    >
-                      <BarChart3 size={17} />
-                      Hiện đáp án
-                    </Button>
-                    <Button onClick={next}>
-                      Câu tiếp theo
-                      <SkipForward size={17} />
-                    </Button>
-                  </>
+              <div className="live-controls">
+                {!live.active && (
+                  <Field label="Lớp">
+                    <select aria-label="Lớp chiếu câu hỏi" value={classId} onChange={(e) => setClassId(e.target.value)}>
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                 )}
+                <Field label={live.active ? "Câu tiếp theo" : "Câu hỏi"}>
+                  <select
+                    aria-label="Câu hỏi chiếu lên lớp"
+                    value={nextQuestion}
+                    onChange={(e) => setQuestionId(e.target.value)}
+                  >
+                    {bank.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        Trang {x.page} · {x.text}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="row-actions">
+                  {!live.active ? (
+                    <Button
+                      disabled={busy || !classId || !nextQuestion}
+                      onClick={() => {
+                        if (!bank.length) {
+                          notify("Lớp này chưa có câu hỏi đã duyệt.");
+                          return;
+                        }
+                        void run(() => startLive(classId, nextQuestion, SECONDS));
+                      }}
+                    >
+                      <Play size={17} />
+                      Bắt đầu phiên
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="secondary" disabled={busy || live.revealed} onClick={() => void run(revealLive)}>
+                        <BarChart3 size={17} />
+                        Hiện đáp án
+                      </Button>
+                      <Button
+                        disabled={busy || !nextQuestion}
+                        onClick={() => {
+                          void run(() => showQuestion(nextQuestion, SECONDS)).then((ok) => ok && setQuestionId(""));
+                        }}
+                      >
+                        Đổi câu hỏi
+                        <SkipForward size={17} />
+                      </Button>
+                      <Button variant="secondary" disabled={busy} onClick={() => void run(stopLive)}>
+                        <Square size={15} />
+                        Kết thúc phiên
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="live-submit">
                 {own !== undefined ? (
                   <Badge tone={own === -1 ? "amber" : "green"}>
-                    {own === -1
-                      ? "Hết giờ · Chưa trả lời"
-                      : "Đã gửi câu trả lời"}
+                    {own === -1 ? "Hết giờ · Không trả lời" : "Đã gửi"}
                   </Badge>
                 ) : (
                   <Button
-                    disabled={selected === undefined || !left || live.revealed}
+                    disabled={busy || selected === undefined || !left || live.revealed || !live.active}
                     onClick={() => {
-                      if (selected === undefined) return;
-                      setData((d) => ({
-                        ...d,
-                        live: {
-                          ...d.live,
-                          answers: { ...d.live.answers, sv1: selected },
-                        },
-                      }));
+                      if (selected !== undefined) void run(() => answerLive(selected));
                     }}
                   >
-                    Xác nhận câu trả lời
+                    Xác nhận
                   </Button>
                 )}
-                {live.revealed && <p>{q?.explanation}</p>}
+                {error && (
+                  <p role="alert" className="error-text">
+                    {error}
+                  </p>
+                )}
+                {live.revealed && live.explanation && <p>{live.explanation}</p>}
               </div>
             )}
           </section>
           <aside>
             <Panel title={teacher ? "Tham gia phiên" : "Thông tin phiên"}>
-              <span className="large-session-code">{live.code}</span>
-              {qr && (
-                <img
-                  className="session-qr"
-                  src={qr}
-                  alt={`QR mở phiên ${live.code}`}
-                />
-              )}
-              <p className="muted">
-                Quét mã QR hoặc nhập mã phiên để tham gia lớp học.
-              </p>
-            </Panel>
-            <Panel title="Kết quả phiên">
-              <p className="answer-count">
-                <Users size={20} />
-                <strong>{Object.values(live.answers).filter(v=>v>=0).length}</strong> câu trả lời
-              </p>
-              {live.revealed && <p>Tỷ lệ đúng: {Object.values(live.answers).filter(v=>v>=0).length?Math.round(Object.values(live.answers).filter(v=>v===q?.correct).length/Object.values(live.answers).filter(v=>v>=0).length*100):0}%</p>}
-              {live.revealed ? (
-                q?.options.map((_, i) => {
-                  const count = Object.values(live.answers).filter(
-                    (v) => v === i,
-                  ).length;
-                  return (
-                    <div className="poll-result" key={i}>
-                      <b>{String.fromCharCode(65 + i)}</b>
-                      <progress
-                        max={Math.max(Object.values(live.answers).filter(v=>v>=0).length, 1)}
-                        value={count}
-                      />
-                      <span>{count}</span>
-                    </div>
-                  );
-                })
+              {teacher ? (
+                live.active && live.code ? (
+                  <>
+                    <span className="large-session-code">{live.code}</span>
+                    {qr && <img className="session-qr" src={qr} alt={`QR mở phiên ${live.code}`} />}
+                    <p className="muted">
+                      Quét mã QR hoặc nhập mã phiên để tham gia. Mã mới được tạo mỗi lần bắt đầu phiên.
+                    </p>
+                    <p className="answer-count">
+                      <Users size={20} />
+                      <strong>{(live.participants || []).length}</strong> sinh viên đã tham gia
+                    </p>
+                  </>
+                ) : (
+                  <p className="muted">Mã phiên và QR xuất hiện khi bắt đầu phiên.</p>
+                )
               ) : (
                 <p className="muted">
-                  Kết quả hiển thị khi hết giờ hoặc giảng viên công bố.
+                  Bạn đã tham gia {live.classId ? `lớp ${className(live.classId)}` : "phiên"}. Câu hỏi tự cập nhật
+                  khi giảng viên chuyển câu.
                 </p>
+              )}
+            </Panel>
+            <Panel title="Kết quả phiên">
+              {teacher && (
+                <p className="answer-count">
+                  <Users size={20} />
+                  <strong>{answered}</strong> câu trả lời
+                </p>
+              )}
+              {live.revealed && q ? (
+                <>
+                  <p>
+                    Tỷ lệ đúng:{" "}
+                    {answered ? Math.round(((live.distribution?.[live.correct ?? -1] ?? 0) / answered) * 100) : 0}% · {answered}{" "}
+                    sinh viên trả lời
+                  </p>
+                  {q.options.map((_, i) => {
+                    const count = live.distribution?.[i] ?? 0;
+                    return (
+                      <div className="poll-result" key={i}>
+                        <b>{String.fromCharCode(65 + i)}</b>
+                        <progress max={Math.max(answered, 1)} value={count} />
+                        <span>{count}</span>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : (
+                <p className="muted">Kết quả hiển thị khi hết giờ, khi cả lớp đã trả lời hoặc giảng viên công bố.</p>
               )}
             </Panel>
           </aside>
         </div>
       )}
+      {teacher && <LiveResults classIds={classes.map((c) => c.id)} />}
     </>
   );
 }

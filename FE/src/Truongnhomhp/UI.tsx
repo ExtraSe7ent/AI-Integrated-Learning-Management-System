@@ -5,9 +5,10 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { useDemo } from "../data/DemoProvider";
-import { courses } from "../data/fixtures";
+import { classLabel, leaderScopeOf } from "../data/scope";
+import { useAccount } from "../shared/AccountProvider";
 import { Empty, Field } from "../shared/UI";
-import { assignedCourses, classes, levels } from "./model";
+import { levels } from "./model";
 const assets = {
   workspace: "dean/2f342.svg",
   dashboard: "course-leader/558d8.svg",
@@ -33,10 +34,13 @@ export function LeaderIcon({ name }: { name: keyof typeof assets }) {
 }
 export function useLeaderScope() {
   const { data, setData, notify } = useDemo();
+  const { account } = useAccount();
   const [params, setParams] = useSearchParams();
-  const courseId = params.get("hp") || "cs301";
-  const course = assignedCourses.includes(courseId)
-    ? courses.find((c) => c.id === courseId)
+  // Assigned by Admin (class leaderId), never a fixed list: a new course appears as soon as it is assigned.
+  const scope = leaderScopeOf(data, account);
+  const courseId = params.get("hp") || scope.courses[0] || "cs301";
+  const course = scope.courses.includes(courseId)
+    ? data.admin.courses.find((c) => c.id === courseId)
     : undefined;
   const link = (path: string, extra: Record<string, string> = {}) =>
     `/truong-nhom-hp/${path}?${new URLSearchParams({ hp: courseId, ...extra })}`;
@@ -67,11 +71,14 @@ export function useLeaderScope() {
     course,
     link,
     act,
-    classrooms: classes.filter((c) => c.courseId === course?.id),
+    scope,
+    classrooms: scope.classes.filter((c) => c.courseId === course?.id),
+    /** Display name of a class id. */
+    label: (id: string) => classLabel(data, id),
   };
 }
 export function CourseFilter({ disabled = false }: { disabled?: boolean }) {
-  const { courseId, setParams } = useLeaderScope();
+  const { courseId, setParams, scope, data } = useLeaderScope();
   const location = useLocation(),
     navigate = useNavigate();
   return (
@@ -86,11 +93,11 @@ export function CourseFilter({ disabled = false }: { disabled?: boolean }) {
           else setParams({ hp: e.target.value });
         }}
       >
-        {!assignedCourses.includes(courseId) && (
+        {!scope.courses.includes(courseId) && (
           <option value={courseId}>Học phần không thuộc phân công</option>
         )}
-        {courses
-          .filter((c) => assignedCourses.includes(c.id))
+        {data.admin.courses
+          .filter((c) => scope.courses.includes(c.id))
           .map((c) => (
             <option key={c.id} value={c.id}>
               {c.code} · {c.title}

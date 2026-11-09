@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChatMessageDaoImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.dao.impl</a> &gt; <span class="el_source">ChatMessageDaoImpl.java</span></div><h1>ChatMessageDaoImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.dao.impl;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import org.springframework.stereotype.Repository;
+import vn.edu.vju.lms.common.dao.HibernateGenericDao;
+import vn.edu.vju.lms.dao.IChatMessageDao;
+import vn.edu.vju.lms.entity.ChatMessage;
+
+@Repository
+public class ChatMessageDaoImpl extends HibernateGenericDao&lt;String, ChatMessage&gt; implements IChatMessageDao {
+
+    public ChatMessageDaoImpl() {
+<span class="fc" id="L15">        super(ChatMessage.class);</span>
+<span class="fc" id="L16">    }</span>
+
+    @Override
+    public List&lt;ChatMessage&gt; findByOwner(String ownerId) {
+<span class="fc" id="L20">        return list(&quot;SELECT m FROM ChatMessage m WHERE m.ownerId = :ownerId ORDER BY m.createdAt&quot;, Map.of(&quot;ownerId&quot;, ownerId));</span>
+    }
+
+    @Override
+    public long countSince(String ownerId, Instant since) {
+<span class="fc" id="L25">        return entityManager.createQuery(</span>
+                &quot;SELECT COUNT(m) FROM ChatMessage m WHERE m.ownerId = :ownerId AND m.createdAt &gt;= :since&quot;, Long.class)
+<span class="fc" id="L27">                .setParameter(&quot;ownerId&quot;, ownerId)</span>
+<span class="fc" id="L28">                .setParameter(&quot;since&quot;, since)</span>
+<span class="fc" id="L29">                .getSingleResult();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

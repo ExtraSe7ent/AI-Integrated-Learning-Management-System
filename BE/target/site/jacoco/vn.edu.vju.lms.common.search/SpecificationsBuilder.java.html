@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SpecificationsBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.common.search</a> &gt; <span class="el_source">SpecificationsBuilder.java</span></div><h1>SpecificationsBuilder.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.common.search;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
+
+/** Parses &quot;name~java,term:I,year!2025&quot; into SearchCriteria and ANDs them into one Specification. */
+<span class="fc" id="L11">public class SpecificationsBuilder&lt;T&gt; {</span>
+
+<span class="fc" id="L13">    private static final Pattern CRITERION = Pattern.compile(&quot;(\\w+)([:!&lt;&gt;~])([^,]+)&quot;);</span>
+
+<span class="fc" id="L15">    private final List&lt;SearchCriteria&gt; criteria = new ArrayList&lt;&gt;();</span>
+
+    public SpecificationsBuilder&lt;T&gt; with(String key, SearchOperation operation, String value) {
+<span class="fc" id="L18">        criteria.add(new SearchCriteria(key, operation, value));</span>
+<span class="fc" id="L19">        return this;</span>
+    }
+
+    public SpecificationsBuilder&lt;T&gt; parse(String search) {
+<span class="pc bpc" id="L23" title="1 of 2 branches missed.">        if (StringUtils.hasText(search)) {</span>
+<span class="fc" id="L24">            Matcher matcher = CRITERION.matcher(search);</span>
+<span class="fc bfc" id="L25" title="All 2 branches covered.">            while (matcher.find()) {</span>
+<span class="fc" id="L26">                with(matcher.group(1), SearchOperation.fromSymbol(matcher.group(2).charAt(0)), matcher.group(3).trim());</span>
+            }
+        }
+<span class="fc" id="L29">        return this;</span>
+    }
+
+    public Specification&lt;T&gt; build() {
+<span class="fc" id="L33">        Specification&lt;T&gt; result = Specification.where(null);</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        for (SearchCriteria item : criteria) {</span>
+<span class="fc" id="L35">            result = result.and(new EntitySpecification&lt;&gt;(item));</span>
+<span class="fc" id="L36">        }</span>
+<span class="fc" id="L37">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

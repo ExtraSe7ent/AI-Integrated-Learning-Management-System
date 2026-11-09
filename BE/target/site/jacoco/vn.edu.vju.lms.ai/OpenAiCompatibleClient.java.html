@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OpenAiCompatibleClient.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.ai</a> &gt; <span class="el_source">OpenAiCompatibleClient.java</span></div><h1>OpenAiCompatibleClient.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.ai;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.config.LmsProperties;
+
+/** Chat and embeddings over the OpenAI-compatible APIs of OpenRouter and Vilao; keys stay server-side. */
+@Component
+public class OpenAiCompatibleClient implements AiClient {
+
+<span class="fc" id="L23">    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(60);</span>
+    private static final int MAX_ATTEMPTS = 2;
+
+    private final LmsProperties.Ai config;
+    private final ObjectMapper mapper;
+<span class="fc" id="L28">    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();</span>
+
+<span class="fc" id="L30">    public OpenAiCompatibleClient(LmsProperties properties, ObjectMapper mapper) {</span>
+<span class="fc" id="L31">        this.config = properties.getAi();</span>
+<span class="fc" id="L32">        this.mapper = mapper;</span>
+<span class="fc" id="L33">    }</span>
+
+    @Override
+    public boolean chatConfigured() {
+<span class="fc bfc" id="L37" title="All 4 branches covered.">        return StringUtils.hasText(key(config.getChatProvider())) &amp;&amp; StringUtils.hasText(key(config.getFastProvider()));</span>
+    }
+
+    @Override
+    public boolean embeddingConfigured() {
+<span class="fc" id="L42">        return StringUtils.hasText(key(config.getEmbedProvider()));</span>
+    }
+
+    @Override
+    public String embeddingSignature() {
+<span class="fc" id="L47">        return config.getEmbedProvider() + &quot;/&quot; + config.getEmbedModel() + &quot;/&quot; + config.getEmbedDim();</span>
+    }
+
+    @Override
+    public JsonNode chatJson(ModelRole role, String system, String user, int maxTokens) {
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        String provider = role == ModelRole.FAST ? config.getFastProvider() : config.getChatProvider();</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        String model = role == ModelRole.FAST ? config.getFastModel() : config.getChatModel();</span>
+<span class="fc" id="L54">        Map&lt;String, Object&gt; body = Map.of(</span>
+                &quot;model&quot;, model,
+<span class="fc" id="L56">                &quot;max_tokens&quot;, maxTokens,</span>
+<span class="fc" id="L57">                &quot;temperature&quot;, 0,</span>
+<span class="fc" id="L58">                &quot;response_format&quot;, Map.of(&quot;type&quot;, &quot;json_object&quot;),</span>
+<span class="fc" id="L59">                &quot;messages&quot;, List.of(Map.of(&quot;role&quot;, &quot;system&quot;, &quot;content&quot;, system), Map.of(&quot;role&quot;, &quot;user&quot;, &quot;content&quot;, user)));</span>
+<span class="fc" id="L60">        String content = post(provider, &quot;/chat/completions&quot;, body).path(&quot;choices&quot;).path(0).path(&quot;message&quot;).path(&quot;content&quot;).asText(&quot;&quot;);</span>
+        try {
+<span class="fc" id="L62">            return mapper.readTree(stripFence(content));</span>
+<span class="fc" id="L63">        } catch (JsonProcessingException e) {</span>
+<span class="fc" id="L64">            throw new AiProviderException(&quot;LLM: phản hồi không phải JSON hợp lệ.&quot;, e);</span>
+        }
+    }
+
+    @Override
+    public List&lt;List&lt;Double&gt;&gt; embed(List&lt;String&gt; texts) {
+<span class="fc" id="L70">        Map&lt;String, Object&gt; body = Map.of(&quot;model&quot;, config.getEmbedModel(), &quot;input&quot;, texts, &quot;dimensions&quot;, config.getEmbedDim());</span>
+<span class="fc" id="L71">        JsonNode data = post(config.getEmbedProvider(), &quot;/embeddings&quot;, body).path(&quot;data&quot;);</span>
+<span class="pc bpc" id="L72" title="1 of 4 branches missed.">        if (!data.isArray() || data.size() != texts.size()) {</span>
+<span class="fc" id="L73">            throw new AiProviderException(&quot;Embedding: số vector không khớp số đoạn văn.&quot;);</span>
+        }
+<span class="fc" id="L75">        List&lt;List&lt;Double&gt;&gt; vectors = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L76">        data.forEach(item -&gt; {</span>
+<span class="fc" id="L77">            List&lt;Double&gt; vector = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L78">            item.path(&quot;embedding&quot;).forEach(value -&gt; vector.add(value.asDouble()));</span>
+<span class="fc" id="L79">            vectors.add(vector);</span>
+<span class="fc" id="L80">        });</span>
+<span class="fc" id="L81">        return vectors;</span>
+    }
+
+    private JsonNode post(String provider, String path, Object body) {
+<span class="fc" id="L85">        AiProviderException failure = null;</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        for (int attempt = 1; attempt &lt;= MAX_ATTEMPTS; attempt++) {</span>
+            try {
+<span class="fc" id="L88">                HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl(provider) + path))</span>
+<span class="fc" id="L89">                        .timeout(CHAT_TIMEOUT)</span>
+<span class="fc" id="L90">                        .header(&quot;Authorization&quot;, &quot;Bearer &quot; + key(provider))</span>
+<span class="fc" id="L91">                        .header(&quot;Content-Type&quot;, &quot;application/json&quot;)</span>
+<span class="fc" id="L92">                        .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))</span>
+<span class="fc" id="L93">                        .build();</span>
+<span class="fc" id="L94">                HttpResponse&lt;String&gt; response = http.send(request, HttpResponse.BodyHandlers.ofString());</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">                if (response.statusCode() / 100 == 2) {</span>
+<span class="fc" id="L96">                    return mapper.readTree(response.body());</span>
+                }
+<span class="fc" id="L98">                failure = new AiProviderException(&quot;Nhà cung cấp AI trả lỗi HTTP &quot; + response.statusCode() + &quot;.&quot;);</span>
+<span class="pc bpc" id="L99" title="1 of 4 branches missed.">                if (response.statusCode() &lt; 500 &amp;&amp; response.statusCode() != 429) {</span>
+<span class="fc" id="L100">                    throw failure;</span>
+                }
+<span class="fc" id="L102">            } catch (IOException e) {</span>
+<span class="fc" id="L103">                failure = new AiProviderException(&quot;Không gọi được nhà cung cấp AI.&quot;, e);</span>
+<span class="nc" id="L104">            } catch (InterruptedException e) {</span>
+<span class="nc" id="L105">                Thread.currentThread().interrupt();</span>
+<span class="nc" id="L106">                throw new AiProviderException(&quot;Yêu cầu AI bị hủy.&quot;, e);</span>
+<span class="fc" id="L107">            }</span>
+        }
+<span class="fc" id="L109">        throw failure;</span>
+    }
+
+    private String baseUrl(String provider) {
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        return &quot;vilao&quot;.equals(provider) ? config.getVilaoBaseUrl() : config.getOpenrouterBaseUrl();</span>
+    }
+
+    private String key(String provider) {
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        return &quot;vilao&quot;.equals(provider) ? config.getVilaoApiKey() : config.getOpenrouterApiKey();</span>
+    }
+
+    private static String stripFence(String content) {
+<span class="fc" id="L121">        return content.strip().replaceFirst(&quot;^```(?:json)?\\s*&quot;, &quot;&quot;).replaceFirst(&quot;\\s*```$&quot;, &quot;&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -8,27 +8,29 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "test": "vitest run src",
+    "test:e2e": "playwright test",
     "format": "prettier --write src"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "latest",
-    "exceljs": "latest",
-    "lucide-react": "latest",
-    "qrcode": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "react-router-dom": "latest"
+    "react-router-dom": "latest",
+    "lucide-react": "latest",
+    "exceljs": "latest",
+    "qrcode": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
-    "@types/qrcode": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/qrcode": "latest",
     "@vitejs/plugin-react": "latest",
-    "prettier": "latest",
     "typescript": "latest",
     "vite": "latest",
-    "vitest": "latest"
+    "vitest": "latest",
+    "@playwright/test": "latest",
+    "prettier": "latest"
   },
   "overrides": {
     "exceljs": {

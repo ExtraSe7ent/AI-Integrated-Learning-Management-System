@@ -1382,3 +1382,40 @@
   color: #726150;
   margin: 12px 0 25px;
 }
+
+/* The lecturer's own PDF replaces the built-in slide artwork. */
+.slide-stage[hidden] {
+  display: none;
+}
+.slide-pdf {
+  display: block;
+  width: 100%;
+  min-height: 560px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+/* Lecturer's saved in-class results */
+.live-result-run + .live-result-run {
+  margin-top: 22px;
+}
+.live-result-run h3 {
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+.live-result {
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.live-result-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.live-result .poll-result span {
+  flex: 0 0 45%;
+  font-size: 12px;
+}

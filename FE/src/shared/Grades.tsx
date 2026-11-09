@@ -1,7 +1,6 @@
 import { learningSummary } from "../data/learningSummary";
 import { useState } from "react";
 import { Download, TrendingUp, CheckCircle2, ArrowUpDown } from "lucide-react";
-import { gradeClasses } from "../data/fixtures";
 import { studyFor, studyCompletion } from "../data/study";
 import { useDemo } from "../data/DemoProvider";
 import {
@@ -13,6 +12,7 @@ import {
   MetricStrip,
   Field,
 } from "./UI";
+import { useAccount } from "./AccountProvider";
 import { CourseContext } from "./CourseComponents";
 export async function exportWorkbook(
   title: string,
@@ -45,17 +45,25 @@ export async function exportWorkbook(
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+/** Vietnamese names keep the given name last; the grade sheet needs both columns (UC-G01). */
+export function splitName(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return { family: parts.slice(0, -1).join(" "), given: parts[parts.length - 1] };
+}
 export function DiemSo({ teacher = false }: { teacher?: boolean }) {
   const { data, notify } = useDemo();
+  const { account } = useAccount();
   const [query, setQuery] = useState(""),
-    [classCode, setClassCode] = useState(gradeClasses[0].code),
+    [classCode, setClassCode] = useState(""),
     [ascending, setAscending] = useState(true);
-  const selectedClass = gradeClasses.find((c) => c.code === classCode)!;
+  const classes = data.analytics.classes;
+  const selectedClass = classes.find((c) => c.id === classCode) ?? classes[0];
   const { self, average, sessions, assignments } = learningSummary(data);
-  const rows = selectedClass.students
-    .filter((s) =>
-      (s.name + s.code).toLowerCase().includes(query.toLowerCase()),
-    )
+  const onTime = sessions.filter(
+    (session) => studyCompletion(studyFor(data, session.id), session) === "on-time",
+  ).length;
+  const rows = (selectedClass?.students ?? [])
+    .filter((s) => (s.name + s.id).toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) =>
       ascending
         ? a.name.localeCompare(b.name, "vi")
@@ -64,16 +72,27 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
   async function download() {
     try {
       await exportWorkbook(
-        teacher ? `Bang-diem-${classCode}` : "Bang-diem",
-        ["Mã SV", "Họ và tên", "Điểm tự học", "Điểm TB bài tập"],
+        teacher ? `Bang-diem-${selectedClass?.name ?? ""}` : "Bang-diem",
+        ["STT", "Mã SV", "Họ đệm", "Tên", "Điểm tự học", "Điểm TB bài tập"],
         teacher
-          ? rows.map((s) => [
-              s.code,
-              s.name,
-              s.id === "sv1" ? self : Math.round(s.progress / 10),
-              s.id === "sv1" ? average : s.grade,
+          ? rows.map((s, i) => [
+              i + 1,
+              s.id,
+              splitName(s.name).family,
+              splitName(s.name).given,
+              s.selfStudy,
+              s.average,
             ])
-          : [["23110149", data.profile.name, self, average]],
+          : [
+              [
+                1,
+                account?.id ?? "",
+                splitName(data.profile.name).family,
+                splitName(data.profile.name).given,
+                self,
+                average,
+              ],
+            ],
       );
       notify("Đã xuất bảng điểm thành tệp Excel.");
     } catch {
@@ -101,20 +120,22 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
           <Field label="Lớp học">
             <select
               aria-label="Lớp học"
-              value={classCode}
+              value={selectedClass?.id ?? ""}
               onChange={(e) => {
                 setClassCode(e.target.value);
                 setQuery("");
               }}
             >
-              {gradeClasses.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.label}
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} · {c.courseTitle}
                 </option>
               ))}
             </select>
           </Field>
-          <span>Học kỳ I · 2026–2027</span>
+          <span>
+            Học kỳ {selectedClass?.term} · {selectedClass?.year}
+          </span>
         </div>
       )}
       <CourseContext teacher={teacher} />
@@ -133,8 +154,8 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
             },
             {
               label: "Phiên đã hoàn thành",
-              value: `${studyFor(data, "s1").progress === 4 ? 3 : 2}/4`,
-              note: "Tổng hợp học kỳ",
+              value: `${onTime}/${sessions.length}`,
+              note: "Đúng hạn trên tổng số phiên",
             },
           ]}
         />
@@ -143,7 +164,7 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
         <Panel>
           <div className="toolbar">
             <h2>
-              {classCode} · {rows.length} sinh viên
+              {selectedClass?.name ?? "Chưa có lớp"} · {rows.length} sinh viên
             </h2>
             <SearchField
               value={query}
@@ -162,10 +183,11 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
                       className="sort-button"
                       onClick={() => setAscending(!ascending)}
                     >
-                      Họ và tên
+                      Họ đệm
                       <ArrowUpDown size={13} />
                     </button>
                   </th>
+                  <th>Tên</th>
                   <th>Điểm tự học</th>
                   <th>TB bài tập</th>
                   <th>Trạng thái</th>
@@ -175,19 +197,18 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
                 {rows.map((s, i) => (
                   <tr key={s.id}>
                     <td>{i + 1}</td>
-                    <td>{s.code}</td>
+                    <td>{s.id}</td>
+                    <td>{splitName(s.name).family}</td>
                     <td>
-                      <strong>{s.name}</strong>
+                      <strong>{splitName(s.name).given}</strong>
+                    </td>
+                    <td>{s.selfStudy}</td>
+                    <td>
+                      <strong>{s.average}</strong>
                     </td>
                     <td>
-                      {s.id === "sv1" ? self : Math.round(s.progress / 10)}
-                    </td>
-                    <td>
-                      <strong>{s.id === "sv1" ? average : s.grade}</strong>
-                    </td>
-                    <td>
-                      <Badge tone={s.grade < 5 ? "amber" : "green"}>
-                        {s.grade < 5 ? "Cần hỗ trợ" : "Đã cập nhật"}
+                      <Badge tone={s.average < 5 ? "amber" : "green"}>
+                        {s.average < 5 ? "Cần hỗ trợ" : "Đã cập nhật"}
                       </Badge>
                     </td>
                   </tr>
@@ -288,8 +309,7 @@ export function DiemSo({ teacher = false }: { teacher?: boolean }) {
             </div>
             <p className="formula-note">
               <TrendingUp size={16} />
-              Điểm TB bài tập = trung bình cộng điểm các bài; dữ liệu hiện tại
-              là minh họa.
+              Điểm TB bài tập = trung bình cộng điểm các bài đã nộp.
             </p>
           </Panel>
         </>

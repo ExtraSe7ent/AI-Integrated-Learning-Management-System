@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RagAlgorithms.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.ai</a> &gt; <span class="el_source">RagAlgorithms.java</span></div><h1>RagAlgorithms.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.ai;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+import vn.edu.vju.lms.entity.RagChunk;
+import vn.edu.vju.lms.service.TextNormalizer;
+
+/** The provider-independent parts of rag.py: chunking, ranking, fusion and citation validation. */
+public final class RagAlgorithms {
+
+    public static final int RRF_K = 60;
+    private static final int RANKING_SIZE = 20;
+<span class="fc" id="L22">    private static final Pattern CITATION_IN_TEXT = Pattern.compile(&quot;\\[\\d&quot;);</span>
+
+<span class="fc" id="L24">    public record ValidatedAnswer(String answer, List&lt;RagChunk&gt; citations) {</span>
+    }
+
+    private RagAlgorithms() {
+    }
+
+    public static List&lt;String&gt; passages(String raw, int maximum, int overlap) {
+<span class="fc" id="L31">        String text = raw.replaceAll(&quot;[ \\t]+&quot;, &quot; &quot;).strip();</span>
+<span class="fc" id="L32">        List&lt;String&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L33">        int start = 0;</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        while (start &lt; text.length()) {</span>
+<span class="fc" id="L35">            int end = Math.min(start + maximum, text.length());</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">            if (end &lt; text.length()) {</span>
+<span class="fc" id="L37">                int boundary = Math.max(lastIndex(text, &quot;\n&quot;, start + maximum / 2, end), lastIndex(text, &quot;. &quot;, start + maximum / 2, end));</span>
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">                if (boundary &gt; start) {</span>
+<span class="fc" id="L39">                    end = boundary + 1;</span>
+                }
+            }
+<span class="fc" id="L42">            String piece = text.substring(start, end).strip();</span>
+<span class="pc bpc" id="L43" title="1 of 2 branches missed.">            if (!piece.isEmpty()) {</span>
+<span class="fc" id="L44">                result.add(piece);</span>
+            }
+<span class="fc bfc" id="L46" title="All 2 branches covered.">            if (end == text.length()) {</span>
+<span class="fc" id="L47">                break;</span>
+            }
+<span class="fc" id="L49">            start = Math.max(start + 1, end - overlap);</span>
+<span class="fc" id="L50">        }</span>
+<span class="fc" id="L51">        return result;</span>
+    }
+
+    private static int lastIndex(String text, String needle, int from, int to) {
+<span class="fc" id="L55">        int index = text.substring(0, to).lastIndexOf(needle);</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        return index &gt;= from ? index : -1;</span>
+    }
+
+    public static double cosine(List&lt;Double&gt; a, List&lt;Double&gt; b) {
+<span class="pc bpc" id="L60" title="2 of 8 branches missed.">        if (a == null || b == null || a.isEmpty() || a.size() != b.size()) {</span>
+<span class="fc" id="L61">            return 0;</span>
+        }
+<span class="fc" id="L63">        double dot = 0;</span>
+<span class="fc" id="L64">        double left = 0;</span>
+<span class="fc" id="L65">        double right = 0;</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        for (int i = 0; i &lt; a.size(); i++) {</span>
+<span class="fc" id="L67">            dot += a.get(i) * b.get(i);</span>
+<span class="fc" id="L68">            left += a.get(i) * a.get(i);</span>
+<span class="fc" id="L69">            right += b.get(i) * b.get(i);</span>
+        }
+<span class="fc" id="L71">        double norm = Math.sqrt(left * right);</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        return norm == 0 ? 0 : dot / norm;</span>
+    }
+
+    public static List&lt;RagChunk&gt; vectorRanking(List&lt;RagChunk&gt; chunks, List&lt;Double&gt; query) {
+<span class="fc" id="L76">        return chunks.stream()</span>
+<span class="pc" id="L77">                .sorted(Comparator.comparingDouble((RagChunk c) -&gt; cosine(c.getEmbedding(), query)).reversed())</span>
+<span class="fc" id="L78">                .limit(RANKING_SIZE).toList();</span>
+    }
+
+    public static List&lt;RagChunk&gt; keywordRanking(List&lt;RagChunk&gt; chunks, String query) {
+<span class="fc" id="L82">        Set&lt;String&gt; terms = TextNormalizer.tokens(query);</span>
+<span class="fc" id="L83">        Map&lt;RagChunk, Long&gt; scores = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        for (RagChunk chunk : chunks) {</span>
+<span class="fc" id="L85">            Set&lt;String&gt; tokens = TextNormalizer.tokens(chunk.getText());</span>
+<span class="fc" id="L86">            scores.put(chunk, terms.stream().filter(tokens::contains).count());</span>
+<span class="fc" id="L87">        }</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        return chunks.stream().filter(chunk -&gt; scores.get(chunk) &gt; 0)</span>
+<span class="fc" id="L89">                .sorted(Comparator.comparingLong((RagChunk c) -&gt; scores.get(c)).reversed())</span>
+<span class="fc" id="L90">                .limit(RANKING_SIZE).toList();</span>
+    }
+
+    /** Reciprocal Rank Fusion across every query's vector and keyword ranking. */
+    public static List&lt;RagChunk&gt; fuse(List&lt;List&lt;RagChunk&gt;&gt; rankings) {
+<span class="fc" id="L95">        Map&lt;String, Double&gt; scores = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L96">        Map&lt;String, RagChunk&gt; lookup = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        for (List&lt;RagChunk&gt; ranking : rankings) {</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">            for (int rank = 0; rank &lt; ranking.size(); rank++) {</span>
+<span class="fc" id="L99">                RagChunk chunk = ranking.get(rank);</span>
+<span class="fc" id="L100">                scores.merge(chunk.getChunkKey(), 1.0 / (RRF_K + rank + 1), Double::sum);</span>
+<span class="fc" id="L101">                lookup.put(chunk.getChunkKey(), chunk);</span>
+            }
+<span class="fc" id="L103">        }</span>
+<span class="fc" id="L104">        return lookup.values().stream()</span>
+<span class="fc" id="L105">                .sorted(Comparator.comparingDouble((RagChunk c) -&gt; scores.get(c.getChunkKey())).reversed())</span>
+<span class="fc" id="L106">                .limit(RANKING_SIZE).toList();</span>
+    }
+
+    public static String guessTask(String question) {
+<span class="fc" id="L110">        String text = TextNormalizer.fold(question);</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        if (text.matches(&quot;(?s).*(tom tat|tong quan|summari[sz]e|summary|overview).*&quot;)) {</span>
+<span class="fc" id="L112">            return &quot;summary&quot;;</span>
+        }
+<span class="fc bfc" id="L114" title="All 2 branches covered.">        if (text.matches(&quot;(?s).*(giang|giai thich|chi tiet|ky hon|ki hon|co che|hoat dong|nhu the nao|tai sao|vi sao|so sanh|phan tich|explain|in detail|how does|why).*&quot;)) {</span>
+<span class="fc" id="L115">            return &quot;lecture&quot;;</span>
+        }
+<span class="fc" id="L117">        return &quot;lookup&quot;;</span>
+    }
+
+    /** Adds neighbouring pages around retrieved chunks so explanations keep the lecture's flow. */
+    public static List&lt;RagChunk&gt; expandContext(List&lt;RagChunk&gt; sources, List&lt;RagChunk&gt; candidates, int limit, int budget) {
+<span class="fc" id="L122">        Map&lt;String, List&lt;RagChunk&gt;&gt; pages = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L123">        candidates.forEach(c -&gt; pages.computeIfAbsent(c.getVersionId() + &quot;:&quot; + c.getPage(), k -&gt; new ArrayList&lt;&gt;()).add(c));</span>
+<span class="fc" id="L124">        List&lt;RagChunk&gt; picked = new ArrayList&lt;&gt;(sources);</span>
+<span class="fc" id="L125">        Set&lt;String&gt; seen = new HashSet&lt;&gt;(sources.stream().map(RagChunk::getChunkKey).toList());</span>
+<span class="fc" id="L126">        int total = sources.stream().mapToInt(c -&gt; c.getText().length()).sum();</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        for (RagChunk chunk : sources) {</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">            for (int page = chunk.getPage() - 1; page &lt;= chunk.getPage() + 1; page++) {</span>
+<span class="fc" id="L129">                List&lt;RagChunk&gt; neighbours = new ArrayList&lt;&gt;(pages.getOrDefault(chunk.getVersionId() + &quot;:&quot; + page, List.of()));</span>
+<span class="fc" id="L130">                neighbours.sort(Comparator.comparing(RagChunk::getChunkKey));</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                for (RagChunk neighbour : neighbours) {</span>
+<span class="pc bpc" id="L132" title="1 of 6 branches missed.">                    if (!seen.contains(neighbour.getChunkKey()) &amp;&amp; picked.size() &lt; limit &amp;&amp; total + neighbour.getText().length() &lt;= budget) {</span>
+<span class="fc" id="L133">                        seen.add(neighbour.getChunkKey());</span>
+<span class="fc" id="L134">                        picked.add(neighbour);</span>
+<span class="fc" id="L135">                        total += neighbour.getText().length();</span>
+                    }
+<span class="fc" id="L137">                }</span>
+            }
+<span class="fc" id="L139">        }</span>
+<span class="fc" id="L140">        picked.sort(Comparator.comparing(RagChunk::getVersionId).thenComparingInt(RagChunk::getPage).thenComparing(RagChunk::getChunkKey));</span>
+<span class="fc" id="L141">        return picked;</span>
+    }
+
+    /** Backend-owned citations: every block must cite real markers, otherwise nothing is shown as sourced. */
+    public static ValidatedAnswer validateAnswer(JsonNode value, List&lt;RagChunk&gt; sources) {
+<span class="fc" id="L146">        ValidatedAnswer empty = new ValidatedAnswer(&quot;&quot;, List.of());</span>
+<span class="fc" id="L147">        JsonNode blocks = value.path(&quot;blocks&quot;);</span>
+<span class="pc bpc" id="L148" title="2 of 8 branches missed.">        if (!value.path(&quot;supported&quot;).asBoolean(false) || !blocks.isArray() || blocks.isEmpty() || blocks.size() &gt; 30) {</span>
+<span class="fc" id="L149">            return empty;</span>
+        }
+<span class="fc" id="L151">        Set&lt;Integer&gt; used = new TreeSet&lt;&gt;();</span>
+<span class="fc" id="L152">        List&lt;String&gt; paragraphs = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        for (JsonNode block : blocks) {</span>
+<span class="fc" id="L154">            String text = block.path(&quot;text&quot;).asText(&quot;&quot;);</span>
+<span class="fc" id="L155">            JsonNode ids = block.path(&quot;source_ids&quot;);</span>
+<span class="pc bpc" id="L156" title="2 of 8 branches missed.">            if (text.isBlank() || !ids.isArray() || ids.isEmpty() || CITATION_IN_TEXT.matcher(text).find()) {</span>
+<span class="fc" id="L157">                return empty;</span>
+            }
+<span class="fc" id="L159">            Set&lt;Integer&gt; markers = new TreeSet&lt;&gt;();</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            for (JsonNode id : ids) {</span>
+<span class="pc bpc" id="L161" title="1 of 6 branches missed.">                if (!id.isInt() || id.asInt() &lt; 1 || id.asInt() &gt; sources.size()) {</span>
+<span class="fc" id="L162">                    return empty;</span>
+                }
+<span class="fc" id="L164">                markers.add(id.asInt());</span>
+<span class="fc" id="L165">            }</span>
+<span class="fc" id="L166">            used.addAll(markers);</span>
+<span class="fc" id="L167">            StringBuilder paragraph = new StringBuilder(text.strip()).append(' ');</span>
+<span class="fc" id="L168">            markers.forEach(marker -&gt; paragraph.append('[').append(marker).append(']'));</span>
+<span class="fc" id="L169">            paragraphs.add(paragraph.toString());</span>
+<span class="fc" id="L170">        }</span>
+<span class="fc" id="L171">        return new ValidatedAnswer(String.join(&quot;\n\n&quot;, paragraphs), used.stream().map(i -&gt; sources.get(i - 1)).toList());</span>
+    }
+
+    /** The text of each page, chunks joined in their stored order; what lesson_ai.page_contents returns. */
+    public static Map&lt;Integer, String&gt; pageTexts(List&lt;RagChunk&gt; chunks) {
+<span class="fc" id="L176">        Map&lt;Integer, StringBuilder&gt; pages = new java.util.TreeMap&lt;&gt;();</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">        for (RagChunk chunk : chunks) {</span>
+<span class="fc" id="L178">            StringBuilder text = pages.computeIfAbsent(chunk.getPage(), k -&gt; new StringBuilder());</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            if (!text.isEmpty()) {</span>
+<span class="fc" id="L180">                text.append('\n');</span>
+            }
+<span class="fc" id="L182">            text.append(chunk.getText());</span>
+<span class="fc" id="L183">        }</span>
+<span class="fc" id="L184">        Map&lt;Integer, String&gt; result = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L185">        pages.forEach((page, text) -&gt; result.put(page, text.toString()));</span>
+<span class="fc" id="L186">        return result;</span>
+    }
+
+    public static List&lt;Map&lt;String, Object&gt;&gt; evidence(List&lt;RagChunk&gt; sources) {
+<span class="fc" id="L190">        List&lt;Map&lt;String, Object&gt;&gt; evidence = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">        for (int i = 0; i &lt; sources.size(); i++) {</span>
+<span class="fc" id="L192">            RagChunk source = sources.get(i);</span>
+<span class="fc" id="L193">            Map&lt;String, Object&gt; item = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L194">            item.put(&quot;marker&quot;, i + 1);</span>
+<span class="fc" id="L195">            item.put(&quot;text&quot;, source.getText());</span>
+<span class="fc" id="L196">            item.put(&quot;title&quot;, source.getMaterialTitle());</span>
+<span class="fc" id="L197">            item.put(&quot;chunk_id&quot;, source.getChunkKey());</span>
+<span class="fc" id="L198">            item.put(&quot;page&quot;, source.getPage());</span>
+<span class="fc" id="L199">            evidence.add(item);</span>
+        }
+<span class="fc" id="L201">        return evidence;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

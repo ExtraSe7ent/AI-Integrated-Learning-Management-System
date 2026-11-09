@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AesService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.crypto</a> &gt; <span class="el_source">AesService.java</span></div><h1>AesService.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.crypto;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
+import javax.crypto.SealedObject;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.config.LmsProperties;
+
+/**
+ * AES-256-GCM for user data and documents. The key is derived with PBKDF2 from a passphrase kept outside
+ * the database, and each value gets a fresh random IV. Files are split into chunks so a 500 MB video does
+ * not have to fit in memory (Java buffers a whole GCM message when decrypting).
+ */
+@Service
+public class AesService {
+
+    private static final String TRANSFORMATION = &quot;AES/GCM/NoPadding&quot;;
+    private static final int IV_BYTES = 12;
+    private static final int TAG_BITS = 128;
+    private static final int KEY_BITS = 256;
+    private static final int FILE_CHUNK_BYTES = 1024 * 1024;
+
+<span class="fc" id="L42">    private final SecureRandom random = new SecureRandom();</span>
+    private final SecretKey key;
+    private final SecretKey hmacKey;
+
+<span class="fc" id="L46">    public AesService(LmsProperties properties) throws GeneralSecurityException {</span>
+<span class="fc" id="L47">        LmsProperties.Crypto crypto = properties.getCrypto();</span>
+<span class="pc bpc" id="L48" title="1 of 4 branches missed.">        if (!StringUtils.hasText(crypto.getPassphrase()) || !StringUtils.hasText(crypto.getSalt())) {</span>
+<span class="fc" id="L49">            throw new IllegalStateException(&quot;Cần cấu hình LMS_AES_PASSPHRASE và LMS_AES_SALT.&quot;);</span>
+        }
+<span class="fc" id="L51">        byte[] salt = crypto.getSalt().getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L52">        this.key = deriveKey(crypto.getPassphrase(), salt, crypto.getIterations());</span>
+        // A separate key, so the lookup hash reveals nothing about the encryption key.
+<span class="fc" id="L54">        this.hmacKey = deriveKey(crypto.getPassphrase() + &quot;:hmac&quot;, salt, crypto.getIterations());</span>
+<span class="fc" id="L55">    }</span>
+
+    public static SecretKey generateKey() throws NoSuchAlgorithmException {
+<span class="fc" id="L58">        KeyGenerator generator = KeyGenerator.getInstance(&quot;AES&quot;);</span>
+<span class="fc" id="L59">        generator.init(KEY_BITS);</span>
+<span class="fc" id="L60">        return generator.generateKey();</span>
+    }
+
+    public static SecretKey deriveKey(String passphrase, byte[] salt, int iterations)
+            throws NoSuchAlgorithmException, InvalidKeySpecException {
+<span class="fc" id="L65">        SecretKeyFactory factory = SecretKeyFactory.getInstance(&quot;PBKDF2WithHmacSHA256&quot;);</span>
+<span class="fc" id="L66">        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, iterations, KEY_BITS);</span>
+<span class="fc" id="L67">        return new SecretKeySpec(factory.generateSecret(spec).getEncoded(), &quot;AES&quot;);</span>
+    }
+
+    public String encrypt(String plainText) {
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (plainText == null) {</span>
+<span class="fc" id="L72">            return null;</span>
+        }
+        try {
+<span class="fc" id="L75">            byte[] iv = randomIv();</span>
+<span class="fc" id="L76">            byte[] cipherText = cipher(Cipher.ENCRYPT_MODE, iv).doFinal(plainText.getBytes(StandardCharsets.UTF_8));</span>
+<span class="fc" id="L77">            return Base64.getEncoder().encodeToString(</span>
+<span class="fc" id="L78">                    ByteBuffer.allocate(iv.length + cipherText.length).put(iv).put(cipherText).array());</span>
+<span class="nc" id="L79">        } catch (GeneralSecurityException e) {</span>
+<span class="nc" id="L80">            throw new CryptoException(&quot;Không mã hóa được dữ liệu.&quot;, e);</span>
+        }
+    }
+
+    public String decrypt(String encoded) {
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (encoded == null) {</span>
+<span class="fc" id="L86">            return null;</span>
+        }
+        try {
+<span class="fc" id="L89">            byte[] packed = Base64.getDecoder().decode(encoded);</span>
+<span class="fc" id="L90">            byte[] iv = new byte[IV_BYTES];</span>
+<span class="fc" id="L91">            System.arraycopy(packed, 0, iv, 0, IV_BYTES);</span>
+<span class="fc" id="L92">            byte[] plain = cipher(Cipher.DECRYPT_MODE, iv).doFinal(packed, IV_BYTES, packed.length - IV_BYTES);</span>
+<span class="fc" id="L93">            return new String(plain, StandardCharsets.UTF_8);</span>
+<span class="fc" id="L94">        } catch (GeneralSecurityException | IllegalArgumentException | IndexOutOfBoundsException e) {</span>
+<span class="fc" id="L95">            throw new CryptoException(&quot;Không giải mã được dữ liệu.&quot;, e);</span>
+        }
+    }
+
+    /** Deterministic keyed hash for looking up and de-duplicating encrypted values such as email. */
+    public String blindIndex(String value) {
+        try {
+<span class="fc" id="L102">            Mac mac = Mac.getInstance(&quot;HmacSHA256&quot;);</span>
+<span class="fc" id="L103">            mac.init(new SecretKeySpec(hmacKey.getEncoded(), &quot;HmacSHA256&quot;));</span>
+<span class="fc" id="L104">            return Base64.getEncoder().encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));</span>
+<span class="nc" id="L105">        } catch (GeneralSecurityException e) {</span>
+<span class="nc" id="L106">            throw new CryptoException(&quot;Không tạo được chỉ mục.&quot;, e);</span>
+        }
+    }
+
+    public SealedObject seal(java.io.Serializable value) {
+        try {
+<span class="fc" id="L112">            return new SealedObject(value, cipher(Cipher.ENCRYPT_MODE, randomIv()));</span>
+<span class="nc" id="L113">        } catch (GeneralSecurityException | IOException e) {</span>
+<span class="nc" id="L114">            throw new CryptoException(&quot;Không mã hóa được đối tượng.&quot;, e);</span>
+        }
+    }
+
+    public Object unseal(SealedObject sealed) {
+        try {
+<span class="fc" id="L120">            return sealed.getObject(key);</span>
+<span class="nc" id="L121">        } catch (GeneralSecurityException | IOException | ClassNotFoundException e) {</span>
+<span class="nc" id="L122">            throw new CryptoException(&quot;Không giải mã được đối tượng.&quot;, e);</span>
+        }
+    }
+
+    public void encryptFile(InputStream source, Path target) {
+<span class="fc" id="L127">        try (OutputStream out = Files.newOutputStream(target)) {</span>
+<span class="fc" id="L128">            encryptStream(source, out);</span>
+<span class="nc" id="L129">        } catch (IOException | GeneralSecurityException e) {</span>
+<span class="nc" id="L130">            throw new CryptoException(&quot;Không mã hóa được tệp.&quot;, e);</span>
+<span class="fc" id="L131">        }</span>
+<span class="fc" id="L132">    }</span>
+
+    public void decryptFile(Path source, OutputStream target) {
+<span class="fc" id="L135">        try (InputStream in = Files.newInputStream(source)) {</span>
+<span class="fc" id="L136">            decryptStream(in, target);</span>
+<span class="fc" id="L137">        } catch (IOException | GeneralSecurityException e) {</span>
+<span class="fc" id="L138">            throw new CryptoException(&quot;Không giải mã được tệp.&quot;, e);</span>
+<span class="fc" id="L139">        }</span>
+<span class="fc" id="L140">    }</span>
+
+    private void encryptStream(InputStream in, OutputStream out) throws IOException, GeneralSecurityException {
+<span class="fc" id="L143">        byte[] buffer = new byte[FILE_CHUNK_BYTES];</span>
+<span class="fc" id="L144">        long chunk = 0;</span>
+        int length;
+<span class="fc bfc" id="L146" title="All 2 branches covered.">        while ((length = in.readNBytes(buffer, 0, buffer.length)) &gt; 0) {</span>
+<span class="fc" id="L147">            byte[] iv = randomIv();</span>
+<span class="fc" id="L148">            Cipher cipher = cipher(Cipher.ENCRYPT_MODE, iv);</span>
+<span class="fc" id="L149">            cipher.updateAAD(ByteBuffer.allocate(Long.BYTES).putLong(chunk++).array());</span>
+<span class="fc" id="L150">            byte[] cipherText = cipher.doFinal(buffer, 0, length);</span>
+<span class="fc" id="L151">            out.write(ByteBuffer.allocate(Integer.BYTES).putInt(cipherText.length).array());</span>
+<span class="fc" id="L152">            out.write(iv);</span>
+<span class="fc" id="L153">            out.write(cipherText);</span>
+<span class="fc" id="L154">        }</span>
+<span class="fc" id="L155">    }</span>
+
+    private void decryptStream(InputStream in, OutputStream out) throws IOException, GeneralSecurityException {
+<span class="fc" id="L158">        long chunk = 0;</span>
+        byte[] header;
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        while ((header = in.readNBytes(Integer.BYTES)).length == Integer.BYTES) {</span>
+<span class="fc" id="L161">            int length = ByteBuffer.wrap(header).getInt();</span>
+<span class="fc" id="L162">            byte[] iv = in.readNBytes(IV_BYTES);</span>
+<span class="fc" id="L163">            byte[] cipherText = in.readNBytes(length);</span>
+<span class="fc" id="L164">            Cipher cipher = cipher(Cipher.DECRYPT_MODE, iv);</span>
+            // The chunk index is authenticated, so reordering chunks makes decryption fail.
+<span class="fc" id="L166">            cipher.updateAAD(ByteBuffer.allocate(Long.BYTES).putLong(chunk++).array());</span>
+<span class="fc" id="L167">            out.write(cipher.doFinal(cipherText));</span>
+<span class="fc" id="L168">        }</span>
+<span class="fc" id="L169">    }</span>
+
+    private Cipher cipher(int mode, byte[] iv) throws GeneralSecurityException {
+<span class="fc" id="L172">        Cipher cipher = Cipher.getInstance(TRANSFORMATION);</span>
+<span class="fc" id="L173">        cipher.init(mode, key, new GCMParameterSpec(TAG_BITS, iv));</span>
+<span class="fc" id="L174">        return cipher;</span>
+    }
+
+    private byte[] randomIv() {
+<span class="fc" id="L178">        byte[] iv = new byte[IV_BYTES];</span>
+<span class="fc" id="L179">        random.nextBytes(iv);</span>
+<span class="fc" id="L180">        return iv;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

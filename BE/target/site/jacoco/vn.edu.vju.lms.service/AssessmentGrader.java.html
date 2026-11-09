@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssessmentGrader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service</a> &gt; <span class="el_source">AssessmentGrader.java</span></div><h1>AssessmentGrader.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import vn.edu.vju.lms.entity.Assignment;
+import vn.edu.vju.lms.entity.ExamQuestion;
+
+/**
+ * Scores an exam. Multiple choice and fill-in are graded here; an essay stays at 0 until the AI grader or the
+ * lecturer sets its points, as in quiz_grading.py.
+ */
+public final class AssessmentGrader {
+
+<span class="fc" id="L15">    public static final List&lt;ExamQuestion&gt; DEFAULT_QUESTIONS = List.of(</span>
+            new ExamQuestion(ExamQuestion.CHOICE, &quot;Trong kiến trúc REST, tài nguyên được định danh bằng gì?&quot;,
+<span class="fc" id="L17">                    List.of(&quot;Một URI duy nhất&quot;, &quot;Một kết nối TCP&quot;, &quot;Một bảng trong database&quot;, &quot;Một phiên đăng nhập&quot;),</span>
+<span class="fc" id="L18">                    &quot;0&quot;, 4.0, &quot;Tài nguyên được định danh bằng URI.&quot;),</span>
+            new ExamQuestion(ExamQuestion.BLANK, &quot;Điền HTTP method dùng để tạo tài nguyên mới.&quot;, null,
+<span class="fc" id="L20">                    &quot;POST&quot;, 3.0, &quot;POST được dùng để tạo tài nguyên mới.&quot;),</span>
+            new ExamQuestion(ExamQuestion.ESSAY,
+                    &quot;Thiết kế API cho thao tác mượn sách. Đề xuất endpoint, method và mã trạng thái phản hồi, giải thích lựa chọn của bạn.&quot;,
+                    null, &quot;Có endpoint cho lượt mượn = loans|borrow; Chọn method POST = post; Nêu mã phản hồi = 201|created&quot;,
+<span class="fc" id="L24">                    3.0, &quot;Gợi ý: POST /api/loans, trả về 201 khi tạo lượt mượn thành công.&quot;));</span>
+
+    private AssessmentGrader() {
+    }
+
+    public static List&lt;ExamQuestion&gt; questionsOf(Assignment assignment) {
+<span class="fc" id="L30">        List&lt;ExamQuestion&gt; questions = assignment.getQuestions();</span>
+<span class="pc bpc" id="L31" title="1 of 4 branches missed.">        return questions == null || questions.isEmpty() ? DEFAULT_QUESTIONS : questions;</span>
+    }
+
+    public static List&lt;Double&gt; grade(List&lt;String&gt; answers) {
+<span class="fc" id="L35">        return grade(DEFAULT_QUESTIONS, answers);</span>
+    }
+
+    public static List&lt;Double&gt; grade(List&lt;ExamQuestion&gt; questions, List&lt;String&gt; answers) {
+<span class="fc" id="L39">        List&lt;Double&gt; points = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        for (int i = 0; i &lt; questions.size(); i++) {</span>
+<span class="fc" id="L41">            ExamQuestion question = questions.get(i);</span>
+<span class="fc bfc" id="L42" title="All 4 branches covered.">            points.add(isCorrect(question, i &lt; answers.size() ? answers.get(i) : null) ? question.getPoints() : 0.0);</span>
+        }
+<span class="fc" id="L44">        return points;</span>
+    }
+
+    public static boolean isCorrect(ExamQuestion question, String answer) {
+<span class="fc bfc" id="L48" title="All 4 branches covered.">        if (answer == null || question.isEssay()) {</span>
+<span class="fc" id="L49">            return false;</span>
+        }
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (ExamQuestion.CHOICE.equals(question.getType())) {</span>
+<span class="fc" id="L52">            return question.getCorrect().equals(answer);</span>
+        }
+<span class="fc" id="L54">        String given = TextNormalizer.forComparison(answer);</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        return !given.isEmpty() &amp;&amp; Arrays.stream(question.getCorrect().split(&quot;\\|&quot;))</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">                .map(TextNormalizer::forComparison).anyMatch(given::equals);</span>
+    }
+
+    public static double total(List&lt;Double&gt; points) {
+<span class="fc" id="L60">        return Math.round(points.stream().mapToDouble(Double::doubleValue).sum() * 10) / 10.0;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

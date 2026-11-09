@@ -1,0 +1,48 @@
+{
+  "at": "2026-11-06T21:08:29.317Z",
+  "publicOrigin": "https://claims-color-gentle-pan.trycloudflare.com",
+  "results": [
+    {
+      "name": "Public HTTPS metadata and missing-token challenge",
+      "status": "PASS"
+    },
+    {
+      "name": "OAuth authorization code + PKCE through public tunnel",
+      "status": "PASS"
+    },
+    {
+      "name": "Remote SDK connects and lists only five scoped tools",
+      "status": "PASS"
+    },
+    {
+      "name": "Read assigned classes without roster identities",
+      "status": "PASS"
+    },
+    {
+      "name": "Create lesson draft; retry reuses same BE record",
+      "status": "PASS"
+    },
+    {
+      "name": "Create unapproved quiz questions via transactional BE import",
+      "status": "PASS"
+    },
+    {
+      "name": "Create unpublished assignment with official first-attempt policy",
+      "status": "PASS"
+    },
+    {
+      "name": "Existing class owned by another lecturer is rejected by actual BE",
+      "status": "PASS"
+    },
+    {
+      "name": "Created data visible through normal lecturer bootstrap API",
+      "status": "PASS"
+    },
+    {
+      "name": "Token revocation invalidates remote MCP access",
+      "status": "PASS"
+    }
+  ],
+  "lessonId": "37f73b59-f356-4141-8272-cb7b50c09fcc",
+  "assignmentId": "8c92d204-4ace-41df-8d12-14c775ef1709"
+}

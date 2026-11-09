@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssignmentPolicy.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service</a> &gt; <span class="el_source">AssignmentPolicy.java</span></div><h1>AssignmentPolicy.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Component;
+import vn.edu.vju.lms.ai.EssayGradingJob;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ForbiddenOperationException;
+import vn.edu.vju.lms.config.LmsProperties;
+import vn.edu.vju.lms.dao.IAssessmentDao;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.entity.Assessment;
+import vn.edu.vju.lms.entity.Assignment;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.security.TeachingScope;
+import vn.edu.vju.lms.security.UserPrincipal;
+
+/** Shared policy for HTTP, bootstrap, grading, appeals and AI. Mutations hold the assignment row lock. */
+@Component
+public class AssignmentPolicy {
+    private final IAssessmentDao assessments;
+    private final IClassInfoDao classes;
+    private final TeachingScope scope;
+    private final ApplicationEventPublisher events;
+    private final ZoneId zone;
+<span class="fc" id="L31">    private static final DateTimeFormatter SUBMITTED = DateTimeFormatter.ofPattern(&quot;HH:mm:ss dd/MM/yyyy&quot;);</span>
+
+    public AssignmentPolicy(IAssessmentDao assessments, IClassInfoDao classes, TeachingScope scope,
+<span class="fc" id="L34">            ApplicationEventPublisher events, LmsProperties properties) {</span>
+<span class="fc" id="L35">        this.assessments = assessments;</span>
+<span class="fc" id="L36">        this.classes = classes;</span>
+<span class="fc" id="L37">        this.scope = scope;</span>
+<span class="fc" id="L38">        this.events = events;</span>
+<span class="fc" id="L39">        this.zone = ZoneId.of(properties.getTimeZone());</span>
+<span class="fc" id="L40">    }</span>
+
+    public boolean canRead(Assignment assignment) {
+<span class="fc" id="L43">        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="pc bpc" id="L44" title="2 of 4 branches missed.">        if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal user)) return true;</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        if (user.role() == Role.ADMIN) return true;</span>
+<span class="fc bfc" id="L46" title="All 4 branches covered.">        return assignment.getClassId() != null &amp;&amp; scope.readableClassIds().contains(assignment.getClassId())</span>
+<span class="fc bfc" id="L47" title="All 4 branches covered.">                &amp;&amp; (!user.isStudent() || Boolean.TRUE.equals(assignment.getPublished()));</span>
+    }
+
+    public void requireRead(Assignment assignment) {
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (!canRead(assignment)) throw new ForbiddenOperationException(&quot;Bạn không được truy cập bài tập của lớp này.&quot;);</span>
+<span class="fc" id="L52">    }</span>
+
+    public void requireTeaching(Assignment assignment) {
+<span class="fc" id="L55">        UserPrincipal user = UserPrincipal.current();</span>
+<span class="pc bpc" id="L56" title="1 of 4 branches missed.">        if (user.role() != Role.ADMIN &amp;&amp; user.role() != Role.LECTURER) {</span>
+<span class="nc" id="L57">            throw new ForbiddenOperationException(&quot;Bạn không có quyền quản lý/chấm bài tập.&quot;);</span>
+        }
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (assignment.getClassId() == null) {</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">            if (user.role() != Role.ADMIN) throw new ForbiddenOperationException(&quot;Bài tập cũ chưa được phân loại lớp.&quot;);</span>
+        } else {
+<span class="fc bfc" id="L62" title="All 2 branches covered.">            if(classes.findById(assignment.getClassId()).isEmpty()) throw new BusinessRuleException(&quot;Lớp học phần không tồn tại.&quot;);</span>
+<span class="fc" id="L63">            scope.requireClass(assignment.getClassId());</span>
+        }
+<span class="fc" id="L65">    }</span>
+
+    public List&lt;String&gt; roster(Assignment assignment) {
+<span class="fc" id="L68">        return classes.findById(String.valueOf(assignment.getClassId())).map(c -&gt; List.copyOf(c.getStudentIds())).orElse(List.of());</span>
+    }
+
+    public Assessment record(String studentId, Assignment assignment) {
+<span class="fc" id="L72">        return assessments.find(studentId, assignment.getId()).orElseGet(() -&gt; {</span>
+<span class="fc" id="L73">            Assessment r = new Assessment();r.setId(studentId+&quot;:&quot;+assignment.getId());</span>
+<span class="fc" id="L74">            r.setStudentId(studentId);r.setAssignmentId(assignment.getId());return assessments.persist(r);</span>
+        });
+    }
+
+    public void finishOfficial(Assessment record, Assignment assignment, List&lt;String&gt; answers) {
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        if (record.getScore() != null) return;</span>
+<span class="fc" id="L80">        List&lt;Double&gt; points = AssessmentGrader.grade(AssessmentGrader.questionsOf(assignment), answers);</span>
+<span class="fc" id="L81">        record.setAnswers(new ArrayList&lt;&gt;(answers));record.setQuestionPoints(points);</span>
+<span class="fc" id="L82">        record.setScore(AssessmentGrader.total(points));record.setAttempts(1);</span>
+<span class="fc" id="L83">        record.setSubmitted(timestamp());record.setApproved(null);record.setComment(null);record.setAiFeedback(null);</span>
+<span class="fc" id="L84">        record.setDraftAnswers(null);record.setDraftDeadline(null);</span>
+<span class="fc" id="L85">        events.publishEvent(new EssayGradingJob.Submitted(record.getStudentId(),record.getAssignmentId()));</span>
+<span class="fc" id="L86">    }</span>
+
+<span class="fc" id="L88">    public String timestamp() { return LocalDateTime.now(zone).format(SUBMITTED); }</span>
+
+    public void refresh(Assignment assignment) {
+<span class="fc bfc" id="L91" title="All 4 branches covered.">        if (!Boolean.TRUE.equals(assignment.getPublished()) || assignment.getClassId() == null) return;</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        if (Boolean.TRUE.equals(assignment.getAnswersReleased())) { closeRoster(assignment); return; }</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        for (Assessment r : assessments.findByAssignment(assignment.getId())) {</span>
+<span class="fc bfc" id="L94" title="All 6 branches covered.">            if (r.getScore() == null &amp;&amp; r.getDraftDeadline() != null &amp;&amp; r.getDraftDeadline() &lt;= Instant.now().toEpochMilli()) {</span>
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">                finishOfficial(r, assignment, r.getDraftAnswers() == null ? List.of() : r.getDraftAnswers());</span>
+            }
+<span class="fc" id="L97">        }</span>
+<span class="fc" id="L98">        List&lt;String&gt; roster = roster(assignment);</span>
+<span class="pc bpc" id="L99" title="1 of 4 branches missed.">        if (!roster.isEmpty() &amp;&amp; roster.stream().allMatch(id -&gt; assessments.find(id,assignment.getId())</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">                .filter(r -&gt; r.getScore()!=null).isPresent())) assignment.setAnswersReleased(true);</span>
+<span class="fc" id="L101">    }</span>
+
+    public void release(Assignment assignment) {
+<span class="fc" id="L104">        requireTeaching(assignment);</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (!Boolean.TRUE.equals(assignment.getPublished())) throw new BusinessRuleException(&quot;Công bố bài tập trước khi công bố đáp án.&quot;);</span>
+<span class="fc" id="L106">        assignment.setAnswersReleased(true);</span>
+<span class="fc" id="L107">        closeRoster(assignment);</span>
+<span class="fc" id="L108">    }</span>
+
+    private void closeRoster(Assignment assignment) {
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        for (String id : roster(assignment)) {</span>
+<span class="fc" id="L112">            Assessment r=record(id,assignment);</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            finishOfficial(r,assignment,r.getDraftAnswers()==null?List.of():r.getDraftAnswers());</span>
+<span class="fc" id="L114">        }</span>
+<span class="fc" id="L115">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExamQuestion.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.entity</a> &gt; <span class="el_source">ExamQuestion.java</span></div><h1>ExamQuestion.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * One question of an assignment, stored as JSON on the assignment. {@code correct} holds the option index
+ * for choice, the accepted answers separated by | for blank, and the rubric for essay.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ExamQuestion {
+
+    public static final String CHOICE = &quot;choice&quot;;
+    public static final String BLANK = &quot;blank&quot;;
+    public static final String ESSAY = &quot;essay&quot;;
+
+    private String type;
+    private String text;
+    private List&lt;String&gt; options;
+    private String correct;
+    private Double points;
+    private String explanation;
+
+    @JsonIgnore
+    public boolean isEssay() {
+<span class="fc" id="L31">        return ESSAY.equals(type);</span>
+    }
+
+    /** What a student may see while the attempt is open: no answer key, rubric or explanation. */
+    public ExamQuestion withoutAnswer() {
+<span class="fc" id="L36">        return new ExamQuestion(type, text, options, null, points, null);</span>
+    }
+
+    /** After class answer release, the key and explanation are shown; an essay rubric stays with the staff. */
+    public ExamQuestion forReview() {
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        return isEssay() ? new ExamQuestion(type, text, options, null, points, explanation) : this;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

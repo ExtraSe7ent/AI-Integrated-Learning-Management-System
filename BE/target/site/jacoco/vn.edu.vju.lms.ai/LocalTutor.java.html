@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LocalTutor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.ai</a> &gt; <span class="el_source">LocalTutor.java</span></div><h1>LocalTutor.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.ai;
+
+import java.util.List;
+import java.util.regex.Pattern;
+import org.springframework.stereotype.Component;
+import vn.edu.vju.lms.dao.ILessonDao;
+import vn.edu.vju.lms.entity.RagChunk;
+import vn.edu.vju.lms.service.TextNormalizer;
+
+/** Answers with no AI provider: the frontend's rule-based CSE301 tutor, then an extractive passage search. */
+@Component
+public class LocalTutor {
+
+    public static final String UNAVAILABLE = &quot;Chưa có học liệu phù hợp để trả lời câu hỏi này. Hãy kiểm tra học phần hoặc gửi câu hỏi cho giảng viên.&quot;;
+
+    private static final String DEMO_COURSE = &quot;cs301&quot;;
+    private static final String DEMO_LESSON = &quot;l2&quot;;
+<span class="fc" id="L18">    private static final List&lt;String&gt; DEMO_SLIDES = List.of(</span>
+            &quot;RESTful API là gì?&quot;, &quot;Tài nguyên và HTTP methods&quot;, &quot;Mã trạng thái HTTP&quot;, &quot;Thiết kế API trong thực tế&quot;);
+<span class="fc" id="L20">    private static final Pattern TOPIC = Pattern.compile(&quot;rest|api|http|uri|tài nguyên|method|put|patch|post|get|mã trạng thái|bài giảng&quot;, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);</span>
+<span class="fc" id="L21">    private static final Pattern CHEATING = Pattern.compile(&quot;giải hộ|làm hộ|đáp án.*(thi|kiểm tra)|bài kiểm tra đang&quot;, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);</span>
+<span class="fc" id="L22">    private static final Pattern METHODS = Pattern.compile(&quot;put|patch|method|post|get&quot;, Pattern.CASE_INSENSITIVE);</span>
+<span class="fc" id="L23">    private static final Pattern STATUS = Pattern.compile(&quot;mã|status|201|404|lỗi&quot;, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);</span>
+
+    /** Common Vietnamese and English words, accent-folded like the search tokens. */
+<span class="fc" id="L26">    static final java.util.Set&lt;String&gt; STOP_WORDS = java.util.Set.of(</span>
+            &quot;la&quot;, &quot;gi&quot;, &quot;nao&quot;, &quot;the&quot;, &quot;nhu&quot;, &quot;co&quot;, &quot;khong&quot;, &quot;cua&quot;, &quot;va&quot;, &quot;cho&quot;, &quot;toi&quot;, &quot;em&quot;, &quot;ban&quot;, &quot;minh&quot;, &quot;hay&quot;,
+            &quot;duoc&quot;, &quot;nay&quot;, &quot;hom&quot;, &quot;do&quot;, &quot;thi&quot;, &quot;sao&quot;, &quot;vay&quot;, &quot;a&quot;, &quot;an&quot;, &quot;is&quot;, &quot;are&quot;, &quot;what&quot;, &quot;how&quot;, &quot;why&quot;, &quot;of&quot;, &quot;to&quot;,
+            &quot;in&quot;, &quot;on&quot;, &quot;and&quot;, &quot;or&quot;, &quot;be&quot;, &quot;it&quot;, &quot;this&quot;, &quot;that&quot;, &quot;may&quot;, &quot;mot&quot;, &quot;nhung&quot;, &quot;cac&quot;, &quot;voi&quot;, &quot;trong&quot;,
+            &quot;vi&quot;, &quot;khi&quot;, &quot;ve&quot;, &quot;di&quot;, &quot;lam&quot;, &quot;giup&quot;, &quot;hoi&quot;, &quot;oi&quot;, &quot;nhe&quot;, &quot;day&quot;, &quot;kia&quot;, &quot;ay&quot;);
+
+    private final ILessonDao lessonDao;
+
+<span class="fc" id="L34">    public LocalTutor(ILessonDao lessonDao) {</span>
+<span class="fc" id="L35">        this.lessonDao = lessonDao;</span>
+<span class="fc" id="L36">    }</span>
+
+    public AiAnswer answer(String courseId, String question, List&lt;RagChunk&gt; chunks) {
+<span class="fc" id="L39">        return answer(courseId, question, chunks, null);</span>
+    }
+
+    public AiAnswer answer(String courseId, String question, List&lt;RagChunk&gt; chunks, Integer page) {
+<span class="fc bfc" id="L43" title="All 6 branches covered.">        boolean demoTopic = DEMO_COURSE.equals(courseId) &amp;&amp; demoMaterialAvailable() &amp;&amp; TOPIC.matcher(question).find();</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">        if (demoTopic) {</span>
+<span class="fc" id="L45">            return ruleAnswer(question);</span>
+        }
+        // UC-B04 EX-1: only content words count, and a passage must share at least half of them; otherwise
+        // a folded &quot;thế&quot; would match the English &quot;the&quot; and an off-topic question would get a random passage.
+<span class="fc" id="L49">        java.util.Set&lt;String&gt; terms = new java.util.LinkedHashSet&lt;&gt;(TextNormalizer.tokens(question));</span>
+<span class="fc" id="L50">        terms.removeAll(STOP_WORDS);</span>
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (terms.isEmpty()) {</span>
+<span class="fc" id="L52">            return AiAnswer.withoutSources(UNAVAILABLE, &quot;unavailable&quot;);</span>
+        }
+        // Short questions must match every content word (&quot;thời tiết&quot; is not &quot;thời hạn&quot;); longer ones at least half.
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        int needed = terms.size() &lt;= 2 ? terms.size() : (terms.size() + 1) / 2;</span>
+<span class="fc" id="L56">        List&lt;RagChunk&gt; ranked = RagAlgorithms.keywordRanking(chunks, String.join(&quot; &quot;, terms)).stream()</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">                .filter(c -&gt; terms.stream().filter(TextNormalizer.tokens(c.getText())::contains).count() &gt;= needed)</span>
+<span class="fc" id="L58">                .toList();</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (ranked.isEmpty()) {</span>
+<span class="fc" id="L60">            return AiAnswer.withoutSources(UNAVAILABLE, &quot;unavailable&quot;);</span>
+        }
+        // Among matching passages, prefer the slide the student is reading.
+<span class="fc bfc" id="L63" title="All 4 branches covered.">        RagChunk best = ranked.stream().filter(c -&gt; page != null &amp;&amp; c.getPage() == page).findFirst().orElse(ranked.get(0));</span>
+<span class="fc" id="L64">        return new AiAnswer(&quot;Đoạn liên quan trong \&quot;&quot; + best.getMaterialTitle() + &quot;\&quot;: &quot; + best.getText(),</span>
+<span class="fc" id="L65">                best.getPage(), List.of(best.getPage()), &quot;extractive&quot;);</span>
+    }
+
+    private AiAnswer ruleAnswer(String question) {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (CHEATING.matcher(question).find()) {</span>
+<span class="fc" id="L70">            return AiAnswer.withoutSources(&quot;Mình có thể giải thích khái niệm và chỉ ra học liệu để bạn tự làm. Không cung cấp đáp án thay cho bạn trong bài kiểm tra đang diễn ra.&quot;, &quot;guardrail_hint&quot;);</span>
+        }
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        if (METHODS.matcher(question).find()) {</span>
+<span class="fc" id="L73">            return page(&quot;GET đọc tài nguyên; POST tạo mới; PUT thay thế toàn bộ biểu diễn, còn PATCH cập nhật một phần. Ví dụ PATCH /books/1 chỉ thay thuộc tính title. Đối chiếu trang 2 và thử giải thích vì sao PATCH phù hợp với ví dụ này.&quot;, 2);</span>
+        }
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (STATUS.matcher(question).find()) {</span>
+<span class="fc" id="L76">            return page(&quot;Nhóm 2xx biểu thị thành công, 4xx là lỗi yêu cầu, 5xx là lỗi máy chủ. POST tạo tài nguyên thành công thường trả 201 Created; không tìm thấy tài nguyên trả 404. Đối chiếu trang 3.&quot;, 3);</span>
+        }
+<span class="fc" id="L78">        return page(&quot;REST tổ chức API quanh tài nguyên. Mỗi tài nguyên được định danh bằng URI; HTTP method thể hiện thao tác. Ví dụ GET /books để đọc danh sách sách. Đối chiếu trang 1.&quot;, 1);</span>
+    }
+
+    private AiAnswer page(String answer, int page) {
+<span class="fc" id="L82">        return new AiAnswer(answer, page, List.of(page), &quot;rules&quot;);</span>
+    }
+
+    private boolean demoMaterialAvailable() {
+<span class="fc" id="L86">        return lessonDao.findById(DEMO_LESSON)</span>
+<span class="fc" id="L87">                .filter(lesson -&gt; Boolean.TRUE.equals(lesson.getPublished()))</span>
+<span class="pc bpc" id="L88" title="3 of 4 branches missed.">                .filter(lesson -&gt; lesson.getSlides() == null || DEMO_SLIDES.equals(lesson.getSlides()))</span>
+<span class="fc" id="L89">                .isPresent();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

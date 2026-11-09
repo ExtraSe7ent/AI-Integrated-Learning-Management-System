@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserAccount.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.entity</a> &gt; <span class="el_source">UserAccount.java</span></div><h1>UserAccount.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+import vn.edu.vju.lms.crypto.EncryptedStringConverter;
+import vn.edu.vju.lms.security.Role;
+
+@Entity
+@Table(name = &quot;user_accounts&quot;)
+@Getter
+@Setter
+<span class="fc" id="L19">public class UserAccount {</span>
+
+    @Id
+    @Column(length = 50)
+    private String id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = &quot;TEXT&quot;)
+    private String email;
+
+    /** Keyed hash of the normalized email: keeps uniqueness checks possible on encrypted data. */
+    @Column(name = &quot;email_hash&quot;, unique = true, length = 64)
+    private String emailHash;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = &quot;TEXT&quot;)
+    private String phone;
+
+    private String faculty;
+
+    private String major;
+
+    /** student, teacher or admin; a teacher account can hold a management role. */
+    @Column(nullable = false, length = 20)
+    private String kind;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Role role;
+
+<span class="fc" id="L52">    private boolean active = true;</span>
+
+    @Column(name = &quot;must_change&quot;)
+    private boolean mustChange;
+
+    @Column(name = &quot;password_hash&quot;, nullable = false)
+    private String passwordHash;
+
+    @Column(columnDefinition = &quot;TEXT&quot;)
+    private String notes;
+
+    @Column(name = &quot;notices_read&quot;)
+    private boolean noticesRead;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

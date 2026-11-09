@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReferenceItemServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">ReferenceItemServiceImpl.java</span></div><h1>ReferenceItemServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import org.springframework.stereotype.Service;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IReferenceItemDao;
+import vn.edu.vju.lms.entity.ReferenceItem;
+import vn.edu.vju.lms.service.ReferenceItemService;
+import vn.edu.vju.lms.wrapper.ReferenceItemWrapper;
+
+@Service
+public class ReferenceItemServiceImpl extends AbstractCrudService&lt;ReferenceItem, ReferenceItemWrapper&gt; implements ReferenceItemService {
+
+    private final IReferenceItemDao dao;
+
+<span class="fc" id="L17">    public ReferenceItemServiceImpl(IReferenceItemDao dao) {</span>
+<span class="fc" id="L18">        this.dao = dao;</span>
+<span class="fc" id="L19">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, ReferenceItem&gt; dao() {
+<span class="fc" id="L23">        return dao;</span>
+    }
+
+    @Override
+    protected ReferenceItem newEntity() {
+<span class="fc" id="L28">        return new ReferenceItem();</span>
+    }
+
+    @Override
+    protected ReferenceItemWrapper toWrapper(ReferenceItem entity) {
+<span class="fc" id="L33">        ReferenceItemWrapper wrapper = new ReferenceItemWrapper();</span>
+<span class="fc" id="L34">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L35">        wrapper.setCourseId(entity.getCourseId());</span>
+<span class="fc" id="L36">        wrapper.setTitle(entity.getTitle());</span>
+<span class="fc" id="L37">        wrapper.setUrl(entity.getUrl());</span>
+<span class="fc" id="L38">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(ReferenceItemWrapper wrapper, ReferenceItem entity) {
+<span class="pc bpc" id="L43" title="1 of 2 branches missed.">        if (wrapper.getCourseId() != null) {</span>
+<span class="fc" id="L44">            entity.setCourseId(wrapper.getCourseId());</span>
+        }
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (wrapper.getTitle() != null) {</span>
+<span class="fc" id="L47">            entity.setTitle(wrapper.getTitle());</span>
+        }
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (wrapper.getUrl() != null) {</span>
+<span class="fc" id="L50">            entity.setUrl(wrapper.getUrl());</span>
+        }
+<span class="fc" id="L52">    }</span>
+
+    @Override
+    protected String wrapperId(ReferenceItemWrapper wrapper) {
+<span class="fc" id="L56">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(ReferenceItem entity, String id) {
+<span class="fc" id="L61">        entity.setId(id);</span>
+<span class="fc" id="L62">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L66">        return &quot;Không tìm thấy tài liệu tham chiếu.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeSave(ReferenceItem entity) {
+<span class="fc" id="L71">        String url = entity.getUrl();</span>
+<span class="fc bfc" id="L72" title="All 6 branches covered.">        boolean safe = url.startsWith(&quot;/materials/&quot;) &amp;&amp; !url.contains(&quot;..&quot;) || url.matches(&quot;(?i)^https?://[^\\s]+$&quot;);</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        if (!safe) {</span>
+<span class="fc" id="L74">            throw new BusinessRuleException(&quot;Liên kết phải là HTTP/HTTPS hoặc PDF trong /materials/.&quot;);</span>
+        }
+<span class="fc" id="L76">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

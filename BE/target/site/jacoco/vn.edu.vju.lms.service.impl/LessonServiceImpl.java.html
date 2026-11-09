@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LessonServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">LessonServiceImpl.java</span></div><h1>LessonServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.util.List;
+import java.util.regex.Pattern;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.ILessonDao;
+import vn.edu.vju.lms.dao.IQuestionDao;
+import vn.edu.vju.lms.dao.IStudySessionDao;
+import vn.edu.vju.lms.entity.Lesson;
+import vn.edu.vju.lms.security.TeachingScope;
+import vn.edu.vju.lms.service.LessonService;
+import vn.edu.vju.lms.wrapper.LessonWrapper;
+
+/**
+ * UC-G02 and the lesson side of UC-A01. &quot;Has student data&quot; is decided here, never taken from the client, and
+ * protects a lesson from deletion. Publishing needs every quiz of the lesson approved.
+ */
+@Service
+public class LessonServiceImpl extends AbstractCrudService&lt;Lesson, LessonWrapper&gt; implements LessonService {
+
+    static final int TITLE_MAX = 120;
+    static final int SLIDES_MAX = 200;
+    static final int WEEK_MAX = 20;
+<span class="fc" id="L29">    private static final Pattern YOUTUBE = Pattern.compile(&quot;^https://(www\\.|m\\.)?(youtube\\.com/(watch\\?v=|embed/|shorts/)|youtu\\.be/)[\\w-]{6,}.*$&quot;);</span>
+
+    private final ILessonDao dao;
+    private final IQuestionDao questionDao;
+    private final IStudySessionDao sessionDao;
+    private final TeachingScope scope;
+
+<span class="fc" id="L36">    public LessonServiceImpl(ILessonDao dao, IQuestionDao questionDao, IStudySessionDao sessionDao, TeachingScope scope) {</span>
+<span class="fc" id="L37">        this.dao = dao;</span>
+<span class="fc" id="L38">        this.questionDao = questionDao;</span>
+<span class="fc" id="L39">        this.sessionDao = sessionDao;</span>
+<span class="fc" id="L40">        this.scope = scope;</span>
+<span class="fc" id="L41">    }</span>
+
+    @Override
+    protected org.springframework.data.jpa.domain.Specification&lt;Lesson&gt; readScope() {
+<span class="fc" id="L45">        var ids = scope.readableLessonIds();</span>
+<span class="fc" id="L46">        return (root, query, builder) -&gt; root.get(&quot;id&quot;).in(ids);</span>
+    }
+
+    @Override
+    protected void checkRead(Lesson entity) {
+<span class="fc" id="L51">        scope.requireReadLesson(entity.getId());</span>
+<span class="fc" id="L52">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, Lesson&gt; dao() {
+<span class="fc" id="L56">        return dao;</span>
+    }
+
+    @Override
+    protected Lesson newEntity() {
+<span class="fc" id="L61">        return new Lesson();</span>
+    }
+
+    @Override
+    protected LessonWrapper toWrapper(Lesson entity) {
+<span class="fc" id="L66">        LessonWrapper wrapper = new LessonWrapper();</span>
+<span class="fc" id="L67">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L68">        wrapper.setClassId(TeachingScope.classOf(entity));</span>
+<span class="fc" id="L69">        wrapper.setTitle(entity.getTitle());</span>
+<span class="fc" id="L70">        wrapper.setOrder(entity.getOrder());</span>
+<span class="fc" id="L71">        wrapper.setPublished(entity.getPublished());</span>
+<span class="fc bfc" id="L72" title="All 4 branches covered.">        wrapper.setActivity(Boolean.TRUE.equals(entity.getActivity()) || scope.hasStudentData(entity.getId()));</span>
+<span class="fc" id="L73">        wrapper.setSlides(entity.getSlides());</span>
+<span class="fc" id="L74">        wrapper.setVideo(entity.getVideo());</span>
+<span class="fc" id="L75">        wrapper.setWeek(entity.getWeek());</span>
+<span class="fc" id="L76">        wrapper.setMaterialId(entity.getMaterialId());</span>
+<span class="fc" id="L77">        wrapper.setPdfName(entity.getPdfName());</span>
+<span class="fc" id="L78">        return wrapper;</span>
+    }
+
+    /** activity is computed by the server, so it is never copied from the request. */
+    @Override
+    protected void mapWrapperToEntity(LessonWrapper wrapper, Lesson entity) {
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (wrapper.getClassId() != null) {</span>
+<span class="fc" id="L85">            entity.setClassId(wrapper.getClassId().trim());</span>
+        }
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        if (wrapper.getTitle() != null) {</span>
+<span class="fc" id="L88">            entity.setTitle(wrapper.getTitle().trim());</span>
+        }
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (wrapper.getOrder() != null) {</span>
+<span class="fc" id="L91">            entity.setOrder(wrapper.getOrder());</span>
+        }
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        if (wrapper.getPublished() != null) {</span>
+<span class="fc" id="L94">            entity.setPublished(wrapper.getPublished());</span>
+        }
+<span class="fc bfc" id="L96" title="All 2 branches covered.">        if (wrapper.getSlides() != null) {</span>
+<span class="fc" id="L97">            entity.setSlides(wrapper.getSlides().stream().map(String::trim).toList());</span>
+        }
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (wrapper.getVideo() != null) {</span>
+<span class="fc" id="L100">            entity.setVideo(wrapper.getVideo().trim());</span>
+        }
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        if (wrapper.getWeek() != null) {</span>
+<span class="fc" id="L103">            entity.setWeek(wrapper.getWeek());</span>
+        }
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (wrapper.getMaterialId() != null) {</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">            entity.setMaterialId(StringUtils.hasText(wrapper.getMaterialId()) ? wrapper.getMaterialId().trim() : null);</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">            entity.setPdfName(StringUtils.hasText(wrapper.getPdfName()) ? wrapper.getPdfName().trim() : null);</span>
+        }
+<span class="fc" id="L109">    }</span>
+
+    @Override
+    protected String wrapperId(LessonWrapper wrapper) {
+<span class="fc" id="L113">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Lesson entity, String id) {
+<span class="fc" id="L118">        entity.setId(id);</span>
+<span class="fc" id="L119">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L123">        return &quot;Không tìm thấy bài học.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeCreate(LessonWrapper wrapper, Lesson entity) {
+<span class="fc bfc" id="L128" title="All 2 branches covered.">        if (!StringUtils.hasText(entity.getClassId())) {</span>
+<span class="fc" id="L129">            entity.setClassId(TeachingScope.DEFAULT_CLASS);</span>
+        }
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (entity.getOrder() == null) {</span>
+<span class="fc" id="L132">            entity.setOrder((int) dao.count() + 1);</span>
+        }
+<span class="fc" id="L134">        entity.setActivity(false);</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">        if (entity.getPublished() == null) {</span>
+<span class="fc" id="L136">            entity.setPublished(false);</span>
+        }
+<span class="fc" id="L138">    }</span>
+
+    @Override
+    protected void beforeSave(Lesson entity) {
+<span class="pc bpc" id="L142" title="1 of 4 branches missed.">        if (!StringUtils.hasText(entity.getTitle()) || entity.getTitle().length() &gt; TITLE_MAX) {</span>
+<span class="fc" id="L143">            throw new BusinessRuleException(&quot;Tên bài học bắt buộc và tối đa &quot; + TITLE_MAX + &quot; ký tự.&quot;);</span>
+        }
+<span class="pc bpc" id="L145" title="1 of 6 branches missed.">        if (entity.getWeek() != null &amp;&amp; (entity.getWeek() &lt; 1 || entity.getWeek() &gt; WEEK_MAX)) {</span>
+<span class="fc" id="L146">            throw new BusinessRuleException(&quot;Tuần học phải từ 1 đến &quot; + WEEK_MAX + &quot;.&quot;);</span>
+        }
+<span class="pc bpc" id="L148" title="1 of 4 branches missed.">        if (entity.getOrder() != null &amp;&amp; entity.getOrder() &lt; 1) {</span>
+<span class="fc" id="L149">            throw new BusinessRuleException(&quot;Thứ tự bài học phải từ 1.&quot;);</span>
+        }
+<span class="fc" id="L151">        List&lt;String&gt; slides = entity.getSlides();</span>
+<span class="pc bpc" id="L152" title="2 of 8 branches missed.">        if (slides != null &amp;&amp; (slides.size() &gt; SLIDES_MAX || slides.stream().anyMatch(s -&gt; !StringUtils.hasText(s)))) {</span>
+<span class="fc" id="L153">            throw new BusinessRuleException(&quot;Mỗi trang bài giảng cần có tên; tối đa &quot; + SLIDES_MAX + &quot; trang.&quot;);</span>
+        }
+<span class="fc bfc" id="L155" title="All 4 branches covered.">        if (StringUtils.hasText(entity.getVideo()) &amp;&amp; !YOUTUBE.matcher(entity.getVideo()).matches()) {</span>
+<span class="fc" id="L156">            throw new BusinessRuleException(&quot;Video phải là liên kết YouTube hợp lệ (https://www.youtube.com/watch?v=… hoặc https://youtu.be/…).&quot;);</span>
+        }
+<span class="fc" id="L158">        scope.requireClass(TeachingScope.classOf(entity));</span>
+<span class="fc" id="L159">    }</span>
+
+    @Override
+    @Transactional
+    public LessonWrapper update(String id, LessonWrapper wrapper) {
+<span class="fc" id="L164">        Lesson current = require(id);</span>
+        // The lesson's current class must be the caller's too, so content cannot be moved out of another class.
+<span class="fc" id="L166">        scope.requireClass(TeachingScope.classOf(current));</span>
+<span class="fc bfc" id="L167" title="All 4 branches covered.">        boolean publishing = !Boolean.TRUE.equals(current.getPublished()) &amp;&amp; Boolean.TRUE.equals(wrapper.getPublished());</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        if (publishing) {</span>
+<span class="fc" id="L169">            long pending = questionDao.findAll().stream()</span>
+<span class="fc bfc" id="L170" title="All 4 branches covered.">                    .filter(q -&gt; id.equals(TeachingScope.lessonOr(q.getLessonId())) &amp;&amp; !Boolean.TRUE.equals(q.getApproved()))</span>
+<span class="fc" id="L171">                    .count();</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">            if (pending &gt; 0) {</span>
+<span class="fc" id="L173">                throw new BusinessRuleException(&quot;Cần duyệt &quot; + pending + &quot; câu hỏi chờ duyệt trước khi công bố bài học.&quot;);</span>
+            }
+        }
+<span class="fc" id="L176">        return super.update(id, wrapper);</span>
+    }
+
+    /** A lesson nobody studied yet is removed with its quizzes and sessions, so no orphan is left behind. */
+    @Override
+    protected void checkDelete(Lesson entity) {
+<span class="fc" id="L182">        scope.requireClass(TeachingScope.classOf(entity));</span>
+<span class="pc bpc" id="L183" title="1 of 4 branches missed.">        if (Boolean.TRUE.equals(entity.getActivity()) || scope.hasStudentData(entity.getId())) {</span>
+<span class="fc" id="L184">            throw new BusinessRuleException(&quot;Không thể xóa bài học đã có dữ liệu sinh viên.&quot;);</span>
+        }
+<span class="fc" id="L186">        String id = entity.getId();</span>
+<span class="fc" id="L187">        questionDao.findAll().stream().filter(q -&gt; id.equals(q.getLessonId())).forEach(questionDao::remove);</span>
+<span class="fc" id="L188">        sessionDao.findAll().stream().filter(s -&gt; id.equals(s.getLessonId())).forEach(sessionDao::remove);</span>
+<span class="fc" id="L189">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

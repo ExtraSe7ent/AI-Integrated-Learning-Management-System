@@ -35,7 +35,7 @@ export function RequestThread({ itemId }: { itemId: string }) {
   );
 }
 function ReviewForm({ item }: { item: Material }) {
-  const { courseId, link, act, state } = useLeaderScope();
+  const { courseId, link, act, state, scope } = useLeaderScope();
   const [level, setLevel] = useState(item.level),
     [reason, setReason] = useState("");
   const pending = state.requests.some(
@@ -51,6 +51,7 @@ function ReviewForm({ item }: { item: Material }) {
           item.id,
           reason,
           crypto.randomUUID(),
+          scope,
         ),
       "Đã gửi yêu cầu điều chỉnh cho giảng viên.",
     );
@@ -76,7 +77,7 @@ function ReviewForm({ item }: { item: Material }) {
             level === 2
               ? send()
               : act(
-                  (s) => reviewItem(s, courseId, item.classId, item.id, level),
+                  (s) => reviewItem(s, courseId, item.classId, item.id, level, scope),
                   "Đã lưu mức xử lý.",
                 )
           }
@@ -120,14 +121,14 @@ function ReviewForm({ item }: { item: Material }) {
 }
 export function LeaderReview() {
   const { classId = "", itemId = "" } = useParams();
-  const { state, courseId, course, link } = useLeaderScope();
-  const item = findItem(state, courseId, classId, itemId);
+  const { state, courseId, course, link, scope, label } = useLeaderScope();
+  const item = findItem(state, courseId, classId, itemId, scope);
   return (
     <>
       <PageHeader
         title="Rà soát học liệu"
         description={
-          item && `${course?.code} · ${classId} · ${kinds[item.kind]}`
+          item && `${course?.code} · ${label(classId)} · ${kinds[item.kind]}`
         }
       />
       {!item ? (
@@ -137,7 +138,7 @@ export function LeaderReview() {
           <nav className="leader-context" aria-label="Vị trí trong học phần">
             <Link to={link("chuan-hoa")}>Chuẩn hoá</Link>
             <span>/</span>
-            <Link to={link("chuan-hoa/" + classId)}>{classId}</Link>
+            <Link to={link("chuan-hoa/" + classId)}>{label(classId)}</Link>
             <span>/</span>
             <span>{item.title}</span>
           </nav>
@@ -157,7 +158,7 @@ export function LeaderReview() {
   );
 }
 export function LeaderRequests() {
-  const { state, course, link, params, setParams } = useLeaderScope();
+  const { state, course, link, params, setParams, label, scope } = useLeaderScope();
   const status = params.get("etat") || "all";
   const rows = state.requests
     .map((r) => ({ r, item: state.items.find((i) => i.id === r.itemId) }))
@@ -199,7 +200,10 @@ export function LeaderRequests() {
           {rows.map(({ r, item }) => (
             <Panel key={r.id} title={item!.title}>
               <div className="leader-form">
-                <p>{item!.classId} · Nguyễn Minh Anh</p>
+                <p>
+                  {label(item!.classId)} ·{" "}
+                  {scope.classes.find((c) => c.id === item!.classId)?.teacher ?? "Chưa phân công giảng viên"}
+                </p>
                 <Level value={item!.level} />
                 <strong>
                   {r.closed

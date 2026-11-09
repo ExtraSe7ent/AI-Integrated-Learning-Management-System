@@ -1,5 +1,0 @@
-target/
-data/
-private_media/
-.env
-*.log

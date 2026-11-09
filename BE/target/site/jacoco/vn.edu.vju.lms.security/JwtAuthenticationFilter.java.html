@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.security</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.UserAccount;
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String BEARER = &quot;Bearer &quot;;
+
+    private final JwtService jwtService;
+    private final IUserAccountDao userDao;
+
+<span class="fc" id="L23">    public JwtAuthenticationFilter(JwtService jwtService, IUserAccountDao userDao) {</span>
+<span class="fc" id="L24">        this.jwtService = jwtService;</span>
+<span class="fc" id="L25">        this.userDao = userDao;</span>
+<span class="fc" id="L26">    }</span>
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+<span class="fc" id="L31">        String header = request.getHeader(&quot;Authorization&quot;);</span>
+<span class="pc bpc" id="L32" title="1 of 4 branches missed.">        if (header != null &amp;&amp; header.startsWith(BEARER)) {</span>
+<span class="fc" id="L33">            var user = jwtService.subject(header.substring(BEARER.length())).flatMap(userDao::findById)</span>
+<span class="fc" id="L34">                    .filter(UserAccount::isActive);</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">            if (user.isPresent()) {</span>
+<span class="fc" id="L36">                UserPrincipal principal = new UserPrincipal(user.get().getId(), user.get().getRole(), user.get().isMustChange());</span>
+                // A forced password change is enforced here, not only by the frontend route guard.
+<span class="fc bfc" id="L38" title="All 4 branches covered.">                if (principal.mustChange() &amp;&amp; !request.getRequestURI().startsWith(&quot;/api/auth/&quot;)) {</span>
+<span class="fc" id="L39">                    response.sendError(HttpServletResponse.SC_FORBIDDEN, &quot;Cần đổi mật khẩu trước khi tiếp tục.&quot;);</span>
+<span class="fc" id="L40">                    return;</span>
+                }
+<span class="fc" id="L42">                SecurityContextHolder.getContext().setAuthentication(</span>
+<span class="fc" id="L43">                        new UsernamePasswordAuthenticationToken(principal, null, principal.authorities()));</span>
+            }
+        }
+<span class="fc" id="L46">        chain.doFilter(request, response);</span>
+<span class="fc" id="L47">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

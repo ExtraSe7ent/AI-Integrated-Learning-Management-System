@@ -1,5 +1,3 @@
-import { learningSummary } from "../data/learningSummary";
-import { courses, gradeClasses, students } from "../data/fixtures";
 import type { Course, DemoData } from "../data/fixtures";
 
 export const ACTIVE_TERM = "2026-1";
@@ -17,60 +15,30 @@ export interface Enrollment {
 }
 export interface FacultyClass {
   id: string;
-  course: Course;
+  course: Pick<Course, "id" | "code" | "title">;
   teacher: string;
   students: Enrollment[];
 }
+const termOf = (year = "", term = "") =>
+  `${year.slice(0, 4)}-${term === "II" ? 2 : 1}`;
 export function facultyClasses(
   data: DemoData,
   term = ACTIVE_TERM,
 ): FacultyClass[] {
-  if (term !== ACTIVE_TERM) return [];
-  const firstClass = gradeClasses[0].students.map((s) =>
-    s.id === "sv1"
-      ? {
-          ...s,
-          name: data.profile.name,
-          progress: learningSummary(data).progress,
-          grade: learningSummary(data).average,
-        }
-      : { ...s },
-  );
-  return [
-    {
-      id: "CSE301.01",
-      course: courses[0],
-      teacher: courses[0].teacher,
-      students: firstClass,
-    },
-    {
-      id: "CSE301.02",
-      course: courses[0],
-      teacher: courses[0].teacher,
-      students: gradeClasses[1].students.map((s) => ({ ...s })),
-    },
-    {
-      id: "CSE204.01",
-      course: courses[1],
-      teacher: courses[1].teacher,
-      students: students.slice(0, 6).map((s) => ({
-        ...s,
-        name: s.id === "sv1" ? data.profile.name : s.name,
-        progress: Math.min(100, s.progress + 10),
-        grade: Math.min(10, Math.round((s.grade + 0.2) * 10) / 10),
+  return data.analytics.classes
+    .filter((c) => termOf(c.year, c.term) === term)
+    .map((c) => ({
+      id: c.name,
+      course: { id: c.courseId, code: c.courseCode, title: c.courseTitle },
+      teacher: c.teacher,
+      students: c.students.map((s) => ({
+        id: s.id,
+        name: s.name,
+        code: s.id,
+        progress: s.progress,
+        grade: s.average,
       })),
-    },
-    {
-      id: "CSE302.01",
-      course: courses[2],
-      teacher: courses[2].teacher,
-      students: students.slice(3).map((s) => ({
-        ...s,
-        progress: Math.min(100, s.progress + 5),
-        grade: Math.min(10, Math.round((s.grade + 0.3) * 10) / 10),
-      })),
-    },
-  ];
+    }));
 }
 export function supportReason(student: Pick<Enrollment, "progress" | "grade">) {
   const slow = student.progress < 50,

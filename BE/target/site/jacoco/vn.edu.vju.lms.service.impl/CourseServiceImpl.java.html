@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CourseServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">CourseServiceImpl.java</span></div><h1>CourseServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import org.springframework.stereotype.Service;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.ICourseDao;
+import vn.edu.vju.lms.entity.Course;
+import vn.edu.vju.lms.service.CourseService;
+import vn.edu.vju.lms.wrapper.CourseWrapper;
+
+@Service
+public class CourseServiceImpl extends AbstractCrudService&lt;Course, CourseWrapper&gt; implements CourseService {
+
+    private final ICourseDao dao;
+    private final IClassInfoDao classInfoDao;
+
+<span class="fc" id="L19">    public CourseServiceImpl(ICourseDao dao, IClassInfoDao classInfoDao) {</span>
+<span class="fc" id="L20">        this.dao = dao;</span>
+<span class="fc" id="L21">        this.classInfoDao = classInfoDao;</span>
+<span class="fc" id="L22">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, Course&gt; dao() {
+<span class="fc" id="L26">        return dao;</span>
+    }
+
+    @Override
+    protected Course newEntity() {
+<span class="fc" id="L31">        return new Course();</span>
+    }
+
+    @Override
+    protected CourseWrapper toWrapper(Course entity) {
+<span class="fc" id="L36">        CourseWrapper wrapper = new CourseWrapper();</span>
+<span class="fc" id="L37">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L38">        wrapper.setCode(entity.getCode());</span>
+<span class="fc" id="L39">        wrapper.setTitle(entity.getTitle());</span>
+<span class="fc" id="L40">        wrapper.setFaculty(entity.getFaculty());</span>
+<span class="fc" id="L41">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(CourseWrapper wrapper, Course entity) {
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">        if (wrapper.getCode() != null) {</span>
+<span class="fc" id="L47">            entity.setCode(wrapper.getCode());</span>
+        }
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (wrapper.getTitle() != null) {</span>
+<span class="fc" id="L50">            entity.setTitle(wrapper.getTitle());</span>
+        }
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (wrapper.getFaculty() != null) {</span>
+<span class="fc" id="L53">            entity.setFaculty(wrapper.getFaculty());</span>
+        }
+<span class="fc" id="L55">    }</span>
+
+    @Override
+    protected String wrapperId(CourseWrapper wrapper) {
+<span class="fc" id="L59">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(Course entity, String id) {
+<span class="fc" id="L64">        entity.setId(id);</span>
+<span class="fc" id="L65">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L69">        return &quot;Không tìm thấy học phần.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeSave(Course entity) {
+<span class="fc" id="L74">        entity.setCode(entity.getCode().trim());</span>
+<span class="fc" id="L75">        entity.setTitle(entity.getTitle().trim());</span>
+<span class="fc" id="L76">        entity.setFaculty(entity.getFaculty().trim());</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">        if (dao.existsOtherWithCode(entity.getId(), entity.getCode())) {</span>
+<span class="nc" id="L78">            throw new BusinessRuleException(&quot;Mã học phần đã tồn tại.&quot;);</span>
+        }
+<span class="fc" id="L80">    }</span>
+
+    @Override
+    protected void checkDelete(Course entity) {
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (classInfoDao.existsByCourse(entity.getId())) {</span>
+<span class="fc" id="L85">            throw new BusinessRuleException(&quot;Học phần đang có lớp, không thể xóa.&quot;);</span>
+        }
+<span class="fc" id="L87">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

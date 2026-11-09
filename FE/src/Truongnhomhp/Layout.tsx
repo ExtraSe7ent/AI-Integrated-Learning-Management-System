@@ -13,7 +13,7 @@ const navigation = [
 ] as const;
 type Popup = "navigation" | "notifications" | "account" | null;
 export function LeaderLayout() {
-  const { data, state, setData, link } = useLeaderScope();
+  const { data, state, setData, link, label } = useLeaderScope();
   const { signOut } = useAccount();
   const location = useLocation();
   const [open, setOpen] = useState(false),
@@ -22,7 +22,7 @@ export function LeaderLayout() {
     menu = useRef<HTMLButtonElement>(null);
   const title =
     navigation.find((n) => n[0] === location.pathname.split("/")[2])?.[1] ||
-    "Hồ sơ cá nhân";
+    (location.pathname.includes("ket-noi-agent") ? "Kết nối agent AI" : "Hồ sơ cá nhân");
   const notices = state.requests
     .filter((r) => !r.closed)
     .map((r) => ({
@@ -168,6 +168,7 @@ export function LeaderLayout() {
                     </Link>
                   ))}
                   <Link to={link("ho-so")}>Hồ sơ cá nhân</Link>
+                  <Link to={link("ket-noi-agent")} onClick={() => setPopup(null)}>Kết nối agent AI</Link>
                 </nav>
               )}
             </div>
@@ -229,7 +230,7 @@ export function LeaderLayout() {
                       >
                         <span>
                           <strong>
-                            {i!.classId} ·{" "}
+                            {label(i!.classId)} ·{" "}
                             {r.reply ? "Đã có phản hồi" : "Đang chờ điều chỉnh"}
                           </strong>
                           <small>{r.body}</small>
@@ -256,6 +257,7 @@ export function LeaderLayout() {
                 <div id="leader-account" className="dropdown account-dropdown">
                   <span>{data.leaderProfile.name}</span>
                   <Link to={link("ho-so")}>Hồ sơ cá nhân</Link>
+                  <Link to={link("ket-noi-agent")} onClick={() => setPopup(null)}>Kết nối agent AI</Link>
                   <Link to="/doi-mat-khau">Đổi mật khẩu</Link>
                   <Link to="/dang-nhap" onClick={signOut}>
                     <LogOut size={15} />

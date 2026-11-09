@@ -1,5 +1,4 @@
 import { Link, useParams } from "react-router-dom";
-import { courses } from "../data/fixtures";
 import { useDemo } from "../data/DemoProvider";
 import { Empty, Field, PageHeader, Panel, Progress } from "../shared/UI";
 import { facultyClasses, facultyName, summarize, terms } from "./data";
@@ -152,7 +151,7 @@ export function DeanCourseDetail() {
   const { courseId } = useParams();
   const { data } = useDemo();
   const { term, link } = useFacultyScope();
-  const course = courses.find((c) => c.id === courseId);
+  const course = data.admin.courses.find((c) => c.id === courseId);
   const classes = facultyClasses(data, term).filter(
       (c) => c.course.id === courseId,
     ),

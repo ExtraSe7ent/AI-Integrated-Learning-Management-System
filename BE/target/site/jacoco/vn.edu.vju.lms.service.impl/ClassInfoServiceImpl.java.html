@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClassInfoServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.service.impl</a> &gt; <span class="el_source">ClassInfoServiceImpl.java</span></div><h1>ClassInfoServiceImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.service.impl;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vn.edu.vju.lms.common.dao.IGenericDao;
+import vn.edu.vju.lms.common.exception.BusinessRuleException;
+import vn.edu.vju.lms.common.exception.ResourceNotFoundException;
+import vn.edu.vju.lms.common.service.AbstractCrudService;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.ICourseDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.security.Role;
+import vn.edu.vju.lms.service.ClassInfoService;
+import vn.edu.vju.lms.wrapper.ClassInfoWrapper;
+
+@Service
+public class ClassInfoServiceImpl extends AbstractCrudService&lt;ClassInfo, ClassInfoWrapper&gt; implements ClassInfoService {
+
+    private final vn.edu.vju.lms.security.TeachingScope scope;
+    private final IClassInfoDao classInfoDao;
+    private final ICourseDao courseDao;
+    private final IUserAccountDao userDao;
+
+<span class="fc" id="L30">    public ClassInfoServiceImpl(IClassInfoDao classInfoDao, ICourseDao courseDao, IUserAccountDao userDao, vn.edu.vju.lms.security.TeachingScope scope) {</span>
+<span class="fc" id="L31">        this.scope = scope;</span>
+<span class="fc" id="L32">        this.classInfoDao = classInfoDao;</span>
+<span class="fc" id="L33">        this.courseDao = courseDao;</span>
+<span class="fc" id="L34">        this.userDao = userDao;</span>
+<span class="fc" id="L35">    }</span>
+
+    @Override
+    protected org.springframework.data.jpa.domain.Specification&lt;ClassInfo&gt; readScope() {
+<span class="fc" id="L39">        var ids = scope.readableClassIds();</span>
+<span class="fc" id="L40">        return (root, query, builder) -&gt; root.get(&quot;id&quot;).in(ids);</span>
+    }
+
+    @Override
+    protected void checkRead(ClassInfo entity) {
+<span class="fc" id="L45">        scope.requireReadClass(entity.getId());</span>
+<span class="fc" id="L46">    }</span>
+
+    @Override
+    protected IGenericDao&lt;String, ClassInfo&gt; dao() {
+<span class="fc" id="L50">        return classInfoDao;</span>
+    }
+
+    @Override
+    protected ClassInfo newEntity() {
+<span class="fc" id="L55">        return new ClassInfo();</span>
+    }
+
+    @Override
+    protected ClassInfoWrapper toWrapper(ClassInfo entity) {
+<span class="fc" id="L60">        ClassInfoWrapper wrapper = new ClassInfoWrapper();</span>
+<span class="fc" id="L61">        wrapper.setId(entity.getId());</span>
+<span class="fc" id="L62">        wrapper.setCourseId(entity.getCourseId());</span>
+<span class="fc" id="L63">        wrapper.setName(entity.getName());</span>
+<span class="fc" id="L64">        wrapper.setTerm(entity.getTerm());</span>
+<span class="fc" id="L65">        wrapper.setYear(entity.getYear());</span>
+<span class="fc" id="L66">        wrapper.setRound(entity.getRound());</span>
+<span class="fc" id="L67">        wrapper.setTeacherId(entity.getTeacherId());</span>
+<span class="fc" id="L68">        wrapper.setLeaderId(entity.getLeaderId());</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        wrapper.setStudentIds(vn.edu.vju.lms.security.UserPrincipal.callerIsStudent()</span>
+<span class="fc" id="L70">                ? entity.getStudentIds().stream().filter(vn.edu.vju.lms.security.UserPrincipal.current().id()::equals).toList()</span>
+<span class="fc" id="L71">                : new ArrayList&lt;&gt;(entity.getStudentIds()));</span>
+<span class="fc" id="L72">        wrapper.setStudentCount(entity.getStudentIds().size());</span>
+<span class="fc" id="L73">        return wrapper;</span>
+    }
+
+    @Override
+    protected void mapWrapperToEntity(ClassInfoWrapper wrapper, ClassInfo entity) {
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        if (wrapper.getCourseId() != null) {</span>
+<span class="fc" id="L79">            entity.setCourseId(wrapper.getCourseId());</span>
+        }
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        if (wrapper.getName() != null) {</span>
+<span class="fc" id="L82">            entity.setName(wrapper.getName().trim());</span>
+        }
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (wrapper.getTerm() != null) {</span>
+<span class="fc" id="L85">            entity.setTerm(wrapper.getTerm());</span>
+        }
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        if (wrapper.getYear() != null) {</span>
+<span class="fc" id="L88">            entity.setYear(wrapper.getYear());</span>
+        }
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (wrapper.getRound() != null) {</span>
+<span class="fc" id="L91">            entity.setRound(wrapper.getRound());</span>
+        }
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        if (wrapper.getTeacherId() != null) {</span>
+<span class="fc" id="L94">            entity.setTeacherId(wrapper.getTeacherId());</span>
+        }
+<span class="fc bfc" id="L96" title="All 2 branches covered.">        if (wrapper.getLeaderId() != null) {</span>
+<span class="fc" id="L97">            entity.setLeaderId(wrapper.getLeaderId());</span>
+        }
+<span class="fc" id="L99">    }</span>
+
+    @Override
+    protected String wrapperId(ClassInfoWrapper wrapper) {
+<span class="fc" id="L103">        return wrapper.getId();</span>
+    }
+
+    @Override
+    protected void assignId(ClassInfo entity, String id) {
+<span class="fc" id="L108">        entity.setId(id);</span>
+<span class="fc" id="L109">    }</span>
+
+    @Override
+    protected String notFoundMessage() {
+<span class="fc" id="L113">        return &quot;Lớp không tồn tại.&quot;;</span>
+    }
+
+    @Override
+    protected void beforeCreate(ClassInfoWrapper wrapper, ClassInfo entity) {
+<span class="fc bfc" id="L118" title="All 2 branches covered.">        if (wrapper.getStudentIds() != null) {</span>
+<span class="fc" id="L119">            entity.setStudentIds(new ArrayList&lt;&gt;(new LinkedHashSet&lt;&gt;(wrapper.getStudentIds())));</span>
+        }
+<span class="fc" id="L121">    }</span>
+
+    @Override
+    protected void beforeSave(ClassInfo entity) {
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        if (courseDao.findById(entity.getCourseId()).isEmpty()) {</span>
+<span class="fc" id="L126">            throw new BusinessRuleException(&quot;Học phần không tồn tại.&quot;);</span>
+        }
+<span class="pc bpc" id="L128" title="2 of 4 branches missed.">        if (!StringUtils.hasText(entity.getName()) || !StringUtils.hasText(entity.getTerm())</span>
+<span class="pc bpc" id="L129" title="1 of 4 branches missed.">                || entity.getYear() == null || !entity.getYear().matches(&quot;\\d{4}[–-]\\d{4}&quot;)</span>
+<span class="pc bpc" id="L130" title="1 of 4 branches missed.">                || entity.getRound() == null || !entity.getRound().matches(&quot;[1-9]\\d*&quot;)) {</span>
+<span class="fc" id="L131">            throw new BusinessRuleException(&quot;Nhập tên lớp, học kỳ, năm học dạng 2026–2027 và đợt hợp lệ.&quot;);</span>
+        }
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (classInfoDao.existsDuplicate(entity.getId(), entity.getName(), entity.getTerm(), entity.getYear(), entity.getRound())) {</span>
+<span class="fc" id="L134">            throw new BusinessRuleException(&quot;Lớp đã tồn tại trong kỳ và đợt này.&quot;);</span>
+        }
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">        boolean teacher = StringUtils.hasText(entity.getTeacherId())</span>
+<span class="fc" id="L137">                &amp;&amp; userDao.findById(entity.getTeacherId())</span>
+<span class="pc bpc" id="L138" title="1 of 6 branches missed.">                        .filter(user -&gt; &quot;teacher&quot;.equals(user.getKind()) &amp;&amp; user.isActive()).isPresent();</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">        if (!teacher) {</span>
+<span class="fc" id="L140">            throw new BusinessRuleException(&quot;Chọn giảng viên đang hoạt động.&quot;);</span>
+        }
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        boolean leader = !StringUtils.hasText(entity.getLeaderId())</span>
+<span class="fc" id="L143">                || userDao.findById(entity.getLeaderId())</span>
+<span class="pc bpc" id="L144" title="1 of 6 branches missed.">                        .filter(user -&gt; user.getRole() == Role.COURSE_LEADER &amp;&amp; user.isActive()).isPresent();</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">        if (!leader) {</span>
+<span class="fc" id="L146">            throw new BusinessRuleException(&quot;Chọn Trưởng nhóm HP đang hoạt động.&quot;);</span>
+        }
+<span class="fc" id="L148">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public ClassInfoWrapper getByName(String name) {
+<span class="fc" id="L153">        return classInfoDao.findByName(name).map(entity -&gt; { checkRead(entity); return toWrapper(entity); })</span>
+<span class="fc" id="L154">                .orElseThrow(() -&gt; new ResourceNotFoundException(notFoundMessage()));</span>
+    }
+
+    @Override
+    @Transactional
+    public ClassInfoWrapper update(String id, ClassInfoWrapper wrapper) {
+<span class="fc" id="L160">        scope.requireClass(id);</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        if (vn.edu.vju.lms.security.UserPrincipal.current().role() == Role.LECTURER</span>
+<span class="pc bpc" id="L162" title="1 of 4 branches missed.">                &amp;&amp; wrapper.getTeacherId() != null &amp;&amp; !wrapper.getTeacherId().equals(require(id).getTeacherId())) {</span>
+<span class="nc" id="L163">            throw new vn.edu.vju.lms.common.exception.ForbiddenOperationException(&quot;Chỉ Admin được đổi giảng viên phụ trách.&quot;);</span>
+        }
+<span class="fc" id="L165">        return super.update(id, wrapper);</span>
+    }
+
+    @Override
+    @Transactional
+    public ClassInfoWrapper enroll(String classId, List&lt;String&gt; studentIds) {
+<span class="fc" id="L171">        ClassInfo entity = require(classId);</span>
+<span class="pc bpc" id="L172" title="1 of 4 branches missed.">        if (studentIds == null || studentIds.isEmpty()) {</span>
+<span class="fc" id="L173">            throw new BusinessRuleException(&quot;Danh sách trống hoặc có dòng lỗi.&quot;);</span>
+        }
+<span class="fc" id="L175">        Set&lt;String&gt; seen = new LinkedHashSet&lt;&gt;(entity.getStudentIds());</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">        for (String id : studentIds) {</span>
+<span class="fc" id="L177">            boolean valid = userDao.findById(id)</span>
+<span class="pc bpc" id="L178" title="2 of 4 branches missed.">                    .filter(user -&gt; &quot;student&quot;.equals(user.getKind()) &amp;&amp; user.isActive()).isPresent();</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            if (!valid) {</span>
+<span class="fc" id="L180">                throw new BusinessRuleException(&quot;Không có tài khoản SV đang hoạt động: &quot; + id);</span>
+            }
+<span class="fc bfc" id="L182" title="All 2 branches covered.">            if (!seen.add(id)) {</span>
+<span class="fc" id="L183">                throw new BusinessRuleException(&quot;Sinh viên đã có trong lớp hoặc trùng tệp: &quot; + id);</span>
+            }
+<span class="fc" id="L185">        }</span>
+<span class="fc" id="L186">        entity.getStudentIds().clear();</span>
+<span class="fc" id="L187">        entity.getStudentIds().addAll(seen);</span>
+<span class="fc" id="L188">        return toWrapper(classInfoDao.merge(entity));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

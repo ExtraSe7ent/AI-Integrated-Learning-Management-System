@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssessmentDaoImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.dao.impl</a> &gt; <span class="el_source">AssessmentDaoImpl.java</span></div><h1>AssessmentDaoImpl.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.stereotype.Repository;
+import vn.edu.vju.lms.common.dao.HibernateGenericDao;
+import vn.edu.vju.lms.dao.IAssessmentDao;
+import vn.edu.vju.lms.entity.Assessment;
+
+@Repository
+public class AssessmentDaoImpl extends HibernateGenericDao&lt;String, Assessment&gt; implements IAssessmentDao {
+
+    public AssessmentDaoImpl() {
+<span class="fc" id="L15">        super(Assessment.class);</span>
+<span class="fc" id="L16">    }</span>
+
+    @Override
+    public Optional&lt;Assessment&gt; find(String studentId, String assignmentId) {
+<span class="fc" id="L20">        return single(&quot;SELECT a FROM Assessment a WHERE a.studentId = :studentId AND a.assignmentId = :assignmentId&quot;,</span>
+<span class="fc" id="L21">                Map.of(&quot;studentId&quot;, studentId, &quot;assignmentId&quot;, assignmentId));</span>
+    }
+
+    @Override
+    public List&lt;Assessment&gt; findByStudent(String studentId) {
+<span class="fc" id="L26">        return list(&quot;SELECT a FROM Assessment a WHERE a.studentId = :studentId&quot;, Map.of(&quot;studentId&quot;, studentId));</span>
+    }
+
+    @Override
+    public List&lt;Assessment&gt; findSubmitted() {
+<span class="fc" id="L31">        return list(&quot;SELECT a FROM Assessment a WHERE a.score IS NOT NULL ORDER BY a.studentId&quot;, Map.of());</span>
+    }
+
+    @Override
+    public List&lt;Assessment&gt; findByAssignment(String assignmentId) {
+<span class="fc" id="L36">        return list(&quot;SELECT a FROM Assessment a WHERE a.assignmentId = :assignmentId ORDER BY a.studentId&quot;,</span>
+<span class="fc" id="L37">                Map.of(&quot;assignmentId&quot;, assignmentId));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

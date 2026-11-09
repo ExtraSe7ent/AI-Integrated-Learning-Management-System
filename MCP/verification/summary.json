@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-07",
+  "unit_and_http_tests": {
+    "passed": 14,
+    "failed": 0
+  },
+  "public_integration": {
+    "passed": 10,
+    "failed": 0
+  },
+  "browser": {
+    "at": "2026-11-06T21:08:56.824Z",
+    "results": [
+      {
+        "name": "Public OAuth consent renders on desktop and mobile, no overflow",
+        "status": "PASS"
+      },
+      {
+        "name": "Real browser login and consent produce valid PKCE token",
+        "status": "PASS"
+      },
+      {
+        "name": "Browser management revokes actual remote token",
+        "status": "PASS"
+      },
+      {
+        "name": "Lecturer FE displays lesson drafts created through MCP",
+        "status": "PASS"
+      }
+    ],
+    "pageErrors": []
+  },
+  "dependency_audit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "live_demo": {
+    "mcpUrl": "https://claims-color-gentle-pan.trycloudflare.com/mcp",
+    "manageUrl": "https://claims-color-gentle-pan.trycloudflare.com/connections",
+    "webUrl": "http://127.0.0.1:15174",
+    "startedAt": "2026-11-06T21:07:52.761Z"
+  },
+  "actual_ai_account_connections": "Not tested; user sign-in required",
+  "source_scope": "Moi/MCP only; BE and FE sources unchanged",
+  "storage": "Isolated H2 RAM; OAuth and intents in process RAM"
+}

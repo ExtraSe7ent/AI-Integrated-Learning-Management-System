@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DataSeeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">VJU Learning Backend</a> &gt; <a href="index.source.html" class="el_package">vn.edu.vju.lms.config</a> &gt; <span class="el_source">DataSeeder.java</span></div><h1>DataSeeder.java</h1><pre class="source lang-java linenums">package vn.edu.vju.lms.config;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
+import vn.edu.vju.lms.ai.RagIndexer;
+import vn.edu.vju.lms.crypto.AesService;
+import vn.edu.vju.lms.dao.IClassInfoDao;
+import vn.edu.vju.lms.dao.IMaterialDao;
+import vn.edu.vju.lms.dao.IMaterialVersionDao;
+import vn.edu.vju.lms.dao.INoticeDao;
+import vn.edu.vju.lms.dao.IUserAccountDao;
+import vn.edu.vju.lms.entity.ClassInfo;
+import vn.edu.vju.lms.entity.Material;
+import vn.edu.vju.lms.entity.MaterialVersion;
+import vn.edu.vju.lms.entity.Notice;
+import vn.edu.vju.lms.entity.UserAccount;
+import vn.edu.vju.lms.security.Role;
+
+/** Loads the frontend's sample data on an empty database. Disabled unless lms.seed.enabled=true. */
+@Component
+@ConditionalOnProperty(prefix = &quot;lms.seed&quot;, name = &quot;enabled&quot;, havingValue = &quot;true&quot;)
+public class DataSeeder implements ApplicationRunner {
+
+<span class="fc" id="L43">    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);</span>
+    private static final String PDF = &quot;seed/demo-lesson.pdf&quot;;
+    private static final String SEED_CLASS = &quot;CSE301.01&quot;;
+    private static final String SEED_STUDENT = &quot;23110149&quot;;
+
+    private final IUserAccountDao userDao;
+    private final IClassInfoDao classDao;
+    private final INoticeDao noticeDao;
+    private final IMaterialDao materialDao;
+    private final IMaterialVersionDao versionDao;
+    private final jakarta.persistence.EntityManager entityManager;
+    private final PasswordEncoder passwordEncoder;
+    private final AesService aesService;
+    private final RagIndexer indexer;
+    private final TransactionTemplate transaction;
+    private final LmsProperties properties;
+    private final ObjectMapper mapper;
+
+    public DataSeeder(IUserAccountDao userDao, IClassInfoDao classDao, INoticeDao noticeDao, IMaterialDao materialDao,
+            IMaterialVersionDao versionDao, jakarta.persistence.EntityManager entityManager, PasswordEncoder passwordEncoder,
+            AesService aesService, RagIndexer indexer, TransactionTemplate transaction, LmsProperties properties,
+<span class="fc" id="L64">            ObjectMapper mapper) {</span>
+<span class="fc" id="L65">        this.userDao = userDao;</span>
+<span class="fc" id="L66">        this.classDao = classDao;</span>
+<span class="fc" id="L67">        this.noticeDao = noticeDao;</span>
+<span class="fc" id="L68">        this.materialDao = materialDao;</span>
+<span class="fc" id="L69">        this.versionDao = versionDao;</span>
+<span class="fc" id="L70">        this.entityManager = entityManager;</span>
+<span class="fc" id="L71">        this.passwordEncoder = passwordEncoder;</span>
+<span class="fc" id="L72">        this.aesService = aesService;</span>
+<span class="fc" id="L73">        this.indexer = indexer;</span>
+<span class="fc" id="L74">        this.transaction = transaction;</span>
+<span class="fc" id="L75">        this.properties = properties;</span>
+<span class="fc" id="L76">        this.mapper = mapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);</span>
+<span class="fc" id="L77">    }</span>
+
+    @Override
+    public void run(ApplicationArguments args) throws IOException {
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">        if (properties.getSeed().isClearKeepAccounts()) {</span>
+<span class="nc" id="L82">            clearKeepAccounts();</span>
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        } else if (userDao.count() == 0) {</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">            if (properties.getSeed().isDemo()) {</span>
+<span class="fc" id="L85">                seedAll();</span>
+            } else {
+<span class="fc" id="L87">                seedAccounts();</span>
+            }
+        }
+<span class="fc" id="L90">    }</span>
+
+    /** Only the demo accounts, for testing every feature from an empty system. */
+    void seedAccounts() throws IOException {
+        JsonNode data;
+<span class="fc" id="L95">        try (InputStream in = new ClassPathResource(&quot;seed/demo-data.json&quot;).getInputStream()) {</span>
+<span class="fc" id="L96">            data = mapper.readTree(in);</span>
+        }
+<span class="fc" id="L98">        transaction.executeWithoutResult(s -&gt; data.path(&quot;admin&quot;).path(&quot;users&quot;).forEach(this::seedUser));</span>
+<span class="fc" id="L99">        log.info(&quot;Seeded demo accounts only; default password applies&quot;);</span>
+<span class="fc" id="L100">    }</span>
+
+    /**
+     * Removes every course, class, lesson, quiz, session, assignment, result, feedback, coordination item, notice,
+     * chat and uploaded file. Accounts keep their id, name, e-mail, role, password and status; only their study
+     * notes are cleared. The seeder never re-adds demo data afterwards, because accounts still exist.
+     */
+    public void clearKeepAccounts() throws IOException {
+<span class="fc" id="L108">        transaction.executeWithoutResult(s -&gt; {</span>
+<span class="fc" id="L109">            entityManager.getMetamodel().getEntities().stream()</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">                    .filter(type -&gt; type.getJavaType() != UserAccount.class)</span>
+<span class="fc" id="L111">                    .forEach(type -&gt; entityManager.createQuery(&quot;SELECT e FROM &quot; + type.getName() + &quot; e&quot;).getResultList()</span>
+<span class="fc" id="L112">                            .forEach(entityManager::remove));</span>
+<span class="fc" id="L113">            userDao.findAll().forEach(user -&gt; {</span>
+<span class="fc" id="L114">                user.setNotes(null);</span>
+<span class="fc" id="L115">                user.setNoticesRead(false);</span>
+<span class="fc" id="L116">            });</span>
+<span class="fc" id="L117">        });</span>
+<span class="fc" id="L118">        java.nio.file.Path root = java.nio.file.Path.of(properties.getStorage().getRoot());</span>
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        for (String folder : List.of(&quot;materials&quot;, &quot;resources&quot;, &quot;feedback&quot;)) {</span>
+<span class="fc" id="L120">            java.nio.file.Path dir = root.resolve(folder);</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            if (java.nio.file.Files.exists(dir)) {</span>
+<span class="fc" id="L122">                try (var files = java.nio.file.Files.walk(dir)) {</span>
+<span class="fc" id="L123">                    files.sorted(java.util.Comparator.reverseOrder()).forEach(path -&gt; path.toFile().delete());</span>
+                }
+            }
+<span class="fc" id="L126">        }</span>
+<span class="fc" id="L127">        log.info(&quot;Cleared all learning data and uploaded files; kept {} accounts&quot;, userDao.count());</span>
+<span class="fc" id="L128">    }</span>
+
+    /** Deletes every row and loads the demo data again. */
+    public void reset() throws IOException {
+<span class="fc" id="L132">        transaction.executeWithoutResult(s -&gt; entityManager.getMetamodel().getEntities().forEach(type -&gt;</span>
+<span class="fc" id="L133">                entityManager.createQuery(&quot;SELECT e FROM &quot; + type.getName() + &quot; e&quot;).getResultList()</span>
+<span class="fc" id="L134">                        .forEach(entityManager::remove)));</span>
+<span class="fc" id="L135">        seedAll();</span>
+<span class="fc" id="L136">    }</span>
+
+    private void seedAll() throws IOException {
+        JsonNode data;
+<span class="fc" id="L140">        try (InputStream in = new ClassPathResource(&quot;seed/demo-data.json&quot;).getInputStream()) {</span>
+<span class="fc" id="L141">            data = mapper.readTree(in);</span>
+        }
+<span class="fc" id="L143">        transaction.executeWithoutResult(s -&gt; seed(data));</span>
+<span class="fc" id="L144">        String materialId = transaction.execute(s -&gt; seedMaterial());</span>
+<span class="fc" id="L145">        indexer.index(materialId);</span>
+<span class="fc" id="L146">        log.info(&quot;Seeded demo data; default password applies to all demo accounts&quot;);</span>
+<span class="fc" id="L147">    }</span>
+
+    private void seed(JsonNode data) {
+<span class="fc" id="L150">        data.path(&quot;admin&quot;).path(&quot;users&quot;).forEach(this::seedUser);</span>
+<span class="fc" id="L151">        data.path(&quot;admin&quot;).path(&quot;classes&quot;).forEach(item -&gt; classDao.persist(mapper.convertValue(item, ClassInfo.class)));</span>
+<span class="fc" id="L152">        persistAll(data.path(&quot;admin&quot;).path(&quot;courses&quot;), vn.edu.vju.lms.entity.Course.class);</span>
+<span class="fc" id="L153">        persistAll(data.path(&quot;lessons&quot;), vn.edu.vju.lms.entity.Lesson.class);</span>
+<span class="fc" id="L154">        persistAll(data.path(&quot;questions&quot;), vn.edu.vju.lms.entity.Question.class);</span>
+<span class="fc" id="L155">        persistAll(data.path(&quot;sessions&quot;), vn.edu.vju.lms.entity.StudySession.class);</span>
+<span class="fc" id="L156">        persistAll(data.path(&quot;assignments&quot;), vn.edu.vju.lms.entity.Assignment.class);</span>
+<span class="fc" id="L157">        persistAll(data.path(&quot;resources&quot;), vn.edu.vju.lms.entity.ResourceItem.class);</span>
+<span class="fc" id="L158">        persistAll(owned(data.path(&quot;gaps&quot;)), vn.edu.vju.lms.entity.KnowledgeGap.class);</span>
+<span class="fc" id="L159">        persistAll(owned(data.path(&quot;feedback&quot;)), vn.edu.vju.lms.entity.Feedback.class);</span>
+<span class="fc" id="L160">        persistAll(data.path(&quot;coordination&quot;).path(&quot;items&quot;), vn.edu.vju.lms.entity.CoordinationItem.class);</span>
+<span class="fc" id="L161">        persistAll(data.path(&quot;coordination&quot;).path(&quot;requests&quot;), vn.edu.vju.lms.entity.ChangeRequest.class);</span>
+<span class="fc" id="L162">        persistAll(data.path(&quot;coordination&quot;).path(&quot;references&quot;), vn.edu.vju.lms.entity.ReferenceItem.class);</span>
+<span class="fc" id="L163">        seedNotices(data.path(&quot;notices&quot;), &quot;student&quot;);</span>
+<span class="fc" id="L164">        seedNotices(data.path(&quot;teacherNotices&quot;), &quot;teacher&quot;);</span>
+<span class="fc" id="L165">    }</span>
+
+    private JsonNode owned(JsonNode items) {
+<span class="fc" id="L168">        items.forEach(item -&gt; ((ObjectNode) item).put(&quot;ownerId&quot;, SEED_STUDENT));</span>
+<span class="fc" id="L169">        return items;</span>
+    }
+
+    private &lt;T&gt; void persistAll(JsonNode items, Class&lt;T&gt; type) {
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        for (JsonNode item : items) {</span>
+<span class="fc" id="L174">            T entity = mapper.convertValue(item, type);</span>
+<span class="fc" id="L175">            entityManager.persist(entity);</span>
+<span class="fc" id="L176">        }</span>
+<span class="fc" id="L177">    }</span>
+
+    private void seedUser(JsonNode item) {
+<span class="fc" id="L180">        UserAccount user = new UserAccount();</span>
+<span class="fc" id="L181">        user.setId(item.path(&quot;id&quot;).asText());</span>
+<span class="fc" id="L182">        user.setName(item.path(&quot;name&quot;).asText());</span>
+<span class="fc" id="L183">        user.setEmail(item.path(&quot;email&quot;).asText());</span>
+<span class="fc" id="L184">        user.setEmailHash(aesService.blindIndex(user.getEmail().toLowerCase(Locale.ROOT)));</span>
+<span class="fc" id="L185">        user.setFaculty(item.path(&quot;faculty&quot;).asText());</span>
+<span class="fc" id="L186">        user.setKind(item.path(&quot;kind&quot;).asText());</span>
+<span class="fc" id="L187">        user.setRole(Role.fromCode(item.path(&quot;role&quot;).asText()));</span>
+<span class="fc" id="L188">        user.setPasswordHash(passwordEncoder.encode(properties.getDefaultPassword()));</span>
+<span class="fc" id="L189">        userDao.persist(user);</span>
+<span class="fc" id="L190">    }</span>
+
+    private void seedNotices(JsonNode messages, String audience) {
+<span class="fc" id="L193">        List&lt;String&gt; list = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L194">        messages.forEach(message -&gt; list.add(message.asText()));</span>
+<span class="fc" id="L195">        list.forEach(message -&gt; {</span>
+<span class="fc" id="L196">            Notice notice = new Notice();</span>
+<span class="fc" id="L197">            notice.setId(UUID.randomUUID().toString());</span>
+<span class="fc" id="L198">            notice.setAudience(audience);</span>
+<span class="fc" id="L199">            notice.setMessage(message);</span>
+<span class="fc" id="L200">            noticeDao.persist(notice);</span>
+<span class="fc" id="L201">        });</span>
+<span class="fc" id="L202">    }</span>
+
+    private String seedMaterial() {
+<span class="fc" id="L205">        Material material = new Material();</span>
+<span class="fc" id="L206">        material.setId(&quot;seed-rest-pdf&quot;);</span>
+<span class="fc" id="L207">        material.setClassId(SEED_CLASS);</span>
+<span class="fc" id="L208">        material.setTitle(&quot;Bài giảng RESTful API&quot;);</span>
+<span class="fc" id="L209">        material.setStatus(Material.PUBLISHED);</span>
+<span class="fc" id="L210">        material.setCurrentVersion(1);</span>
+<span class="fc" id="L211">        materialDao.persist(material);</span>
+<span class="fc" id="L212">        String relative = &quot;materials/seed-rest-pdf/&quot; + UUID.randomUUID() + &quot;.enc&quot;;</span>
+<span class="fc" id="L213">        Path target = Path.of(properties.getStorage().getRoot()).resolve(relative);</span>
+<span class="fc" id="L214">        try (InputStream in = new ClassPathResource(PDF).getInputStream()) {</span>
+<span class="fc" id="L215">            Files.createDirectories(target.getParent());</span>
+<span class="fc" id="L216">            aesService.encryptFile(in, target);</span>
+<span class="nc" id="L217">        } catch (IOException e) {</span>
+<span class="nc" id="L218">            throw new IllegalStateException(&quot;Không tạo được học liệu mẫu.&quot;, e);</span>
+<span class="fc" id="L219">        }</span>
+<span class="fc" id="L220">        MaterialVersion version = new MaterialVersion();</span>
+<span class="fc" id="L221">        version.setMaterialId(material.getId());</span>
+<span class="fc" id="L222">        version.setNumber(1);</span>
+<span class="fc" id="L223">        version.setStoredPath(relative);</span>
+<span class="fc" id="L224">        version.setOriginalName(&quot;demo-lesson.pdf&quot;);</span>
+<span class="fc" id="L225">        version.setFileSize(target.toFile().length());</span>
+<span class="fc" id="L226">        versionDao.persist(version);</span>
+<span class="fc" id="L227">        return material.getId();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

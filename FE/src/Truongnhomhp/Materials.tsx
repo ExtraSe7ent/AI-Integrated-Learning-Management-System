@@ -5,10 +5,10 @@ import { classItems, findItem, kinds, saveMaterial } from "./model";
 import type { Material, MaterialKind } from "./model";
 import { CourseFilter, Level, MissingScope, useLeaderScope } from "./UI";
 export function LeaderMaterials() {
-  const { state, courseId, course, classrooms, params, setParams, link } =
+  const { state, courseId, course, classrooms, params, setParams, link, scope } =
     useLeaderScope();
   const classId = params.get("lop") || classrooms[0]?.id || "",
-    items = classItems(state, courseId, classId);
+    items = classItems(state, courseId, classId, scope);
   return (
     <>
       <PageHeader
@@ -31,7 +31,7 @@ export function LeaderMaterials() {
               >
                 {classrooms.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.id}
+                    {c.name || c.id}
                   </option>
                 ))}
               </select>
@@ -97,7 +97,7 @@ export function LeaderMaterials() {
   );
 }
 function EditorForm({ item }: { item?: Material }) {
-  const { courseId, classrooms, link, params, act } = useLeaderScope();
+  const { courseId, classrooms, link, params, act, scope } = useLeaderScope();
   const navigate = useNavigate();
   const [classId, setClassId] = useState(
     item?.classId || params.get("lop") || classrooms[0]?.id || "",
@@ -122,7 +122,7 @@ function EditorForm({ item }: { item?: Material }) {
           };
           if (
             act(
-              (s) => saveMaterial(s, input, Boolean(item)),
+              (s) => saveMaterial(s, input, Boolean(item), scope),
               "Đã lưu học liệu; lớp cần được rà soát lại.",
             )
           )
@@ -139,7 +139,7 @@ function EditorForm({ item }: { item?: Material }) {
           >
             {classrooms.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.id}
+                {c.name || c.id}
               </option>
             ))}
           </select>
@@ -198,7 +198,7 @@ function EditorForm({ item }: { item?: Material }) {
 }
 export function LeaderEditor() {
   const { itemId } = useParams();
-  const { courseId, course, state, params, link } = useLeaderScope();
+  const { courseId, course, state, params, link, scope } = useLeaderScope();
   const candidate = state.items.find((i) => i.id === itemId);
   const item = itemId
     ? findItem(
@@ -206,6 +206,7 @@ export function LeaderEditor() {
         courseId,
         params.get("lop") || candidate?.classId || "",
         itemId,
+        scope,
       )
     : undefined;
   return (
